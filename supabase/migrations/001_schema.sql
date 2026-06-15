@@ -67,7 +67,6 @@ CREATE INDEX idx_articles_language ON articles(brand_id, language);
 -- Performance indexes for RLS subquery lookups
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX idx_user_roles_user_id_role ON user_roles(user_id, role);
-CREATE INDEX idx_dedupe_hashes_brand_id ON dedupe_hashes(brand_id);
 
 CREATE TABLE dedupe_hashes (
     content_hash TEXT NOT NULL,
@@ -75,3 +74,5 @@ CREATE TABLE dedupe_hashes (
     seen_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (content_hash, brand_id)
 );
+
+CREATE INDEX idx_dedupe_hashes_brand_id ON dedupe_hashes(brand_id);
