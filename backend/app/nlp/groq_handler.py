@@ -41,7 +41,7 @@ Text: {text}"""
 def analyse_with_groq(text: str, language: str) -> NLPResult | None:
     try:
         resp = _get_client().chat.completions.create(
-            model="gemma2-9b-it",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": _USER.format(language=language, text=text[:2000])},
@@ -57,7 +57,7 @@ def analyse_with_groq(text: str, language: str) -> NLPResult | None:
             entities=data.get("entities", []),
             topics=data.get("topics", []),
             keywords=data.get("keywords", []),
-            model_used="groq-gemma2-9b-it",
+            model_used="groq-llama-3.1-8b-instant",
             confidence=float(data.get("confidence", 0.0)),
         )
     except Exception:

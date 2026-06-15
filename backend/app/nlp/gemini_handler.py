@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from google import genai
 from app.config import settings
 from app.nlp.schemas import NLPResult
@@ -43,21 +44,26 @@ Article text:
 
 def analyse_with_gemini(text: str, language: str) -> NLPResult | None:
     prompt = _PROMPT.format(language=language, text=text[:3000])
-    try:
-        response = _get_client().models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-        )
-        raw = _strip_fences(response.text.strip())
-        data = json.loads(raw)
-        return NLPResult(
-            sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
-            sentiment_label=_parse_label(data["sentiment_label"]),
-            entities=data.get("entities", []),
-            topics=data.get("topics", []),
-            keywords=data.get("keywords", []),
-            model_used="gemini-2.0-flash",
-            confidence=float(data.get("confidence", 0.0)),
-        )
-    except Exception:
-        return None
+    for attempt in range(3):
+        try:
+            response = _get_client().models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
+            raw = _strip_fences(response.text.strip())
+            data = json.loads(raw)
+            return NLPResult(
+                sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
+                sentiment_label=_parse_label(data["sentiment_label"]),
+                entities=data.get("entities", []),
+                topics=data.get("topics", []),
+                keywords=data.get("keywords", []),
+                model_used="gemini-2.0-flash",
+                confidence=float(data.get("confidence", 0.0)),
+            )
+        except Exception as e:
+            if "429" in str(e) or "rate" in str(e).lower():
+                time.sleep(2 ** attempt * 5)
+                continue
+            return None
+    return None
