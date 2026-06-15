@@ -17,12 +17,12 @@ def test_get_portal_by_id():
 def test_get_portals_for_languages_english():
     portals = get_portals_for_languages(["en"])
     assert all(p["language"] == "en" for p in portals)
-    assert len(portals) >= 5
+    assert len(portals) == 8
 
 def test_get_portals_for_languages_tamil():
     portals = get_portals_for_languages(["ta"])
     assert all(p["language"] == "ta" for p in portals)
-    assert len(portals) >= 4
+    assert len(portals) == 7
 
 def test_get_portals_for_both_languages():
     portals = get_portals_for_languages(["en", "ta"])
