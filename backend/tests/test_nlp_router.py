@@ -65,3 +65,23 @@ def test_unsupported_language_defaults_to_english():
 
     call_args = mock_g.call_args
     assert call_args[0][1] == "en"
+
+def test_missing_title_and_body_defaults_to_english():
+    with patch("app.nlp.router.analyse_with_gemini",
+               return_value=_mock_result("neutral", "gemini-2.0-flash")) as mock_g, \
+         patch("app.nlp.router.detect_language", return_value=("unknown", 0.0)):
+        result = analyse_article({})
+
+    assert result is not None
+    call_args = mock_g.call_args
+    assert call_args[0][1] == "en"
+
+def test_missing_declared_language_defaults_to_english():
+    with patch("app.nlp.router.analyse_with_gemini",
+               return_value=_mock_result("positive", "gemini-2.0-flash")) as mock_g, \
+         patch("app.nlp.router.detect_language", return_value=("fr", 0.3)):
+        # Low confidence, no declared language → should default to "en"
+        analyse_article({"body": "Some text", "title": "Title"})
+
+    call_args = mock_g.call_args
+    assert call_args[0][1] == "en"
