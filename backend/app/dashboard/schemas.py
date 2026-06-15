@@ -29,7 +29,7 @@ class ArticleItem(BaseModel):
     entities: list[str]
     topics: list[str]
     keywords: list[str]
-    model_used: str
+    model_used: str | None = None
 
 
 class SourceStat(BaseModel):

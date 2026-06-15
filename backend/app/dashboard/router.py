@@ -51,7 +51,20 @@ def get_overview(
         kpi=KPISummary(perception_score=recent_score, **kpi_raw),
         trend=[TrendPoint(**p) for p in trend_raw],
         recent_mentions=[
-            ArticleItem(**{k: a.get(k, "") for k in ArticleItem.model_fields})
+            ArticleItem(
+                id=a.get("id", ""),
+                title=a.get("title", ""),
+                url=a.get("url", ""),
+                portal_id=a.get("portal_id", ""),
+                published_at=a.get("published_at"),
+                sentiment_label=a.get("sentiment_label", "neutral"),
+                sentiment_score=a.get("sentiment_score") or 0.0,
+                language=a.get("language", "en"),
+                entities=a.get("entities") or [],
+                topics=a.get("topics") or [],
+                keywords=a.get("keywords") or [],
+                model_used=a.get("model_used"),
+            )
             for a in recent
         ],
         top_sources=[
