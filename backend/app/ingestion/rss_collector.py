@@ -34,7 +34,7 @@ def collect_portal(portal: dict, keywords: list[str], brand_id: str) -> list[dic
         body = entry.get("summary", "") or entry.get("content", [{}])[0].get("value", "")
         combined = f"{title} {body}"
 
-        if not keyword_matches(combined, keywords):
+        if not portal.get("skip_keyword_filter") and not keyword_matches(combined, keywords):
             continue
 
         url = entry.get("link", "")

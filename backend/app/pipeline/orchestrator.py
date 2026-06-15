@@ -20,7 +20,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
     stats = {"brand_id": brand_id, "collected": 0, "processed": 0, "errors": 0}
 
     portals = get_portals_for_languages(languages)
-    portals = portals + get_gnews_portals(keywords, "en")
+    portals = portals + get_gnews_portals(keywords, languages)
     all_articles: list[dict] = []
 
     for portal in portals:
