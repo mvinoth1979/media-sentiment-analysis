@@ -26,6 +26,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
     for portal in portals:
         try:
             articles = collect_portal(portal, keywords, brand_id)
+            log.info("Portal %s → %d articles", portal["id"], len(articles))
             all_articles.extend(articles)
         except Exception as e:
             log.error("Portal %s failed: %s", portal["id"], e)
