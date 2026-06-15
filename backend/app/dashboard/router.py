@@ -62,7 +62,7 @@ def get_overview(
     )
 
 
-@router.get("/mentions/{brand_id}")
+@router.get("/mentions/{brand_id}", response_model=list[ArticleItem])
 def get_mentions(
     brand_id: str,
     limit: int = Query(50, le=200),
