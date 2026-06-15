@@ -26,6 +26,7 @@ class ArticleItem(BaseModel):
     sentiment_label: str
     sentiment_score: float
     language: str
+    source_credibility: float = 0.5
     entities: list[str]
     topics: list[str]
     keywords: list[str]
@@ -38,6 +39,7 @@ class SourceStat(BaseModel):
     positive: int
     negative: int
     neutral: int
+    avg_credibility: float = 0.5
 
 
 class OverviewResponse(BaseModel):

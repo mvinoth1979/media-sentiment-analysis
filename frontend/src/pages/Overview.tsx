@@ -45,8 +45,19 @@ export function Overview({ brandId, brandName }: Props) {
             {data.top_sources.map(s => (
               <div key={s.portal_id}>
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
-                  <span>{s.portal_id.replace(/_/g, " ")}</span>
-                  <span>{s.count}</span>
+                  <span className="truncate max-w-[140px]">{s.portal_id.replace(/_/g, " ")}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[10px] font-mono px-1 rounded ${
+                      s.avg_credibility >= 0.85
+                        ? "bg-green-900/40 text-green-400"
+                        : s.avg_credibility >= 0.75
+                        ? "bg-yellow-900/40 text-yellow-400"
+                        : "bg-gray-800 text-gray-500"
+                    }`}>
+                      {s.avg_credibility.toFixed(2)}
+                    </span>
+                    <span>{s.count}</span>
+                  </div>
                 </div>
                 <div className="bg-gray-800 rounded h-1.5">
                   <div className="bg-indigo-500 h-full rounded"

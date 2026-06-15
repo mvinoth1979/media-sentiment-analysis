@@ -20,6 +20,7 @@ export interface ArticleItem {
   sentiment_label: "positive" | "negative" | "neutral";
   sentiment_score: number;
   language: string;
+  source_credibility: number;
   entities: string[];
   topics: string[];
   keywords: string[];
@@ -30,7 +31,7 @@ export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];
   recent_mentions: ArticleItem[];
-  top_sources: { portal_id: string; count: number }[];
+  top_sources: { portal_id: string; count: number; avg_credibility: number }[];
   top_keywords: string[];
   top_topics: string[];
 }

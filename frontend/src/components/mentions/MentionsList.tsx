@@ -98,6 +98,7 @@ export function MentionsList({ brandId }: Props) {
                 <th className="pb-2 pr-3 font-medium w-8">Lang</th>
                 <th className="pb-2 pr-3 font-medium w-24">Sentiment</th>
                 <th className="pb-2 pr-3 font-medium w-12 text-right">Score</th>
+                <th className="pb-2 pr-3 font-medium w-12 text-right">Cred</th>
                 <th className="pb-2 font-medium w-32">Date</th>
               </tr>
             </thead>
@@ -126,6 +127,17 @@ export function MentionsList({ brandId }: Props) {
                   </td>
                   <td className="py-2 pr-3 text-right font-mono text-gray-400">
                     {a.sentiment_score.toFixed(2)}
+                  </td>
+                  <td className="py-2 pr-3 text-right">
+                    <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
+                      a.source_credibility >= 0.85
+                        ? "bg-green-900/40 text-green-400"
+                        : a.source_credibility >= 0.75
+                        ? "bg-yellow-900/40 text-yellow-400"
+                        : "bg-gray-800 text-gray-500"
+                    }`}>
+                      {a.source_credibility.toFixed(2)}
+                    </span>
                   </td>
                   <td className="py-2 text-gray-600">
                     {a.published_at ? new Date(a.published_at).toLocaleDateString("en-IN") : "—"}
