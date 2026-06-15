@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchOverview } from "../lib/api";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
-import { SentimentBadge } from "../components/ui/SentimentBadge";
-import type { ArticleItem } from "../lib/types";
+import { MentionsList } from "../components/mentions/MentionsList";
 
 interface Props {
   brandId: string;
@@ -59,27 +58,7 @@ export function Overview({ brandId, brandName }: Props) {
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-        <div className="text-sm font-semibold text-gray-200 mb-3">Recent Mentions</div>
-        <div className="space-y-3">
-          {data.recent_mentions.map((a: ArticleItem) => (
-            <div key={a.id} className="border-l-2 border-gray-700 pl-3">
-              <div className="text-xs text-gray-500 mb-1">
-                {a.portal_id.replace(/_/g, " ")} · {a.language.toUpperCase()} ·{" "}
-                {a.published_at ? new Date(a.published_at).toLocaleString("en-IN") : ""}
-              </div>
-              <a href={a.url} target="_blank" rel="noreferrer"
-                 className="text-sm text-gray-200 hover:text-indigo-400 line-clamp-2">
-                {a.title}
-              </a>
-              <div className="mt-1">
-                <SentimentBadge label={a.sentiment_label} />
-                <span className="text-xs text-gray-600 ml-2">{a.sentiment_score.toFixed(2)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <MentionsList brandId={brandId} />
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
