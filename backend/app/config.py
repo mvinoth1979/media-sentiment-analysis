@@ -1,4 +1,6 @@
+from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -24,7 +26,14 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     groq_api_key: str = ""
 
-    secret_key: str = "dev-secret-key"
+    secret_key: str = ""
     environment: str = "development"
 
-settings = Settings()
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+# Module-level singleton for convenience (tests should use get_settings() and clear cache)
+settings = get_settings()
