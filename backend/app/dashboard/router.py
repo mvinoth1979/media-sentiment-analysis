@@ -16,7 +16,10 @@ def get_overview(
     days: int = Query(7, ge=1, le=90),
 ):
     kpi_raw = get_kpi_summary(brand_id)
-    trend_raw = query_sentiment_trend(brand_id, days)
+    try:
+        trend_raw = query_sentiment_trend(brand_id, days)
+    except Exception:
+        trend_raw = []
     recent = get_articles(brand_id, limit=10)
 
     recent_score = calculate_perception_score([
