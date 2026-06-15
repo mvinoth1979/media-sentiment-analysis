@@ -19,6 +19,7 @@ CREATE TABLE brand_configs (
     keywords TEXT[] NOT NULL DEFAULT '{}',
     languages TEXT[] NOT NULL DEFAULT '{"en","ta"}',
     states TEXT[] NOT NULL DEFAULT '{}',
+    competitors TEXT[] NOT NULL DEFAULT '{}',
     portal_ids TEXT[] NOT NULL DEFAULT '{}',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
