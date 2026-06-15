@@ -1,8 +1,11 @@
 import json
+import logging
 import re
 from groq import Groq
 from app.config import settings
 from app.nlp.schemas import NLPResult
+
+log = logging.getLogger(__name__)
 
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
@@ -60,5 +63,6 @@ def analyse_with_groq(text: str, language: str) -> NLPResult | None:
             model_used="groq-llama-3.1-8b-instant",
             confidence=float(data.get("confidence", 0.0)),
         )
-    except Exception:
+    except Exception as e:
+        log.error("Groq error: %s — %s", type(e).__name__, str(e)[:300])
         return None
