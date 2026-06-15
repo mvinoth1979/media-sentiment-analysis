@@ -29,7 +29,7 @@ app = FastAPI(title="MediaSense API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://frontend-.*-mvinoth1979s-projects\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
