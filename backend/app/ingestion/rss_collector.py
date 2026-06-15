@@ -8,8 +8,8 @@ import feedparser
 def keyword_matches(text: str, keywords: list[str]) -> bool:
     text_lower = text.lower()
     for kw in keywords:
-        pattern = kw if kw.startswith("\\b") else re.escape(kw.lower())
-        if re.search(pattern, text_lower, re.IGNORECASE):
+        pattern = kw if kw.startswith("\\b") else r"\b" + re.escape(kw.lower()) + r"\b"
+        if re.search(pattern, text_lower):
             return True
     return False
 
@@ -38,6 +38,8 @@ def collect_portal(portal: dict, keywords: list[str], brand_id: str) -> list[dic
             continue
 
         url = entry.get("link", "")
+        if not url:
+            continue
         content_hash = hashlib.sha256(f"{portal['id']}::{url}".encode()).hexdigest()
 
         articles.append({

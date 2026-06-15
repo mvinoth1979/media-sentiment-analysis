@@ -11,19 +11,20 @@ def test_keyword_matches_no_match():
     assert keyword_matches("Cricket match results", ["Amul", "dairy"]) is False
 
 def test_keyword_matches_partial_word_excluded():
-    # "Amul" should not match "Ramul"
-    assert keyword_matches("Ramul is a name", ["\\bAmul\\b"]) is False
+    # "Amul" should not match "Ramul" — word boundary is applied automatically
+    assert keyword_matches("Ramul is a name", ["Amul"]) is False
 
 def test_collect_portal_returns_articles():
     mock_feed = MagicMock()
     mock_feed.bozo = False
     mock_entry = MagicMock()
     mock_entry.title = "Amul announces price cut"
-    mock_entry.link = "https://thehindu.com/story/1"
     mock_entry.get.side_effect = lambda k, d=None: {
+        "link": "https://thehindu.com/story/1",
         "summary": "Amul reduced prices by 5%",
         "author": "Staff Reporter",
         "published": "Mon, 15 Jun 2026 10:00:00 +0000",
+        "content": [{"value": ""}],
     }.get(k, d)
     mock_feed.entries = [mock_entry]
 
@@ -58,3 +59,13 @@ def test_collect_portal_filters_non_matching():
         )
 
     assert len(articles) == 0
+
+def test_collect_portal_handles_parse_exception():
+    with patch("app.ingestion.rss_collector.feedparser.parse", side_effect=Exception("timeout")):
+        result = collect_portal(
+            portal={"id": "the_hindu", "name": "The Hindu",
+                    "rss_url": "https://rss.url", "language": "en", "credibility": 0.92},
+            keywords=["Amul"],
+            brand_id="brand-uuid-123"
+        )
+    assert result == []
