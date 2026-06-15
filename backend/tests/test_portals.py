@@ -28,3 +28,6 @@ def test_get_portals_for_both_languages():
     portals = get_portals_for_languages(["en", "ta"])
     langs = {p["language"] for p in portals}
     assert "en" in langs and "ta" in langs
+
+def test_get_portal_unknown_id_returns_none():
+    assert get_portal("nonexistent_id") is None

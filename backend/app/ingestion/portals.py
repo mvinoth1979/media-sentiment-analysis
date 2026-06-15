@@ -1,6 +1,15 @@
-from typing import Optional
+from typing import Optional, TypedDict
 
-PORTALS: list[dict] = [
+
+class Portal(TypedDict):
+    id: str
+    name: str
+    language: str
+    credibility: float
+    rss_url: str
+
+
+PORTALS: list[Portal] = [
     # English portals
     {"id": "the_hindu",       "name": "The Hindu",         "language": "en", "credibility": 0.92,
      "rss_url": "https://www.thehindu.com/feeder/default.rss"},
@@ -35,10 +44,12 @@ PORTALS: list[dict] = [
      "rss_url": "https://tamil.samayam.com/feeds/rss/index.cms"},
 ]
 
-_portal_index: dict[str, dict] = {p["id"]: p for p in PORTALS}
+_portal_index: dict[str, Portal] = {p["id"]: p for p in PORTALS}
 
-def get_portal(portal_id: str) -> Optional[dict]:
+
+def get_portal(portal_id: str) -> Optional[Portal]:
     return _portal_index.get(portal_id)
 
-def get_portals_for_languages(languages: list[str]) -> list[dict]:
+
+def get_portals_for_languages(languages: list[str]) -> list[Portal]:
     return [p for p in PORTALS if p["language"] in languages]
