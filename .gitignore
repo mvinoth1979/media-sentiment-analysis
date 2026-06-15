@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+models/*.bin
+node_modules/
+dist/
+.vercel/
+.env.local
+.env.production
+.superpowers/
