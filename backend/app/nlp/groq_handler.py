@@ -1,9 +1,11 @@
 import json
+import re
 from groq import Groq
 from app.config import settings
 from app.nlp.schemas import NLPResult
 
 _client = None
+_VALID_LABELS = {"positive", "negative", "neutral"}
 
 
 def _get_client():
@@ -11,6 +13,15 @@ def _get_client():
     if _client is None:
         _client = Groq(api_key=settings.groq_api_key)
     return _client
+
+
+def _strip_fences(raw: str) -> str:
+    return re.sub(r"^```(?:json)?\s*", "", raw).rstrip("`").strip()
+
+
+def _parse_label(label: str) -> str:
+    normalized = label.lower().strip()
+    return normalized if normalized in _VALID_LABELS else "neutral"
 
 
 _SYSTEM = (
@@ -38,11 +49,11 @@ def analyse_with_groq(text: str, language: str) -> NLPResult | None:
             temperature=0.1,
             max_tokens=512,
         )
-        raw = resp.choices[0].message.content.strip()
+        raw = _strip_fences(resp.choices[0].message.content.strip())
         data = json.loads(raw)
         return NLPResult(
-            sentiment_score=float(data["sentiment_score"]),
-            sentiment_label=data["sentiment_label"],
+            sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
+            sentiment_label=_parse_label(data["sentiment_label"]),
             entities=data.get("entities", []),
             topics=data.get("topics", []),
             keywords=data.get("keywords", []),
