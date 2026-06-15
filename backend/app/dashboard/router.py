@@ -1,5 +1,6 @@
 from collections import Counter
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from app.auth.dependencies import get_current_user
 from app.storage.postgres import get_articles, get_kpi_summary
 from app.storage.influxdb import query_sentiment_trend
 from app.pipeline.perception import calculate_perception_score
@@ -14,6 +15,7 @@ router = APIRouter()
 def get_overview(
     brand_id: str,
     days: int = Query(7, ge=1, le=90),
+    _user: dict = Depends(get_current_user),
 ):
     kpi_raw = get_kpi_summary(brand_id)
     try:
@@ -83,6 +85,7 @@ def get_mentions(
     offset: int = 0,
     sentiment: str | None = None,
     language: str | None = None,
+    _user: dict = Depends(get_current_user),
 ):
     return get_articles(brand_id, limit=limit, offset=offset,
                         sentiment=sentiment, language=language)
