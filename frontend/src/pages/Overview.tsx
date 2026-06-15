@@ -5,12 +5,15 @@ import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { SentimentBadge } from "../components/ui/SentimentBadge";
 import type { ArticleItem } from "../lib/types";
 
-const BRAND_ID = import.meta.env.VITE_BRAND_ID || "";
+interface Props {
+  brandId: string;
+  brandName?: string;
+}
 
-export function Overview() {
+export function Overview({ brandId, brandName }: Props) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["overview", BRAND_ID],
-    queryFn: () => fetchOverview(BRAND_ID),
+    queryKey: ["overview", brandId],
+    queryFn: () => fetchOverview(brandId),
     refetchInterval: 60_000,
   });
 
@@ -19,6 +22,12 @@ export function Overview() {
 
   return (
     <div className="p-6 space-y-6">
+      {brandName && (
+        <div>
+          <h2 className="text-xl font-bold text-gray-100">{brandName}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Media sentiment report · last 7 days</p>
+        </div>
+      )}
       <div className="grid grid-cols-5 gap-4">
         <KPICard label="Perception Score" value={data.kpi.perception_score.toFixed(1)} color="purple" />
         <KPICard label="Total Mentions"   value={data.kpi.total} color="blue" />

@@ -10,6 +10,10 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+export const fetchBrands = (q = "") =>
+  api.get<{ id: string; name: string; agency_id: string }[]>(`/tenants/brands?q=${encodeURIComponent(q)}`)
+     .then(r => r.data);
+
 export const fetchOverview = (brandId: string, days = 7) =>
   api.get<import("./types").OverviewData>(`/dashboard/overview/${brandId}?days=${days}`)
      .then(r => r.data);
