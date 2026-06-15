@@ -15,7 +15,7 @@ CREATE TABLE brands (
 
 CREATE TABLE brand_configs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    brand_id UUID UNIQUE REFERENCES brands(id) ON DELETE CASCADE,
+    brand_id UUID NOT NULL UNIQUE REFERENCES brands(id) ON DELETE CASCADE,
     keywords TEXT[] NOT NULL DEFAULT '{}',
     languages TEXT[] NOT NULL DEFAULT '{"en","ta"}',
     states TEXT[] NOT NULL DEFAULT '{}',
@@ -26,9 +26,10 @@ CREATE TABLE brand_configs (
 CREATE TABLE user_roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
-    agency_id UUID REFERENCES agencies(id),
-    brand_id UUID REFERENCES brands(id),
+    agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
+    brand_id UUID REFERENCES brands(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('agency_admin','agency_analyst','brand_admin','brand_viewer')),
+    CHECK ((agency_id IS NOT NULL) OR (brand_id IS NOT NULL)),
     UNIQUE(user_id, brand_id),
     UNIQUE(user_id, agency_id)
 );

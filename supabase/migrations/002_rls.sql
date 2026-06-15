@@ -30,5 +30,17 @@ USING (
     )
 );
 
+-- Brand configs: visible to brand/agency members
+CREATE POLICY "users can view brand configs they have access to"
+ON brand_configs FOR SELECT
+USING (
+    brand_id IN (SELECT brand_id FROM user_roles WHERE user_id = auth.uid())
+    OR brand_id IN (
+        SELECT b.id FROM brands b
+        JOIN user_roles ur ON ur.agency_id = b.agency_id
+        WHERE ur.user_id = auth.uid()
+    )
+);
+
 -- Service role bypass (backend uses service_role_key, bypasses RLS automatically)
 -- No additional policies needed for INSERT/UPDATE/DELETE from backend
