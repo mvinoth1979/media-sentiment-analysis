@@ -4,6 +4,7 @@ import time
 from google import genai
 from app.config import settings
 from app.nlp.schemas import NLPResult
+from app.pipeline.rate_limiter import acquire_gemini_slot
 
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
@@ -44,6 +45,7 @@ Article text:
 
 def analyse_with_gemini(text: str, language: str) -> NLPResult | None:
     prompt = _PROMPT.format(language=language, text=text[:3000])
+    acquire_gemini_slot()
     for attempt in range(3):
         try:
             response = _get_client().models.generate_content(

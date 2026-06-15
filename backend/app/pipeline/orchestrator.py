@@ -1,5 +1,4 @@
 import logging
-import time
 from app.ingestion.portals import get_portals_for_languages
 from app.ingestion.gnews import get_gnews_portals
 from app.ingestion.rss_collector import collect_portal
@@ -33,14 +32,13 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             stats["errors"] += 1
 
     stats["collected"] = len(all_articles)
-    new_articles = filter_new_articles(all_articles, brand_id)
+    new_articles = filter_new_articles(all_articles, brand_id)[:100]
 
     if not new_articles:
         return stats
 
     processed_articles = []
     for article in new_articles:
-        time.sleep(4)  # ~15 req/min — Gemini free tier limit
         try:
             nlp = analyse_article(article)
             if nlp is None:
