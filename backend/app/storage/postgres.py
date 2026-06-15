@@ -9,8 +9,8 @@ def get_db() -> Client:
 def save_article(article: dict, nlp: dict) -> str | None:
     db = get_db()
     row = {**article, **nlp}
-    row.pop("body", None)
-    row.pop("confidence", None)
+    for field in ("body", "confidence", "portal_name"):
+        row.pop(field, None)
     result = db.table("articles").upsert(row, on_conflict="brand_id,content_hash").execute()
     return result.data[0]["id"] if result.data else None
 
