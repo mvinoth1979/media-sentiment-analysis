@@ -2,7 +2,7 @@ import logging
 from app.ingestion.portals import get_portals_for_languages
 from app.ingestion.gnews import get_gnews_portals
 from app.ingestion.rss_collector import collect_portal
-from app.ingestion.deduplication import filter_new_articles
+from app.ingestion.deduplication import filter_new_articles, mark_article_seen
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article
@@ -47,6 +47,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             nlp_dict = nlp.to_dict()
             archive_article(article)
             save_article(article, nlp_dict)
+            mark_article_seen(article["content_hash"], brand_id)
             processed_articles.append({**article, **nlp_dict})
             stats["processed"] += 1
         except Exception as e:

@@ -20,15 +20,12 @@ def filter_new_articles(articles: list[dict], brand_id: str) -> list[dict]:
              .execute().data
 
     seen_set = {r["content_hash"] for r in seen}
-    new_articles = [a for a in articles if a["content_hash"] not in seen_set]
+    return [a for a in articles if a["content_hash"] not in seen_set]
 
-    if new_articles:
-        try:
-            db.table("dedupe_hashes").insert([
-                {"content_hash": a["content_hash"], "brand_id": brand_id}
-                for a in new_articles
-            ]).execute()
-        except Exception:
-            raise
 
-    return new_articles
+def mark_article_seen(content_hash: str, brand_id: str) -> None:
+    db = get_supabase()
+    db.table("dedupe_hashes").upsert(
+        {"content_hash": content_hash, "brand_id": brand_id},
+        on_conflict="content_hash,brand_id",
+    ).execute()
