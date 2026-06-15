@@ -398,6 +398,7 @@ Create `backend/.env` by copying `.env.example` and filling in all values:
 | Problem | Fix |
 |---|---|
 | `fasttext` import error on Windows | Use `pip install fasttext-wheel` instead of `fasttext` |
+| `ValueError: Unable to avoid copy` from fasttext | `fasttext-wheel` is incompatible with NumPy 2.x. Run `pip install "numpy<2.0"` |
 | `ModuleNotFoundError: app` in pytest | Run pytest from `backend/` with venv activated |
 | Supabase RLS blocking queries | Use `service_role_key` (not `anon_key`) in backend |
 | InfluxDB `401 Unauthorized` | Token needs **All Access** or **Write** permission to bucket |
