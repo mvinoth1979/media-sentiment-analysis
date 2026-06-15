@@ -1,5 +1,6 @@
 import logging
 from app.ingestion.portals import get_portals_for_languages
+from app.ingestion.gnews import get_gnews_portals
 from app.ingestion.rss_collector import collect_portal
 from app.ingestion.deduplication import filter_new_articles
 from app.nlp.router import analyse_article
@@ -18,6 +19,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
     stats = {"brand_id": brand_id, "collected": 0, "processed": 0, "errors": 0}
 
     portals = get_portals_for_languages(languages)
+    portals = portals + get_gnews_portals(keywords, "en")
     all_articles: list[dict] = []
 
     for portal in portals:
