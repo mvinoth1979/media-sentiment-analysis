@@ -44,3 +44,10 @@ app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.post("/pipeline/trigger")
+def trigger_pipeline():
+    from app.pipeline.scheduler import _enqueue_all_brands
+    _enqueue_all_brands()
+    return {"status": "enqueued"}
