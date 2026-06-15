@@ -40,11 +40,15 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
     if not new_articles:
         return stats
 
+    log.info("Brand %s: %d EN + %d TA articles to process",
+             brand_id[:8], len(en_new), len(ta_new))
     processed_articles = []
     for article in new_articles:
         try:
+            lang = article.get("language", "?")
             nlp = analyse_article(article)
             if nlp is None:
+                log.warning("NLP None [%s] %s", lang, article.get("title", "")[:60])
                 stats["errors"] += 1
                 continue
             nlp_dict = nlp.to_dict()
