@@ -32,7 +32,10 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             stats["errors"] += 1
 
     stats["collected"] = len(all_articles)
-    new_articles = filter_new_articles(all_articles, brand_id)[:100]
+    _new = filter_new_articles(all_articles, brand_id)
+    en_new = [a for a in _new if a.get("language") == "en"][:50]
+    ta_new = [a for a in _new if a.get("language") == "ta"][:50]
+    new_articles = en_new + ta_new
 
     if not new_articles:
         return stats
