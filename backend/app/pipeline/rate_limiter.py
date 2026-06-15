@@ -1,12 +1,17 @@
 import threading
 import time
 
+
 class _TokenBucket:
-    """Thread-safe token bucket: refills `rate` tokens/minute, blocks on empty."""
+    """Thread-safe token bucket: refills `rate` tokens/minute, blocks on empty.
+
+    Starts with 1 token (not `rate`) to prevent the initial burst that would
+    otherwise let all threads fire simultaneously on startup.
+    """
 
     def __init__(self, rate: int):
         self._rate = rate
-        self._tokens = float(rate)
+        self._tokens = 1.0          # start with 1, not rate — avoids burst
         self._last = time.monotonic()
         self._lock = threading.Lock()
 
@@ -26,9 +31,10 @@ class _TokenBucket:
             time.sleep(wait)
 
 
-# 14 RPM leaves a 1-call buffer below Gemini's 15 RPM free-tier ceiling.
-_gemini_bucket = _TokenBucket(rate=14)
+# 12 RPM total NLP calls — shared across all threads and both providers
+# (Gemini limit: 15 RPM; Groq limit: 30 RPM; 12 stays safely below both)
+_nlp_bucket = _TokenBucket(rate=12)
 
 
-def acquire_gemini_slot():
-    _gemini_bucket.acquire()
+def acquire_nlp_slot():
+    _nlp_bucket.acquire()
