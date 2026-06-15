@@ -15,7 +15,7 @@ export function Overview() {
   });
 
   if (isLoading) return <div className="text-gray-400 p-8">Loading...</div>;
-  if (error || !data) return <div className="text-red-400 p-8">Failed to load dashboard.</div>;
+  if (error || !data || !data.kpi) return <div className="text-red-400 p-8">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>;
 
   return (
     <div className="p-6 space-y-6">
