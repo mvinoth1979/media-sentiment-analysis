@@ -48,7 +48,7 @@ CREATE POLICY "users can view their own role assignments"
 ON user_roles FOR SELECT
 USING (
     user_id = auth.uid()
-    OR agency_id IN (SELECT agency_id FROM user_roles WHERE user_id = auth.uid() AND role IN ('agency_admin', 'agency_analyst'))
+    OR agency_id IN (SELECT agency_id FROM user_roles WHERE user_id = auth.uid() AND role = 'agency_admin')
 );
 
 -- Service role bypass (backend uses service_role_key, bypasses RLS automatically)

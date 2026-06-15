@@ -8,7 +8,7 @@ CREATE TABLE agencies (
 
 CREATE TABLE brands (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
+    agency_id UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -21,7 +21,8 @@ CREATE TABLE brand_configs (
     states TEXT[] NOT NULL DEFAULT '{}',
     competitors TEXT[] NOT NULL DEFAULT '{}',
     portal_ids TEXT[] NOT NULL DEFAULT '{}',
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_roles (
@@ -37,7 +38,7 @@ CREATE TABLE user_roles (
 
 CREATE TABLE articles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    brand_id UUID NOT NULL REFERENCES brands(id),
+    brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
     content_hash TEXT NOT NULL,
     portal_id TEXT NOT NULL,
     url TEXT NOT NULL,
@@ -45,7 +46,7 @@ CREATE TABLE articles (
     body TEXT,
     author TEXT,
     published_at TIMESTAMPTZ,
-    collected_at TIMESTAMPTZ DEFAULT NOW(),
+    collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     language TEXT,
     language_confidence FLOAT,
     sentiment_score FLOAT,
@@ -63,9 +64,14 @@ CREATE INDEX idx_articles_brand_collected ON articles(brand_id, collected_at DES
 CREATE INDEX idx_articles_sentiment ON articles(brand_id, sentiment_label);
 CREATE INDEX idx_articles_language ON articles(brand_id, language);
 
+-- Performance indexes for RLS subquery lookups
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX idx_user_roles_user_id_role ON user_roles(user_id, role);
+CREATE INDEX idx_dedupe_hashes_brand_id ON dedupe_hashes(brand_id);
+
 CREATE TABLE dedupe_hashes (
     content_hash TEXT NOT NULL,
-    brand_id UUID NOT NULL REFERENCES brands(id),
+    brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
     seen_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (content_hash, brand_id)
 );
