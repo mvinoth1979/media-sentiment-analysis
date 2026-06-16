@@ -24,27 +24,27 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-indigo-400">MediaSense</h1>
+      <header className="border-b border-gray-800 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <h1 className="text-base sm:text-lg font-bold text-indigo-400 shrink-0">MediaSense</h1>
           <button
             onClick={() => setBrand(null)}
-            className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 truncate"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Change brand
+            <span className="truncate">{brand.name}</span>
           </button>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          className="text-xs text-gray-500 hover:text-gray-300 transition-colors shrink-0"
         >
           Sign out
         </button>
       </header>
-      <main>
+      <main className="max-w-screen-2xl mx-auto">
         <Overview brandId={brand.id} brandName={brand.name} />
       </main>
     </div>

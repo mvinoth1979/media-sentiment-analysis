@@ -92,30 +92,30 @@ export function MentionsList({ brandId }: Props) {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800 text-gray-500 text-left">
-                <th className="pb-2 pr-3 font-medium w-12">#</th>
+                <th className="pb-2 pr-3 font-medium hidden sm:table-cell w-12">#</th>
                 <th className="pb-2 pr-3 font-medium">Title</th>
                 <th className="pb-2 pr-3 font-medium w-24">Source</th>
-                <th className="pb-2 pr-3 font-medium w-8">Lang</th>
+                <th className="pb-2 pr-3 font-medium w-8 hidden md:table-cell">Lang</th>
                 <th className="pb-2 pr-3 font-medium w-24">Sentiment</th>
-                <th className="pb-2 pr-3 font-medium w-12 text-right">Score</th>
-                <th className="pb-2 pr-3 font-medium w-12 text-right">Cred</th>
-                <th className="pb-2 font-medium w-32">Date</th>
+                <th className="pb-2 pr-3 font-medium w-12 text-right hidden lg:table-cell">Score</th>
+                <th className="pb-2 pr-3 font-medium w-12 text-right hidden lg:table-cell">Cred</th>
+                <th className="pb-2 font-medium w-24 hidden sm:table-cell">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {articles.map((a, i) => (
                 <tr key={a.id} className="hover:bg-gray-800/40 transition-colors">
-                  <td className="py-2 pr-3 text-gray-600">{page * PAGE_SIZE + i + 1}</td>
-                  <td className="py-2 pr-3 max-w-xs">
+                  <td className="py-2 pr-3 text-gray-600 hidden sm:table-cell">{page * PAGE_SIZE + i + 1}</td>
+                  <td className="py-2 pr-3 max-w-[180px] sm:max-w-xs">
                     <a href={a.url} target="_blank" rel="noreferrer"
                        className="text-gray-200 hover:text-indigo-400 line-clamp-2 leading-snug">
                       {a.title}
                     </a>
                   </td>
-                  <td className="py-2 pr-3 text-gray-500 truncate max-w-[96px]">
+                  <td className="py-2 pr-3 text-gray-500 truncate max-w-[80px] sm:max-w-[96px]">
                     {a.portal_id.replace(/_/g, " ")}
                   </td>
-                  <td className="py-2 pr-3">
+                  <td className="py-2 pr-3 hidden md:table-cell">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       a.language === "ta"
                         ? "bg-teal-900/40 text-teal-400"
@@ -125,10 +125,10 @@ export function MentionsList({ brandId }: Props) {
                   <td className="py-2 pr-3">
                     <SentimentBadge label={a.sentiment_label} />
                   </td>
-                  <td className="py-2 pr-3 text-right font-mono text-gray-400">
+                  <td className="py-2 pr-3 text-right font-mono text-gray-400 hidden lg:table-cell">
                     {a.sentiment_score.toFixed(2)}
                   </td>
-                  <td className="py-2 pr-3 text-right">
+                  <td className="py-2 pr-3 text-right hidden lg:table-cell">
                     <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
                       a.source_credibility >= 0.85
                         ? "bg-green-900/40 text-green-400"
@@ -139,7 +139,7 @@ export function MentionsList({ brandId }: Props) {
                       {a.source_credibility.toFixed(2)}
                     </span>
                   </td>
-                  <td className="py-2 text-gray-600">
+                  <td className="py-2 text-gray-600 hidden sm:table-cell">
                     {a.published_at ? new Date(a.published_at).toLocaleDateString("en-IN") : "—"}
                   </td>
                 </tr>

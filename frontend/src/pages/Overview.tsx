@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchOverview } from "../lib/api";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
+import { SentimentPieChart } from "../components/charts/SentimentPieChart";
 import { MentionsList } from "../components/mentions/MentionsList";
 
 interface Props {
@@ -17,26 +18,46 @@ export function Overview({ brandId, brandName }: Props) {
   });
 
   if (isLoading) return <div className="text-gray-400 p-8">Loading...</div>;
-  if (error || !data || !data.kpi) return <div className="text-red-400 p-8">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>;
+  if (error || !data || !data.kpi) return (
+    <div className="text-red-400 p-8">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>
+  );
+
+  const { kpi } = data;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+
+      {/* Brand header */}
       {brandName && (
         <div>
-          <h2 className="text-xl font-bold text-gray-100">{brandName}</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-100">{brandName}</h2>
           <p className="text-xs text-gray-500 mt-0.5">Media sentiment report · last 7 days</p>
         </div>
       )}
-      <div className="grid grid-cols-5 gap-4">
-        <KPICard label="Perception Score" value={data.kpi.perception_score.toFixed(1)} color="purple" />
-        <KPICard label="Total Mentions"   value={data.kpi.total} color="blue" />
-        <KPICard label="Positive"  value={`${data.kpi.positive_pct}%`} sub={`${data.kpi.positive} articles`}  color="green" />
-        <KPICard label="Negative"  value={`${data.kpi.negative_pct}%`} sub={`${data.kpi.negative} articles`}  color="red" />
-        <KPICard label="Neutral"   value={`${data.kpi.neutral_pct}%`}  sub={`${data.kpi.neutral} articles`}   color="yellow" />
+
+      {/* KPI row + Pie chart */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="flex flex-row sm:flex-col gap-4">
+          <div className="flex-1">
+            <KPICard label="Perception Score" value={kpi.perception_score.toFixed(1)} color="purple" />
+          </div>
+          <div className="flex-1">
+            <KPICard label="Total Mentions" value={kpi.total} color="blue" />
+          </div>
+        </div>
+        <div className="sm:col-span-2">
+          <SentimentPieChart
+            positive={kpi.positive}
+            negative={kpi.negative}
+            neutral={kpi.neutral}
+            total={kpi.total}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
+      {/* Trend chart + Top Sources */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
           <SentimentTrendChart data={data.trend} />
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -61,7 +82,7 @@ export function Overview({ brandId, brandName }: Props) {
                 </div>
                 <div className="bg-gray-800 rounded h-1.5">
                   <div className="bg-indigo-500 h-full rounded"
-                       style={{ width: `${Math.min(100, (s.count / (data.kpi.total || 1)) * 100)}%` }} />
+                       style={{ width: `${Math.min(100, (s.count / (kpi.total || 1)) * 100)}%` }} />
                 </div>
               </div>
             ))}
@@ -69,9 +90,11 @@ export function Overview({ brandId, brandName }: Props) {
         </div>
       </div>
 
+      {/* Mentions table */}
       <MentionsList brandId={brandId} />
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Topics + Keywords */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
           <div className="text-sm font-semibold text-gray-200 mb-3">Topics</div>
           <div className="flex flex-wrap gap-2">
@@ -93,6 +116,7 @@ export function Overview({ brandId, brandName }: Props) {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
