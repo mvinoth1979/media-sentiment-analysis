@@ -18,8 +18,11 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
     languages = config.get("languages", ["en"])
     stats = {"brand_id": brand_id, "collected": 0, "processed": 0, "errors": 0}
 
-    portals = get_portals_for_languages(languages)
-    portals = portals + get_gnews_portals(keywords, languages)
+    # Google News portals come FIRST — they are pre-filtered by keyword so their
+    # articles fill the per-language cap with relevant content. Static portals
+    # (especially Tamil ones with skip_keyword_filter) are supplementary and only
+    # consume cap slots when Google News doesn't fill them.
+    portals = get_gnews_portals(keywords, languages) + get_portals_for_languages(languages)
     all_articles: list[dict] = []
 
     for portal in portals:
