@@ -21,4 +21,7 @@ export const fetchOverview = (brandId: string, days = 7) =>
 export const fetchMentions = (brandId: string, params?: Record<string, string>) =>
   api.get(`/dashboard/mentions/${brandId}`, { params }).then(r => r.data);
 
+export const fetchSources = (brandId: string) =>
+  api.get<import("./types").SourceStat[]>(`/dashboard/sources/${brandId}`).then(r => r.data);
+
 export default api;

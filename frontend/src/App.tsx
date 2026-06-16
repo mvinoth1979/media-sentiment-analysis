@@ -4,10 +4,14 @@ import { supabase } from "./lib/supabase";
 import { Overview } from "./pages/Overview";
 import { Login } from "./pages/Login";
 import { BrandSearch } from "./pages/BrandSearch";
+import { SourceBreakdown } from "./pages/SourceBreakdown";
+
+type Tab = "overview" | "sources";
 
 function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [brand, setBrand] = useState<{ id: string; name: string } | null>(null);
+  const [tab, setTab] = useState<Tab>("overview");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -20,7 +24,7 @@ function App() {
 
   if (session === undefined) return null;
   if (!session) return <Login />;
-  if (!brand) return <BrandSearch onSelect={(id, name) => setBrand({ id, name })} />;
+  if (!brand) return <BrandSearch onSelect={(id, name) => { setBrand({ id, name }); setTab("overview"); }} />;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -36,6 +40,24 @@ function App() {
             </svg>
             <span className="truncate">{brand.name}</span>
           </button>
+          <nav className="flex items-center gap-1 ml-2 sm:ml-4 shrink-0">
+            <button
+              onClick={() => setTab("overview")}
+              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                tab === "overview" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setTab("sources")}
+              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                tab === "sources" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Sources
+            </button>
+          </nav>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -45,7 +67,9 @@ function App() {
         </button>
       </header>
       <main className="max-w-screen-2xl mx-auto">
-        <Overview brandId={brand.id} brandName={brand.name} />
+        {tab === "overview"
+          ? <Overview brandId={brand.id} brandName={brand.name} />
+          : <SourceBreakdown brandId={brand.id} />}
       </main>
     </div>
   );

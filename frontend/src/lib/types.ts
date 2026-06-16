@@ -27,11 +27,20 @@ export interface ArticleItem {
   model_used: string;
 }
 
+export interface SourceStat {
+  portal_id: string;
+  count: number;
+  positive: number;
+  negative: number;
+  neutral: number;
+  avg_credibility: number;
+}
+
 export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];
   recent_mentions: ArticleItem[];
-  top_sources: { portal_id: string; count: number; avg_credibility: number }[];
+  top_sources: SourceStat[];
   top_keywords: string[];
   top_topics: string[];
 }
