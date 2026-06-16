@@ -25,6 +25,11 @@ def _enqueue_all_brands():
 
 
 def start_scheduler():
-    scheduler.add_job(_enqueue_all_brands, "interval", hours=1, id="hourly_pipeline")
+    from datetime import datetime, timezone
+    scheduler.add_job(
+        _enqueue_all_brands, "interval", hours=1,
+        id="hourly_pipeline",
+        next_run_time=datetime.now(timezone.utc),
+    )
     scheduler.start()
-    log.info("Scheduler started — hourly pipeline active")
+    log.info("Scheduler started — hourly pipeline active, first run immediate")
