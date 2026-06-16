@@ -41,7 +41,9 @@ Language: {language}
 Text: {text}"""
 
 
-def analyse_with_groq(text: str, language: str) -> NLPResult | None:
+def analyse_with_groq(text: str, language: str) -> tuple[NLPResult | None, bool]:
+    """Returns (result, was_rate_limited) so callers can distinguish quota
+    exhaustion from genuine parsing/content failures."""
     try:
         resp = _get_client().chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -62,7 +64,8 @@ def analyse_with_groq(text: str, language: str) -> NLPResult | None:
             keywords=data.get("keywords", []),
             model_used="groq-llama-3.1-8b-instant",
             confidence=float(data.get("confidence", 0.0)),
-        )
+        ), False
     except Exception as e:
         log.error("Groq error: %s — %s", type(e).__name__, str(e)[:300])
-        return None
+        rate_limited = "429" in str(e) or "rate limit" in str(e).lower()
+        return None, rate_limited

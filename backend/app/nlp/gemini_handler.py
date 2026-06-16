@@ -42,8 +42,12 @@ Article text:
 {text}"""
 
 
-def analyse_with_gemini(text: str, language: str) -> NLPResult | None:
+def analyse_with_gemini(text: str, language: str) -> tuple[NLPResult | None, bool]:
+    """Returns (result, was_rate_limited). was_rate_limited is True only if every
+    attempt failed due to a 429/rate-limit response, so callers can distinguish
+    quota exhaustion from genuine parsing/content failures."""
     prompt = _PROMPT.format(language=language, text=text[:3000])
+    rate_limited = False
     for attempt in range(3):
         try:
             response = _get_client().models.generate_content(
@@ -60,10 +64,11 @@ def analyse_with_gemini(text: str, language: str) -> NLPResult | None:
                 keywords=data.get("keywords", []),
                 model_used="gemini-2.0-flash",
                 confidence=float(data.get("confidence", 0.0)),
-            )
+            ), False
         except Exception as e:
             if "429" in str(e) or "rate" in str(e).lower():
+                rate_limited = True
                 time.sleep(2 ** attempt * 5)
                 continue
-            return None
-    return None
+            return None, False
+    return None, rate_limited
