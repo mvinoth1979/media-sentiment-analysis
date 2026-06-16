@@ -20,8 +20,10 @@ async def lifespan(app: FastAPI):
 
 async def _queue_loop():
     from app.pipeline.worker import process_queue
+    from app.pipeline.dead_letter import retry_dead_letters
     while True:
         await asyncio.to_thread(process_queue, max_items=50)
+        await asyncio.to_thread(retry_dead_letters)
         await asyncio.sleep(60)
 
 

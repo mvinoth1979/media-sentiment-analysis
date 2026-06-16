@@ -83,12 +83,38 @@ def test_pipeline_nlp_none_increments_errors():
          patch("app.pipeline.orchestrator.collect_portal", return_value=mock_articles), \
          patch("app.pipeline.orchestrator.filter_new_articles", return_value=mock_articles), \
          patch("app.pipeline.orchestrator.analyse_article", return_value=None), \
+         patch("app.pipeline.orchestrator.push_to_dlq") as mock_dlq, \
          patch("app.pipeline.orchestrator.write_sentiment_point") as mock_influx:
         stats = run_brand_pipeline(brand, config)
 
     assert stats["processed"] == 0
     assert stats["errors"] == 1
     mock_influx.assert_not_called()
+    mock_dlq.assert_called_once_with(mock_articles[0], "b1")
+
+
+def test_pipeline_article_exception_pushes_to_dlq():
+    brand = {"id": "b1", "name": "Amul"}
+    config = {"keywords": ["Amul"], "languages": ["en"]}
+
+    mock_articles = [{"content_hash": "h1", "brand_id": "b1",
+                      "title": "Amul news", "body": "text",
+                      "portal_id": "the_hindu", "language": "en",
+                      "source_credibility": 0.9, "reach_score": 0}]
+
+    with patch("app.pipeline.orchestrator.get_portals_for_languages", return_value=[
+                {"id": "the_hindu", "name": "The Hindu", "rss_url": "u",
+                 "language": "en", "credibility": 0.9}]), \
+         patch("app.pipeline.orchestrator.collect_portal", return_value=mock_articles), \
+         patch("app.pipeline.orchestrator.filter_new_articles", return_value=mock_articles), \
+         patch("app.pipeline.orchestrator.analyse_article", return_value=_nlp_result()), \
+         patch("app.pipeline.orchestrator.archive_article", side_effect=Exception("R2 error")), \
+         patch("app.pipeline.orchestrator.push_to_dlq") as mock_dlq, \
+         patch("app.pipeline.orchestrator.write_sentiment_point"):
+        stats = run_brand_pipeline(brand, config)
+
+    assert stats["errors"] == 1
+    mock_dlq.assert_called_once_with(mock_articles[0], "b1")
 
 
 def test_pipeline_caps_articles_per_language():
@@ -134,6 +160,7 @@ def test_pipeline_article_exception_increments_errors():
          patch("app.pipeline.orchestrator.filter_new_articles", return_value=mock_articles), \
          patch("app.pipeline.orchestrator.analyse_article", return_value=_nlp_result()), \
          patch("app.pipeline.orchestrator.archive_article", side_effect=Exception("R2 error")), \
+         patch("app.pipeline.orchestrator.push_to_dlq"), \
          patch("app.pipeline.orchestrator.write_sentiment_point") as mock_influx:
         stats = run_brand_pipeline(brand, config)
 

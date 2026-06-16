@@ -8,6 +8,7 @@ from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article
 from app.storage.influxdb import write_sentiment_point
 from app.storage.r2 import archive_article
+from app.pipeline.dead_letter import push_to_dlq
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             if nlp is None:
                 log.warning("NLP None [%s] %s", lang, article.get("title", "")[:60])
                 stats["errors"] += 1
+                push_to_dlq(article, brand_id)
                 continue
             nlp_dict = nlp.to_dict()
             archive_article(article)
@@ -66,6 +68,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         except Exception as e:
             log.error("Article %s failed: %s", article.get("content_hash"), e)
             stats["errors"] += 1
+            push_to_dlq(article, brand_id)
 
     if processed_articles:
         score = calculate_perception_score(processed_articles)
