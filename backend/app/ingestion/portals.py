@@ -10,25 +10,32 @@ class Portal(TypedDict):
 
 
 PORTALS: list[Portal] = [
-    # English portals
-    {"id": "the_hindu",       "name": "The Hindu",         "language": "en", "credibility": 0.92,
+    # English portals (verified working 2026-06)
+    {"id": "the_hindu",      "name": "The Hindu",       "language": "en", "credibility": 0.92,
      "rss_url": "https://www.thehindu.com/feeder/default.rss"},
-    {"id": "times_of_india",  "name": "Times of India",    "language": "en", "credibility": 0.85,
+    {"id": "times_of_india", "name": "Times of India",  "language": "en", "credibility": 0.85,
      "rss_url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"},
-    {"id": "ndtv",            "name": "NDTV",              "language": "en", "credibility": 0.88,
+    {"id": "ndtv",           "name": "NDTV",            "language": "en", "credibility": 0.88,
      "rss_url": "https://feeds.feedburner.com/ndtvnews-top-stories"},
-    {"id": "india_today",     "name": "India Today",       "language": "en", "credibility": 0.84,
+    {"id": "india_today",    "name": "India Today",     "language": "en", "credibility": 0.84,
      "rss_url": "https://www.indiatoday.in/rss/home"},
-    {"id": "the_news_minute", "name": "The News Minute",   "language": "en", "credibility": 0.82,
-     "rss_url": "https://www.thenewsminute.com/feeds/rss"},
-    {"id": "deccan_herald",   "name": "Deccan Herald",     "language": "en", "credibility": 0.80,
-     "rss_url": "https://www.deccanherald.com/rss-feeds/news.rss"},
-    {"id": "the_wire",        "name": "The Wire",          "language": "en", "credibility": 0.81,
-     "rss_url": "https://thewire.in/feed"},
-    {"id": "economic_times",  "name": "Economic Times",    "language": "en", "credibility": 0.86,
+    {"id": "economic_times", "name": "Economic Times",  "language": "en", "credibility": 0.86,
      "rss_url": "https://economictimes.indiatimes.com/rssfeedstopstories.cms"},
-    # Tamil portals — individual RSS feeds were dead (404/500) as of 2026-06.
-    # Tamil coverage is now handled by Google News Tamil RSS in get_gnews_portals().
+    # Tamil portals (verified working 2026-06)
+    # skip_keyword_filter=True: Tamil script cannot be matched by English regex;
+    # relevance is handled by the 50 TA article cap + NLP sentiment analysis.
+    {"id": "hindu_tamil",    "name": "The Hindu Tamil", "language": "ta", "credibility": 0.90,
+     "rss_url": "https://www.hindutamil.in/feed",                          "skip_keyword_filter": True},
+    {"id": "tamil_samayam",  "name": "Tamil Samayam",   "language": "ta", "credibility": 0.82,
+     "rss_url": "https://tamil.samayam.com/rssfeedsdefault.cms",           "skip_keyword_filter": True},
+    {"id": "polimer_news",   "name": "Polimer News",    "language": "ta", "credibility": 0.75,
+     "rss_url": "https://www.polimernews.com/feed/",                       "skip_keyword_filter": True},
+    {"id": "tamil_murasu",   "name": "Tamil Murasu",    "language": "ta", "credibility": 0.80,
+     "rss_url": "https://www.tamilmurasu.com.sg/rss.xml",                  "skip_keyword_filter": True},
+    {"id": "oneindia_tamil", "name": "Oneindia Tamil",  "language": "ta", "credibility": 0.72,
+     "rss_url": "https://tamil.oneindia.com/rss/tamil-news-fb.xml",        "skip_keyword_filter": True},
+    {"id": "news_tamil",     "name": "News Tamil",      "language": "ta", "credibility": 0.65,
+     "rss_url": "https://www.newstamil.in/feed/",                          "skip_keyword_filter": True},
 ]
 
 _portal_index: dict[str, Portal] = {p["id"]: p for p in PORTALS}
