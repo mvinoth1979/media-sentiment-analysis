@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTopics } from "../lib/api";
 import type { TopicStat } from "../lib/types";
+import { TopicSentimentChart } from "../components/charts/TopicSentimentChart";
 
 interface Props {
   brandId: string;
@@ -45,6 +46,8 @@ export function TopicsView({ brandId }: Props) {
         <h2 className="text-lg sm:text-xl font-bold text-gray-100">Topics</h2>
         <p className="text-xs text-gray-500 mt-0.5">All topics, sortable by any metric</p>
       </div>
+
+      {!isLoading && topics.length > 0 && <TopicSentimentChart topics={topics} />}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
         {isLoading ? (
