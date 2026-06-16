@@ -108,7 +108,8 @@ def test_update_brand_config_allowed_for_agency_admin_of_owning_agency():
         "admin-1",
         roles=[{"role": "agency_admin", "agency_id": "agency-1", "brand_id": None}],
     )
-    with patch("app.tenants.router.get_db", return_value=fake_db):
+    with patch("app.tenants.router.get_db", return_value=fake_db), \
+         patch("app.tenants.access.get_db", return_value=fake_db):
         resp = client.put("/tenants/brands/brand-1/config", json={"keywords": ["new-keyword"]})
 
     assert resp.status_code == 200
@@ -124,7 +125,8 @@ def test_update_brand_config_allowed_for_directly_granted_brand_admin():
         "brand-admin-1",
         roles=[{"role": "brand_admin", "agency_id": None, "brand_id": "brand-1"}],
     )
-    with patch("app.tenants.router.get_db", return_value=fake_db):
+    with patch("app.tenants.router.get_db", return_value=fake_db), \
+         patch("app.tenants.access.get_db", return_value=fake_db):
         resp = client.put("/tenants/brands/brand-1/config", json={"competitors": ["RivalCo"]})
 
     assert resp.status_code == 200
@@ -136,11 +138,13 @@ def test_update_brand_config_rejects_viewer_role():
         "viewer-1",
         roles=[{"role": "brand_viewer", "agency_id": None, "brand_id": "brand-1"}],
     )
-    with patch("app.tenants.router.get_db") as mock_get_db:
+    with patch("app.tenants.router.get_db") as mock_get_db, \
+         patch("app.tenants.access.get_db") as mock_access_get_db:
         resp = client.put("/tenants/brands/brand-1/config", json={"keywords": ["x"]})
 
     assert resp.status_code == 403
     mock_get_db.assert_not_called()
+    mock_access_get_db.assert_not_called()
 
 
 def test_update_brand_config_rejects_admin_of_a_different_agency():
@@ -152,7 +156,8 @@ def test_update_brand_config_rejects_admin_of_a_different_agency():
         "admin-2",
         roles=[{"role": "agency_admin", "agency_id": "agency-2", "brand_id": None}],
     )
-    with patch("app.tenants.router.get_db", return_value=fake_db):
+    with patch("app.tenants.router.get_db", return_value=fake_db), \
+         patch("app.tenants.access.get_db", return_value=fake_db):
         resp = client.put("/tenants/brands/brand-1/config", json={"keywords": ["x"]})
 
     assert resp.status_code == 403

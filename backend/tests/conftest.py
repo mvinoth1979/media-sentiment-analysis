@@ -1,5 +1,18 @@
+from unittest.mock import patch
+
 import pytest
 from app.config import get_settings
+
+
+@pytest.fixture(autouse=True)
+def reset_dependency_overrides():
+    """app.main.app is a process-wide singleton; tests that use
+    app.dependency_overrides must not leak overrides into unrelated tests."""
+    with patch("app.pipeline.scheduler.start_scheduler"), \
+         patch("asyncio.create_task"):
+        from app.main import app
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(autouse=True)
