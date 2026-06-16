@@ -11,16 +11,20 @@ class Portal(TypedDict):
 
 PORTALS: list[Portal] = [
     # English portals (verified working 2026-06)
-    {"id": "the_hindu",      "name": "The Hindu",       "language": "en", "credibility": 0.92,
+    {"id": "the_hindu",        "name": "The Hindu",         "language": "en", "credibility": 0.92,
      "rss_url": "https://www.thehindu.com/feeder/default.rss"},
-    {"id": "times_of_india", "name": "Times of India",  "language": "en", "credibility": 0.85,
+    {"id": "times_of_india",   "name": "Times of India",    "language": "en", "credibility": 0.85,
      "rss_url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"},
-    {"id": "ndtv",           "name": "NDTV",            "language": "en", "credibility": 0.88,
+    {"id": "ndtv",             "name": "NDTV",              "language": "en", "credibility": 0.88,
      "rss_url": "https://feeds.feedburner.com/ndtvnews-top-stories"},
-    {"id": "india_today",    "name": "India Today",     "language": "en", "credibility": 0.84,
+    {"id": "india_today",      "name": "India Today",       "language": "en", "credibility": 0.84,
      "rss_url": "https://www.indiatoday.in/rss/home"},
-    {"id": "economic_times", "name": "Economic Times",  "language": "en", "credibility": 0.86,
+    {"id": "economic_times",   "name": "Economic Times",    "language": "en", "credibility": 0.86,
      "rss_url": "https://economictimes.indiatimes.com/rssfeedstopstories.cms"},
+    {"id": "indian_express",   "name": "Indian Express",    "language": "en", "credibility": 0.87,
+     "rss_url": "https://indianexpress.com/feed/"},
+    {"id": "deccan_chronicle", "name": "Deccan Chronicle",  "language": "en", "credibility": 0.78,
+     "rss_url": "https://www.deccanchronicle.com/feed"},
     # Tamil portals (verified working 2026-06)
     # skip_keyword_filter=True: Tamil script cannot be matched by English regex;
     # relevance is handled by the 50 TA article cap + NLP sentiment analysis.
@@ -42,8 +46,12 @@ PORTALS: list[Portal] = [
      "rss_url": "https://www.maalaimalar.com/feed",                        "skip_keyword_filter": True},
     {"id": "puthiyathalaimurai", "name": "Puthiyathalaimurai", "language": "ta", "credibility": 0.73,
      "rss_url": "https://www.puthiyathalaimurai.com/feed",                 "skip_keyword_filter": True},
-    # Dinamalar: RSS server returns HTTP 500 on all paths (server-side bug, not fixable).
-    # Dinamani: RSS feed discontinued — /rss redirects to their HTML homepage.
+    {"id": "daily_thanthi",    "name": "Daily Thanthi",    "language": "ta", "credibility": 0.80,
+     "rss_url": "https://www.dailythanthi.com/feed",                       "skip_keyword_filter": True},
+    # Excluded (RSS not available as of 2026-06):
+    # Dinamalar  — HTTP 500 on all paths; /rss returns HTML homepage (server-side bug).
+    # Dinamani   — RSS discontinued; all paths 404.
+    # Dinakaran  — HTTP 403 Forbidden on /rss and /feed; actively blocks scrapers.
 ]
 
 _portal_index: dict[str, Portal] = {p["id"]: p for p in PORTALS}
