@@ -32,9 +32,11 @@ export function SentimentPieChart({ positive, negative, neutral, total }: Props)
               </Pie>
               <Tooltip
                 contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, fontSize: 12 }}
-                formatter={(v: number, _: string, props: { payload?: { label?: string } }) =>
-                  [`${v} (${pct(v)})`, props.payload?.label ?? ""]
-                }
+                formatter={(value, _name, props) => {
+                  const v = Number(value) || 0;
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  return [`${v} (${pct(v)})`, (props as any).payload?.label ?? ""];
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
