@@ -91,7 +91,14 @@ def get_mentions(
     offset: int = 0,
     sentiment: str | None = None,
     language: str | None = None,
+    portal_id: str | None = None,
+    topic: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    q: str | None = None,
     _user: dict = Depends(require_brand_access),
 ):
     return get_articles(brand_id, limit=limit, offset=offset,
-                        sentiment=sentiment, language=language)
+                        sentiment=sentiment, language=language,
+                        portal_id=portal_id, topic=topic,
+                        date_from=date_from, date_to=date_to, q=q)

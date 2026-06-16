@@ -16,15 +16,28 @@ def save_article(article: dict, nlp: dict) -> str | None:
 
 
 def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
-                 sentiment: str | None = None, language: str | None = None) -> list[dict]:
+                 sentiment: str | None = None, language: str | None = None,
+                 portal_id: str | None = None, topic: str | None = None,
+                 date_from: str | None = None, date_to: str | None = None,
+                 q: str | None = None) -> list[dict]:
     db = get_db()
-    q = db.table("articles").select("*").eq("brand_id", brand_id) \
-           .order("collected_at", desc=True).range(offset, offset + limit - 1)
+    query = db.table("articles").select("*").eq("brand_id", brand_id)
     if sentiment:
-        q = q.eq("sentiment_label", sentiment)
+        query = query.eq("sentiment_label", sentiment)
     if language:
-        q = q.eq("language", language)
-    return q.execute().data
+        query = query.eq("language", language)
+    if portal_id:
+        query = query.eq("portal_id", portal_id)
+    if topic:
+        query = query.contains("topics", [topic])
+    if date_from:
+        query = query.gte("collected_at", date_from)
+    if date_to:
+        query = query.lte("collected_at", date_to)
+    if q:
+        query = query.ilike("title", f"%{q}%")
+    query = query.order("collected_at", desc=True).range(offset, offset + limit - 1)
+    return query.execute().data
 
 
 def get_kpi_summary(brand_id: str) -> dict:

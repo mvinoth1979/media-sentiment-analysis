@@ -108,3 +108,26 @@ def test_mentions_rejects_admin_of_a_different_agency():
     with patch("app.tenants.access.get_db", return_value=fake_db):
         resp = client.get("/dashboard/mentions/brand-1")
     assert resp.status_code == 403
+
+
+def test_mentions_forwards_new_filters_to_get_articles():
+    db_roles = [{"user_id": "admin-1", "agency_id": "agency-1", "brand_id": None}]
+    fake_db = _FakeDB({"user_roles": db_roles, "brands": BRANDS})
+    client = _make_client_as("admin-1")
+    with patch("app.tenants.access.get_db", return_value=fake_db), \
+         patch("app.dashboard.router.get_articles", return_value=[]) as mock_get_articles:
+        resp = client.get("/dashboard/mentions/brand-1", params={
+            "portal_id": "thehindu",
+            "topic": "politics",
+            "date_from": "2026-06-01T00:00:00Z",
+            "date_to": "2026-06-15T00:00:00Z",
+            "q": "election",
+        })
+
+    assert resp.status_code == 200
+    _, kwargs = mock_get_articles.call_args
+    assert kwargs["portal_id"] == "thehindu"
+    assert kwargs["topic"] == "politics"
+    assert kwargs["date_from"] == "2026-06-01T00:00:00Z"
+    assert kwargs["date_to"] == "2026-06-15T00:00:00Z"
+    assert kwargs["q"] == "election"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMentions } from "../../lib/api";
 import { SentimentBadge } from "../ui/SentimentBadge";
@@ -6,6 +6,8 @@ import type { ArticleItem } from "../../lib/types";
 
 interface Props {
   brandId: string;
+  portals?: string[];
+  topics?: string[];
 }
 
 const PAGE_SIZE = 50;
@@ -23,24 +25,48 @@ const LANG_FILTERS = [
   { label: "Tamil", value: "ta" },
 ];
 
-export function MentionsList({ brandId }: Props) {
+export function MentionsList({ brandId, portals = [], topics = [] }: Props) {
   const [page, setPage] = useState(0);
   const [sentiment, setSentiment] = useState("");
   const [language, setLanguage] = useState("");
+  const [portalId, setPortalId] = useState("");
+  const [topic, setTopic] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [qDraft, setQDraft] = useState("");
+  const [q, setQ] = useState("");
+
+  useEffect(() => {
+    const id = setTimeout(() => setQ(qDraft), 400);
+    return () => clearTimeout(id);
+  }, [qDraft]);
 
   const params: Record<string, string> = { limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) };
   if (sentiment) params.sentiment = sentiment;
   if (language) params.language = language;
+  if (portalId) params.portal_id = portalId;
+  if (topic) params.topic = topic;
+  if (dateFrom) params.date_from = dateFrom;
+  if (dateTo) params.date_to = dateTo;
+  if (q) params.q = q;
 
   const { data: articles = [], isLoading } = useQuery<ArticleItem[]>({
-    queryKey: ["mentions", brandId, page, sentiment, language],
+    queryKey: ["mentions", brandId, page, sentiment, language, portalId, topic, dateFrom, dateTo, q],
     queryFn: () => fetchMentions(brandId, params),
     staleTime: 60_000,
   });
 
+  const hasFilters = !!(sentiment || language || portalId || topic || dateFrom || dateTo || q);
+
   function resetFilters() {
     setSentiment("");
     setLanguage("");
+    setPortalId("");
+    setTopic("");
+    setDateFrom("");
+    setDateTo("");
+    setQDraft("");
+    setQ("");
     setPage(0);
   }
 
@@ -77,13 +103,70 @@ export function MentionsList({ brandId }: Props) {
         </div>
       </div>
 
+      {/* Second filter row: search, portal, topic, date range */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={qDraft}
+          onChange={e => { setQDraft(e.target.value); setPage(0); }}
+          placeholder="Search title…"
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2.5 py-1.5 placeholder:text-gray-500 focus:outline-none focus:border-indigo-500 w-40"
+        />
+
+        {portals.length > 0 && (
+          <select
+            value={portalId}
+            onChange={e => { setPortalId(e.target.value); setPage(0); }}
+            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">All sources</option>
+            {portals.map(p => (
+              <option key={p} value={p}>{p.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+        )}
+
+        {topics.length > 0 && (
+          <select
+            value={topic}
+            onChange={e => { setTopic(e.target.value); setPage(0); }}
+            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">All topics</option>
+            {topics.map(t => (
+              <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+        )}
+
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={e => { setDateFrom(e.target.value); setPage(0); }}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
+        />
+        <span className="text-gray-600 text-xs">to</span>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={e => { setDateTo(e.target.value); setPage(0); }}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
+        />
+
+        {hasFilters && (
+          <button onClick={resetFilters} className="text-xs text-indigo-400 underline ml-auto">
+            Clear all filters
+          </button>
+        )}
+      </div>
+
       {/* Table */}
       {isLoading ? (
         <div className="text-gray-500 text-sm py-8 text-center">Loading mentions…</div>
       ) : articles.length === 0 ? (
         <div className="text-gray-600 text-sm py-8 text-center">
           No mentions found.{" "}
-          {(sentiment || language) && (
+          {hasFilters && (
             <button onClick={resetFilters} className="text-indigo-400 underline">Clear filters</button>
           )}
         </div>

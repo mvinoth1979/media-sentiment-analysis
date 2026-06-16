@@ -91,7 +91,11 @@ export function Overview({ brandId, brandName }: Props) {
       </div>
 
       {/* Mentions table */}
-      <MentionsList brandId={brandId} />
+      <MentionsList
+        brandId={brandId}
+        portals={data.top_sources.map(s => s.portal_id)}
+        topics={data.top_topics}
+      />
 
       {/* Topics + Keywords */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
