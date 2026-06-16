@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     secret_key: str = ""
     environment: str = "development"
+    disable_scheduler: bool = False
 
 
 @lru_cache

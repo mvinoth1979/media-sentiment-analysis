@@ -3,6 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.config import get_settings
 from app.pipeline.scheduler import start_scheduler
 from app.auth.router import router as auth_router
 from app.tenants.router import router as tenant_router
@@ -13,8 +14,9 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    start_scheduler()
-    asyncio.create_task(_queue_loop())
+    if not get_settings().disable_scheduler:
+        start_scheduler()
+        asyncio.create_task(_queue_loop())
     yield
 
 
