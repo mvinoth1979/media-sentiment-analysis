@@ -9,6 +9,7 @@ Migrations must be applied manually via the Supabase SQL Editor (these are not a
 1. Open https://app.supabase.com → your project → SQL Editor
 2. Copy and run `001_schema.sql` first (creates all tables and indexes)
 3. Copy and run `002_rls.sql` second (enables Row-Level Security policies)
+4. Copy and run `003_trend_annotations.sql` (adds the `trend_annotations` table for trend-chart annotations)
 
 Always apply in order. Never skip or reorder migrations.
 
@@ -22,6 +23,7 @@ Always apply in order. Never skip or reorder migrations.
 - **user_roles** - Maps Supabase Auth user UUIDs to agency/brand roles with permission levels
 - **articles** - Raw article data + NLP results (sentiment, entities, topics, language detection)
 - **dedupe_hashes** - Lightweight deduplication table for fast duplicate checking
+- **trend_annotations** - User-added notes pinned to a date on a brand's sentiment trend chart
 
 ### Key Design Decisions
 

@@ -70,7 +70,7 @@ export function Overview({ brandId, brandName }: Props) {
       {/* Trend chart + Top Sources */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <SentimentTrendChart data={data.trend} />
+          <SentimentTrendChart brandId={brandId} data={data.trend} />
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
           <div className="text-sm font-semibold text-gray-200 mb-3">Top Sources</div>

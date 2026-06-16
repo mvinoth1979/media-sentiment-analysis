@@ -50,6 +50,19 @@ class TopicStat(BaseModel):
     neutral: int
 
 
+class AnnotationCreate(BaseModel):
+    date: str
+    label: str
+
+
+class Annotation(BaseModel):
+    id: str
+    date: str
+    label: str
+    created_by: str
+    created_at: str
+
+
 class OverviewResponse(BaseModel):
     kpi: KPISummary
     trend: list[TrendPoint]

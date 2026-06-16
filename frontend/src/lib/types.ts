@@ -44,6 +44,14 @@ export interface TopicStat {
   neutral: number;
 }
 
+export interface Annotation {
+  id: string;
+  date: string;
+  label: string;
+  created_by: string;
+  created_at: string;
+}
+
 export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];

@@ -1,11 +1,12 @@
 from collections import Counter
 from fastapi import APIRouter, Depends, Query
 from app.tenants.access import require_brand_access
-from app.storage.postgres import get_articles, get_kpi_summary
+from app.storage.postgres import get_articles, get_kpi_summary, get_db
 from app.storage.influxdb import query_sentiment_trend
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
-    OverviewResponse, KPISummary, ArticleItem, SourceStat, TopicStat, TrendPoint
+    OverviewResponse, KPISummary, ArticleItem, SourceStat, TopicStat, TrendPoint,
+    Annotation, AnnotationCreate,
 )
 
 router = APIRouter()
@@ -141,3 +142,31 @@ def get_mentions(
                         sentiment=sentiment, language=language,
                         portal_id=portal_id, topic=topic,
                         date_from=date_from, date_to=date_to, q=q)
+
+
+@router.get("/trends/{brand_id}/annotations", response_model=list[Annotation])
+def get_trend_annotations(
+    brand_id: str,
+    _user: dict = Depends(require_brand_access),
+):
+    db = get_db()
+    rows = db.table("trend_annotations").select("*") \
+              .eq("brand_id", brand_id).order("date").execute().data
+    return rows
+
+
+@router.post("/trends/{brand_id}/annotations", response_model=Annotation)
+def create_trend_annotation(
+    brand_id: str,
+    payload: AnnotationCreate,
+    user: dict = Depends(require_brand_access),
+):
+    db = get_db()
+    row = {
+        "brand_id": brand_id,
+        "date": payload.date,
+        "label": payload.label,
+        "created_by": user["user_id"],
+    }
+    inserted = db.table("trend_annotations").insert(row).execute().data
+    return inserted[0]

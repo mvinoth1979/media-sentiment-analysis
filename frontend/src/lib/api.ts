@@ -27,4 +27,11 @@ export const fetchSources = (brandId: string) =>
 export const fetchTopics = (brandId: string) =>
   api.get<import("./types").TopicStat[]>(`/dashboard/topics/${brandId}`).then(r => r.data);
 
+export const fetchAnnotations = (brandId: string) =>
+  api.get<import("./types").Annotation[]>(`/dashboard/trends/${brandId}/annotations`).then(r => r.data);
+
+export const createAnnotation = (brandId: string, date: string, label: string) =>
+  api.post<import("./types").Annotation>(`/dashboard/trends/${brandId}/annotations`, { date, label })
+     .then(r => r.data);
+
 export default api;
