@@ -1,4 +1,5 @@
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
 from app.tenants.access import require_brand_access
 from app.storage.postgres import get_articles, get_kpi_summary, get_db
@@ -42,8 +43,15 @@ def get_overview(
         kw_counter.update(a.get("keywords", []))
         topic_counter.update(a.get("topics", []))
 
+    now = datetime.now(timezone.utc)
+    current_start = now - timedelta(days=days)
+    previous_start = now - timedelta(days=days * 2)
+    current_window = _window_kpi(brand_id, current_start.isoformat(), now.isoformat())
+    previous_window = _window_kpi(brand_id, previous_start.isoformat(), current_start.isoformat())
+    wow_delta = _compute_wow_delta(current_window, previous_window)
+
     return OverviewResponse(
-        kpi=KPISummary(perception_score=recent_score, **kpi_raw),
+        kpi=KPISummary(perception_score=recent_score, **kpi_raw, **wow_delta),
         trend=[TrendPoint(**p) for p in trend_raw],
         recent_mentions=[
             ArticleItem(
@@ -68,6 +76,28 @@ def get_overview(
         top_topics=[t for t, _ in topic_counter.most_common(10)],
         last_processed_at=recent[0].get("collected_at") if recent else None,
     )
+
+
+def _window_kpi(brand_id: str, date_from: str, date_to: str) -> dict:
+    articles = get_articles(brand_id, limit=500, date_from=date_from, date_to=date_to)
+    score = calculate_perception_score([
+        {
+            "sentiment_score": a.get("sentiment_score", 0),
+            "source_credibility": a.get("source_credibility", 0.5),
+            "reach_score": a.get("reach_score", 0),
+        }
+        for a in articles
+    ])
+    return {"count": len(articles), "perception_score": score}
+
+
+def _compute_wow_delta(current: dict, previous: dict) -> dict:
+    if previous["count"] == 0:
+        return {"perception_score_delta": None, "mentions_delta_pct": None}
+    return {
+        "perception_score_delta": round(current["perception_score"] - previous["perception_score"], 2),
+        "mentions_delta_pct": round((current["count"] - previous["count"]) / previous["count"] * 100, 1),
+    }
 
 
 def _compute_source_stats(articles: list[dict]) -> list[SourceStat]:

@@ -10,6 +10,12 @@ interface Props {
   brandName?: string;
 }
 
+function formatDelta(value: number | null, unit: string): string | undefined {
+  if (value == null) return undefined;
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value}${unit} vs last week`;
+}
+
 function formatLastProcessed(iso: string | null): string {
   if (!iso) return "—";
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -51,10 +57,20 @@ export function Overview({ brandId, brandName }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="flex flex-row sm:flex-col gap-4">
           <div className="flex-1">
-            <KPICard label="Perception Score" value={kpi.perception_score.toFixed(1)} color="purple" />
+            <KPICard
+              label="Perception Score"
+              value={kpi.perception_score.toFixed(1)}
+              color="purple"
+              sub={formatDelta(kpi.perception_score_delta, " pts")}
+            />
           </div>
           <div className="flex-1">
-            <KPICard label="Total Mentions" value={kpi.total} color="blue" />
+            <KPICard
+              label="Total Mentions"
+              value={kpi.total}
+              color="blue"
+              sub={formatDelta(kpi.mentions_delta_pct, "%")}
+            />
           </div>
         </div>
         <div className="sm:col-span-2">

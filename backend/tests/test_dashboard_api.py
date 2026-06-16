@@ -47,3 +47,43 @@ def test_overview_requires_auth():
     client = _make_client()
     resp = client.get("/dashboard/overview/brand-123")
     assert resp.status_code == 403
+
+
+def test_overview_includes_wow_delta_fields():
+    client = _make_client()
+    kpi = {"total": 5, "positive": 3, "negative": 1, "neutral": 1,
+           "positive_pct": 60.0, "negative_pct": 20.0, "neutral_pct": 20.0}
+
+    with patch("app.dashboard.router.get_kpi_summary", return_value=kpi), \
+         patch("app.dashboard.router.query_sentiment_trend", return_value=[]), \
+         patch("app.dashboard.router.get_articles", return_value=[]):
+        resp = client.get("/dashboard/overview/brand-123", headers=_auth_header())
+
+    assert resp.status_code == 200
+    kpi_out = resp.json()["kpi"]
+    assert kpi_out["perception_score_delta"] is None
+    assert kpi_out["mentions_delta_pct"] is None
+
+
+def test_compute_wow_delta_with_previous_data():
+    from app.dashboard.router import _compute_wow_delta
+
+    current = {"count": 10, "perception_score": 70.0}
+    previous = {"count": 5, "perception_score": 50.0}
+
+    delta = _compute_wow_delta(current, previous)
+
+    assert delta["perception_score_delta"] == 20.0
+    assert delta["mentions_delta_pct"] == 100.0
+
+
+def test_compute_wow_delta_with_no_previous_data():
+    from app.dashboard.router import _compute_wow_delta
+
+    current = {"count": 10, "perception_score": 70.0}
+    previous = {"count": 0, "perception_score": 50.0}
+
+    delta = _compute_wow_delta(current, previous)
+
+    assert delta["perception_score_delta"] is None
+    assert delta["mentions_delta_pct"] is None

@@ -7,6 +7,8 @@ export interface KPISummary {
   positive_pct: number;
   negative_pct: number;
   neutral_pct: number;
+  perception_score_delta: number | null;
+  mentions_delta_pct: number | null;
 }
 
 export interface TrendPoint { time: string; value: number; }

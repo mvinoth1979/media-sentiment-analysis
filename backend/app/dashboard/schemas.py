@@ -10,6 +10,8 @@ class KPISummary(BaseModel):
     positive_pct: float
     negative_pct: float
     neutral_pct: float
+    perception_score_delta: float | None = None
+    mentions_delta_pct: float | None = None
 
 
 class TrendPoint(BaseModel):
