@@ -5,7 +5,7 @@ from app.storage.postgres import get_articles, get_kpi_summary
 from app.storage.influxdb import query_sentiment_trend
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
-    OverviewResponse, KPISummary, ArticleItem, SourceStat, TrendPoint
+    OverviewResponse, KPISummary, ArticleItem, SourceStat, TopicStat, TrendPoint
 )
 
 router = APIRouter()
@@ -94,6 +94,32 @@ def get_sources(
 ):
     articles = get_articles(brand_id, limit=500)
     return _compute_source_stats(articles)
+
+
+def _compute_topic_stats(articles: list[dict]) -> list[TopicStat]:
+    topic_map: dict[str, dict] = {}
+    for a in articles:
+        label = a.get("sentiment_label", "neutral")
+        for topic in a.get("topics") or []:
+            if topic not in topic_map:
+                topic_map[topic] = {"topic": topic, "count": 0,
+                                    "positive": 0, "negative": 0, "neutral": 0}
+            topic_map[topic]["count"] += 1
+            topic_map[topic][label] = topic_map[topic].get(label, 0) + 1
+
+    return [
+        TopicStat(**v)
+        for v in sorted(topic_map.values(), key=lambda x: x["count"], reverse=True)
+    ]
+
+
+@router.get("/topics/{brand_id}", response_model=list[TopicStat])
+def get_topics(
+    brand_id: str,
+    _user: dict = Depends(require_brand_access),
+):
+    articles = get_articles(brand_id, limit=500)
+    return _compute_topic_stats(articles)
 
 
 @router.get("/mentions/{brand_id}", response_model=list[ArticleItem])

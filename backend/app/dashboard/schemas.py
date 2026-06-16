@@ -42,6 +42,14 @@ class SourceStat(BaseModel):
     avg_credibility: float = 0.5
 
 
+class TopicStat(BaseModel):
+    topic: str
+    count: int
+    positive: int
+    negative: int
+    neutral: int
+
+
 class OverviewResponse(BaseModel):
     kpi: KPISummary
     trend: list[TrendPoint]

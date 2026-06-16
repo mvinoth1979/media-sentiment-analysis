@@ -24,4 +24,7 @@ export const fetchMentions = (brandId: string, params?: Record<string, string>) 
 export const fetchSources = (brandId: string) =>
   api.get<import("./types").SourceStat[]>(`/dashboard/sources/${brandId}`).then(r => r.data);
 
+export const fetchTopics = (brandId: string) =>
+  api.get<import("./types").TopicStat[]>(`/dashboard/topics/${brandId}`).then(r => r.data);
+
 export default api;

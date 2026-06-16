@@ -36,6 +36,14 @@ export interface SourceStat {
   avg_credibility: number;
 }
 
+export interface TopicStat {
+  topic: string;
+  count: number;
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
 export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];

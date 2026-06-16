@@ -5,8 +5,9 @@ import { Overview } from "./pages/Overview";
 import { Login } from "./pages/Login";
 import { BrandSearch } from "./pages/BrandSearch";
 import { SourceBreakdown } from "./pages/SourceBreakdown";
+import { TopicsView } from "./pages/TopicsView";
 
-type Tab = "overview" | "sources";
+type Tab = "overview" | "sources" | "topics";
 
 function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -57,6 +58,14 @@ function App() {
             >
               Sources
             </button>
+            <button
+              onClick={() => setTab("topics")}
+              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                tab === "topics" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Topics
+            </button>
           </nav>
         </div>
         <button
@@ -67,9 +76,9 @@ function App() {
         </button>
       </header>
       <main className="max-w-screen-2xl mx-auto">
-        {tab === "overview"
-          ? <Overview brandId={brand.id} brandName={brand.name} />
-          : <SourceBreakdown brandId={brand.id} />}
+        {tab === "overview" && <Overview brandId={brand.id} brandName={brand.name} />}
+        {tab === "sources" && <SourceBreakdown brandId={brand.id} />}
+        {tab === "topics" && <TopicsView brandId={brand.id} />}
       </main>
     </div>
   );
