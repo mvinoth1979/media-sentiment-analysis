@@ -36,6 +36,14 @@ PORTALS: list[Portal] = [
      "rss_url": "https://tamil.oneindia.com/rss/tamil-news-fb.xml",        "skip_keyword_filter": True},
     {"id": "news_tamil",     "name": "News Tamil",      "language": "ta", "credibility": 0.65,
      "rss_url": "https://www.newstamil.in/feed/",                          "skip_keyword_filter": True},
+    {"id": "vikatan",        "name": "Vikatan",         "language": "ta", "credibility": 0.83,
+     "rss_url": "https://www.vikatan.com/feed",                            "skip_keyword_filter": True},
+    {"id": "maalaimalar",    "name": "Maalaimalar",     "language": "ta", "credibility": 0.78,
+     "rss_url": "https://www.maalaimalar.com/feed",                        "skip_keyword_filter": True},
+    {"id": "puthiyathalaimurai", "name": "Puthiyathalaimurai", "language": "ta", "credibility": 0.73,
+     "rss_url": "https://www.puthiyathalaimurai.com/feed",                 "skip_keyword_filter": True},
+    # Dinamalar: RSS server returns HTTP 500 on all paths (server-side bug, not fixable).
+    # Dinamani: RSS feed discontinued — /rss redirects to their HTML homepage.
 ]
 
 _portal_index: dict[str, Portal] = {p["id"]: p for p in PORTALS}
