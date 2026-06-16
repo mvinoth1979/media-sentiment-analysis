@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSources } from "../lib/api";
+import { SourceSentimentChart } from "../components/charts/SourceSentimentChart";
 import type { SourceStat } from "../lib/types";
 
 interface Props {
@@ -46,6 +47,8 @@ export function SourceBreakdown({ brandId }: Props) {
         <h2 className="text-lg sm:text-xl font-bold text-gray-100">Source Breakdown</h2>
         <p className="text-xs text-gray-500 mt-0.5">All sources, sortable by any metric</p>
       </div>
+
+      {!isLoading && sources.length > 0 && <SourceSentimentChart sources={sources} />}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
         {isLoading ? (
