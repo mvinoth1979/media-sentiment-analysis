@@ -36,8 +36,11 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
 
     stats["collected"] = len(all_articles)
     _new = filter_new_articles(all_articles, brand_id)
-    en_new = [a for a in _new if a.get("language") == "en"][:50]
-    ta_new = [a for a in _new if a.get("language") == "ta"][:50]
+    # Capped low (not 50) so total daily NLP call volume across all brands stays
+    # under Gemini/Groq free-tier daily quotas — see app/pipeline/scheduler.py
+    # for the staleness-based ordering that ensures fairness under this cap.
+    en_new = [a for a in _new if a.get("language") == "en"][:20]
+    ta_new = [a for a in _new if a.get("language") == "ta"][:20]
     new_articles = en_new + ta_new
 
     if not new_articles:

@@ -25,6 +25,7 @@ def test_pipeline_processes_new_articles():
          patch("app.pipeline.orchestrator.analyse_article", return_value=_nlp_result()), \
          patch("app.pipeline.orchestrator.archive_article", return_value="key"), \
          patch("app.pipeline.orchestrator.save_article", return_value="article-id"), \
+         patch("app.pipeline.orchestrator.mark_article_seen"), \
          patch("app.pipeline.orchestrator.write_sentiment_point") as mock_influx:
         stats = run_brand_pipeline(brand, config)
 
@@ -88,6 +89,33 @@ def test_pipeline_nlp_none_increments_errors():
     assert stats["processed"] == 0
     assert stats["errors"] == 1
     mock_influx.assert_not_called()
+
+
+def test_pipeline_caps_articles_per_language():
+    brand = {"id": "b1", "name": "Amul"}
+    config = {"keywords": ["Amul"], "languages": ["en", "ta"]}
+
+    mock_articles = [
+        {"content_hash": f"en{i}", "brand_id": "b1", "title": f"EN {i}", "body": "t",
+         "portal_id": "p", "language": "en", "source_credibility": 0.9, "reach_score": 0}
+        for i in range(30)
+    ] + [
+        {"content_hash": f"ta{i}", "brand_id": "b1", "title": f"TA {i}", "body": "t",
+         "portal_id": "p", "language": "ta", "source_credibility": 0.9, "reach_score": 0}
+        for i in range(30)
+    ]
+
+    with patch("app.pipeline.orchestrator.get_portals_for_languages", return_value=[]), \
+         patch("app.pipeline.orchestrator.collect_portal", return_value=[]), \
+         patch("app.pipeline.orchestrator.filter_new_articles", return_value=mock_articles), \
+         patch("app.pipeline.orchestrator.analyse_article", return_value=_nlp_result()), \
+         patch("app.pipeline.orchestrator.archive_article", return_value="key"), \
+         patch("app.pipeline.orchestrator.save_article", return_value="article-id"), \
+         patch("app.pipeline.orchestrator.mark_article_seen"), \
+         patch("app.pipeline.orchestrator.write_sentiment_point"):
+        stats = run_brand_pipeline(brand, config)
+
+    assert stats["processed"] == 40
 
 
 def test_pipeline_article_exception_increments_errors():
