@@ -51,4 +51,5 @@ export interface OverviewData {
   top_sources: SourceStat[];
   top_keywords: string[];
   top_topics: string[];
+  last_processed_at: string | null;
 }

@@ -57,3 +57,4 @@ class OverviewResponse(BaseModel):
     top_sources: list[SourceStat]
     top_keywords: list[str]
     top_topics: list[str]
+    last_processed_at: str | None = None

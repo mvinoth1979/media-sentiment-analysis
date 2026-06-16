@@ -10,6 +10,16 @@ interface Props {
   brandName?: string;
 }
 
+function formatLastProcessed(iso: string | null): string {
+  if (!iso) return "—";
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 export function Overview({ brandId, brandName }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["overview", brandId],
@@ -31,7 +41,9 @@ export function Overview({ brandId, brandName }: Props) {
       {brandName && (
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-gray-100">{brandName}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Media sentiment report · last 7 days</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Media sentiment report · last 7 days · Last updated {formatLastProcessed(data.last_processed_at)}
+          </p>
         </div>
       )}
 

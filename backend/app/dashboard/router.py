@@ -65,6 +65,7 @@ def get_overview(
         top_sources=_compute_source_stats(all_articles)[:5],
         top_keywords=[kw for kw, _ in kw_counter.most_common(15)],
         top_topics=[t for t, _ in topic_counter.most_common(10)],
+        last_processed_at=recent[0].get("collected_at") if recent else None,
     )
 
 
