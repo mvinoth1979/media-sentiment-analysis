@@ -16,7 +16,6 @@ def filter_new_articles(articles: list[dict], brand_id: str) -> list[dict]:
     seen = db.table("dedupe_hashes") \
              .select("content_hash") \
              .eq("brand_id", brand_id) \
-             .in_("content_hash", hashes) \
              .execute().data
 
     seen_set = {r["content_hash"] for r in seen}
