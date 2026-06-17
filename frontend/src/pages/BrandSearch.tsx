@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBrands } from "../lib/api";
+import { BrandSetup } from "./BrandSetup";
 
 interface Props {
   onSelect: (brandId: string, brandName: string) => void;
+  isAdmin?: boolean;
 }
 
-export function BrandSearch({ onSelect }: Props) {
-  const [q, setQ] = useState("");
+export function BrandSearch({ onSelect, isAdmin }: Props) {
+  const [q, setQ]               = useState("");
+  const [showSetup, setShowSetup] = useState(false);
 
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ["brands", q],
@@ -18,9 +21,22 @@ export function BrandSearch({ onSelect }: Props) {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
       <div className="w-full max-w-md space-y-6 px-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-100">Brand Report</h2>
-          <p className="text-sm text-gray-500 mt-1">Search for a brand to view its media sentiment report</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-100">Brand Report</h2>
+            <p className="text-sm text-gray-500 mt-1">Search for a brand to view its media sentiment report</p>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setShowSetup(true)}
+              className="shrink-0 mt-1 flex items-center gap-1.5 text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Brand
+            </button>
+          )}
         </div>
 
         <div className="relative">
@@ -67,6 +83,16 @@ export function BrandSearch({ onSelect }: Props) {
           <p className="text-xs text-gray-600 text-center">Showing all brands — type to filter</p>
         )}
       </div>
+
+      {showSetup && (
+        <BrandSetup
+          onSuccess={(id, name) => {
+            setShowSetup(false);
+            onSelect(id, name);
+          }}
+          onClose={() => setShowSetup(false)}
+        />
+      )}
     </div>
   );
 }

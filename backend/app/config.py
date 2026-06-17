@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     groq_api_key: str = ""
 
+    resend_api_key: str = ""
+
     secret_key: str = ""
     environment: str = "development"
     disable_scheduler: bool = False

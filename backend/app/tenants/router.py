@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from app.auth.dependencies import get_current_user, require_brand_role, WRITE_ROLES
+from app.auth.dependencies import get_current_user, require_brand_role, require_role, WRITE_ROLES
 from app.storage.postgres import get_db
+from app.config import settings
 
 router = APIRouter()
 
@@ -12,6 +13,11 @@ class BrandConfigUpdate(BaseModel):
     states: list[str] | None = None
     competitors: list[str] | None = None
     portal_ids: list[str] | None = None
+
+
+@router.get("/me")
+def get_me(user: dict = Depends(get_current_user)):
+    return user
 
 
 @router.get("/brands")
@@ -41,6 +47,91 @@ def search_brands(
         q_lower = q.lower()
         rows = [r for r in rows if q_lower in r["name"].lower()]
     return rows
+
+
+class BrandCreate(BaseModel):
+    name: str
+    keywords: list[str]
+    languages: list[str] = ["en"]
+
+
+@router.post("/brands", status_code=201)
+def create_brand(
+    payload: BrandCreate,
+    user: dict = Depends(require_role("agency_admin", "master_admin")),
+):
+    db = get_db()
+    roles = db.table("user_roles").select("agency_id, role") \
+              .eq("user_id", user["user_id"]).execute().data
+    agency_id = next((r["agency_id"] for r in roles if r.get("agency_id")), None)
+    if not agency_id:
+        # master_admin with no agency: pick the first agency in the system
+        first = db.table("agencies").select("id").limit(1).execute().data
+        if not first:
+            raise HTTPException(400, "No agency found — create one first")
+        agency_id = first[0]["id"]
+    brand = db.table("brands").insert({"agency_id": agency_id, "name": payload.name}).execute().data[0]
+    db.table("brand_configs").insert({
+        "brand_id":  brand["id"],
+        "keywords":  payload.keywords,
+        "languages": payload.languages,
+    }).execute()
+    return brand
+
+
+class UserInvite(BaseModel):
+    email: str
+    role: str
+    brand_id: str | None = None
+
+
+@router.post("/users/invite")
+def invite_user(
+    payload: UserInvite,
+    user: dict = Depends(require_role("agency_admin", "master_admin")),
+):
+    from supabase import create_client
+    admin = create_client(settings.supabase_url, settings.supabase_service_role_key)
+    try:
+        invited = admin.auth.admin.invite_user_by_email(payload.email)
+    except Exception as e:
+        raise HTTPException(400, f"Could not invite {payload.email}: {e}")
+    db = get_db()
+    roles = db.table("user_roles").select("agency_id") \
+              .eq("user_id", user["user_id"]).execute().data
+    agency_id = next((r["agency_id"] for r in roles if r.get("agency_id")), None)
+    role_row: dict = {"user_id": invited.user.id, "role": payload.role}
+    if payload.brand_id:
+        role_row["brand_id"] = payload.brand_id
+    elif agency_id:
+        role_row["agency_id"] = agency_id
+    else:
+        raise HTTPException(400, "Cannot determine agency for role assignment")
+    db.table("user_roles").insert(role_row).execute()
+    return {"status": "invited", "email": payload.email}
+
+
+@router.get("/users/{brand_id}")
+def list_brand_users(
+    brand_id: str,
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    db = get_db()
+    role_rows = db.table("user_roles").select("id, user_id, role, brand_id, agency_id") \
+                  .eq("brand_id", brand_id).execute().data
+    # Enrich with email from auth.users via admin API
+    from supabase import create_client
+    admin = create_client(settings.supabase_url, settings.supabase_service_role_key)
+    user_ids = [r["user_id"] for r in role_rows]
+    enriched = []
+    for row in role_rows:
+        try:
+            u = admin.auth.admin.get_user_by_id(row["user_id"])
+            row["email"] = u.user.email if u and u.user else ""
+        except Exception:
+            row["email"] = ""
+        enriched.append(row)
+    return enriched
 
 
 @router.put("/brands/{brand_id}/config")

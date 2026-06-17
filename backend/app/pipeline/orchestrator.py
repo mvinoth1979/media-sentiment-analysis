@@ -6,6 +6,7 @@ from app.ingestion.deduplication import filter_new_articles, mark_article_seen
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article, update_pipeline_status, decrement_bootstrap_runs
+from app.storage.alerts import check_and_fire_alerts
 from app.storage.rejection_store import is_rejected
 from app.storage.influxdb import write_sentiment_point
 from app.storage.r2 import archive_article
@@ -94,6 +95,14 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
                 "total": len(processed_articles),
             }
             write_sentiment_point(brand_id, score, counts)
+            negative_pct = round(counts["negative"] / counts["total"] * 100, 1) if counts["total"] else 0.0
+            check_and_fire_alerts(
+                brand_id=brand_id,
+                brand_name=brand.get("name", brand_id),
+                perception_score=score,
+                negative_pct=negative_pct,
+                mention_count=counts["total"],
+            )
 
     finally:
         update_pipeline_status(brand_id, "idle", stats)

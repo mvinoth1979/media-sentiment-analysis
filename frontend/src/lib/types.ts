@@ -81,6 +81,26 @@ export interface PipelineStats {
   errors: number;
 }
 
+export interface AlertConfig {
+  id: string;
+  brand_id: string;
+  alert_type: "perception_score_below" | "negative_pct_above" | "mention_spike";
+  threshold: number;
+  notify_email: string;
+  enabled: boolean;
+  last_triggered_at: string | null;
+  created_at: string;
+}
+
+export interface BrandUser {
+  id: string;
+  user_id: string;
+  email: string;
+  role: string;
+  brand_id: string | null;
+  agency_id: string | null;
+}
+
 export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];

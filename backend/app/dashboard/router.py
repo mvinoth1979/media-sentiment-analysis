@@ -1,6 +1,10 @@
+import csv
+import io
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 from app.auth.dependencies import require_brand_role, READ_ROLES, WRITE_ROLES
 from app.storage.postgres import (
     get_articles, get_kpi_summary, get_db, delete_articles,
@@ -200,6 +204,50 @@ def get_mentions(
     return [_article_to_item(a) for a in articles]
 
 
+@router.get("/export/{brand_id}")
+def export_mentions_csv(
+    brand_id: str,
+    sentiment: str | None = None,
+    language: str | None = None,
+    portal_id: str | None = None,
+    topic: str | None = None,
+    state: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    q: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    articles = get_articles(brand_id, limit=2000, offset=0,
+                            sentiment=sentiment, language=language,
+                            portal_id=portal_id, topic=topic, state=state,
+                            date_from=date_from, date_to=date_to, q=q)
+    output = io.StringIO()
+    fields = [
+        "title", "url", "portal_id", "published_at", "collected_at",
+        "sentiment_label", "sentiment_score", "language",
+        "topics", "entities", "keywords", "states_mentioned", "source_credibility",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    scalar = ["title", "url", "portal_id", "published_at", "collected_at",
+              "sentiment_label", "sentiment_score", "language", "source_credibility"]
+    for a in articles:
+        writer.writerow({
+            **{f: a.get(f, "") for f in scalar},
+            "topics":           "|".join(a.get("topics") or []),
+            "entities":         "|".join(a.get("entities") or []),
+            "keywords":         "|".join(a.get("keywords") or []),
+            "states_mentioned": "|".join(a.get("states_mentioned") or []),
+        })
+    output.seek(0)
+    fname = f"mediasense-{brand_id[:8]}-{date.today().isoformat()}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
+    )
+
+
 @router.delete("/mentions/{brand_id}")
 def delete_mentions(
     brand_id: str,
@@ -210,6 +258,38 @@ def delete_mentions(
     if deleted:
         save_rejections(brand_id, deleted, rejected_by=user.get("user_id"))
     return {"deleted": len(deleted)}
+
+
+@router.get("/alerts/{brand_id}")
+def get_alerts(brand_id: str, _user: dict = Depends(require_brand_role(*READ_ROLES))):
+    from app.storage.alerts import get_alert_configs
+    return get_alert_configs(brand_id)
+
+
+class AlertCreate(BaseModel):
+    alert_type: str
+    threshold: float
+    notify_email: str
+
+@router.post("/alerts/{brand_id}", status_code=201)
+def create_alert(
+    brand_id: str,
+    payload: AlertCreate,
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    from app.storage.alerts import create_alert_config
+    return create_alert_config(brand_id, payload.alert_type, payload.threshold, payload.notify_email)
+
+
+@router.delete("/alerts/{brand_id}/{alert_id}")
+def delete_alert(
+    brand_id: str,
+    alert_id: str,
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    from app.storage.alerts import delete_alert_config
+    delete_alert_config(alert_id)
+    return {"deleted": alert_id}
 
 
 @router.get("/trends/{brand_id}/annotations", response_model=list[Annotation])

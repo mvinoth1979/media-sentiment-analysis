@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchOverview } from "../lib/api";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchOverview, fetchAlerts, createAlert, deleteAlert } from "../lib/api";
+import type { AlertConfig } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { SentimentPieChart } from "../components/charts/SentimentPieChart";
@@ -8,6 +10,8 @@ import { MentionsList } from "../components/mentions/MentionsList";
 interface Props {
   brandId: string;
   brandName?: string;
+  isAdmin?: boolean;
+  userEmail?: string;
 }
 
 function formatDelta(value: number | null, unit: string): string | undefined {
@@ -26,7 +30,123 @@ function formatLastProcessed(iso: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function Overview({ brandId, brandName }: Props) {
+const ALERT_TYPE_LABELS: Record<string, string> = {
+  perception_score_below: "Perception score below",
+  negative_pct_above:     "Negative % above",
+  mention_spike:          "Mention spike above",
+};
+
+function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: string }) {
+  const [alertType, setAlertType]   = useState("perception_score_below");
+  const [threshold, setThreshold]   = useState("");
+  const [notifyEmail, setNotifyEmail] = useState(userEmail ?? "");
+  const [formError, setFormError]   = useState("");
+
+  const queryClient = useQueryClient();
+
+  const { data: alerts = [] } = useQuery<AlertConfig[]>({
+    queryKey: ["alerts", brandId],
+    queryFn: () => fetchAlerts(brandId),
+    staleTime: 60_000,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => createAlert(brandId, {
+      alert_type: alertType,
+      threshold: parseFloat(threshold),
+      notify_email: notifyEmail,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["alerts", brandId] });
+      setThreshold("");
+      setFormError("");
+    },
+    onError: (e: Error) => setFormError(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (alertId: string) => deleteAlert(brandId, alertId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts", brandId] }),
+  });
+
+  const canSubmit = threshold !== "" && !isNaN(parseFloat(threshold)) && notifyEmail.includes("@");
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+      <div className="text-sm font-semibold text-gray-200">Email Alerts</div>
+
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((a: AlertConfig) => (
+            <div key={a.id}
+              className="flex items-center justify-between bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-xs">
+              <div className="space-y-0.5">
+                <div className="text-gray-300">
+                  {ALERT_TYPE_LABELS[a.alert_type] ?? a.alert_type}{" "}
+                  <span className="font-semibold text-indigo-300">{a.threshold}</span>
+                </div>
+                <div className="text-gray-500">{a.notify_email}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {a.last_triggered_at && (
+                  <span className="text-gray-600">last fired {new Date(a.last_triggered_at).toLocaleDateString()}</span>
+                )}
+                <button
+                  onClick={() => deleteMutation.mutate(a.id)}
+                  disabled={deleteMutation.isPending}
+                  className="text-gray-600 hover:text-red-400 transition-colors"
+                  title="Delete alert"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create-alert form */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <select
+          value={alertType}
+          onChange={e => setAlertType(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-2 focus:outline-none focus:border-indigo-500"
+        >
+          {Object.entries(ALERT_TYPE_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+        <input
+          type="number"
+          value={threshold}
+          onChange={e => setThreshold(e.target.value)}
+          placeholder={alertType === "perception_score_below" ? "e.g. 40" : alertType === "negative_pct_above" ? "e.g. 50" : "e.g. 30"}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-2 focus:outline-none focus:border-indigo-500 placeholder:text-gray-600"
+        />
+        <input
+          type="email"
+          value={notifyEmail}
+          onChange={e => setNotifyEmail(e.target.value)}
+          placeholder="notify@email.com"
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-2 focus:outline-none focus:border-indigo-500 placeholder:text-gray-600"
+        />
+      </div>
+      {formError && <p className="text-xs text-red-400">{formError}</p>}
+      <button
+        onClick={() => createMutation.mutate()}
+        disabled={!canSubmit || createMutation.isPending}
+        className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-40 transition-colors"
+      >
+        {createMutation.isPending ? "Adding…" : "+ Add Alert"}
+      </button>
+      <p className="text-xs text-gray-600">
+        Alerts fire once per 4 hours via Resend email. Requires RESEND_API_KEY to be set in Railway.
+      </p>
+    </div>
+  );
+}
+
+export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["overview", brandId],
     queryFn: () => fetchOverview(brandId),
@@ -143,6 +263,7 @@ export function Overview({ brandId, brandName }: Props) {
       {/* Mentions table */}
       <MentionsList
         brandId={brandId}
+        brandName={brandName}
         portals={data.top_sources.map(s => s.portal_id)}
         topics={data.top_topics}
         states={data.state_breakdown.map(s => s.state)}
@@ -173,6 +294,9 @@ export function Overview({ brandId, brandName }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Alerts — only shown to admins */}
+      {isAdmin && <AlertsSection brandId={brandId} userEmail={userEmail} />}
 
     </div>
   );

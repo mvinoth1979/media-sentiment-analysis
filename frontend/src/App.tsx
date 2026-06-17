@@ -1,31 +1,50 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import { fetchMe } from "./lib/api";
 import { Overview } from "./pages/Overview";
 import { Login } from "./pages/Login";
 import { BrandSearch } from "./pages/BrandSearch";
 import { SourceBreakdown } from "./pages/SourceBreakdown";
 import { TopicsView } from "./pages/TopicsView";
+import { UserManagement } from "./pages/UserManagement";
 
-type Tab = "overview" | "sources" | "topics";
+type Tab = "overview" | "sources" | "topics" | "users";
+
+const ADMIN_ROLES = new Set(["master_admin", "agency_admin"]);
 
 function App() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
-  const [brand, setBrand] = useState<{ id: string; name: string } | null>(null);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [session, setSession]   = useState<Session | null | undefined>(undefined);
+  const [brand, setBrand]       = useState<{ id: string; name: string } | null>(null);
+  const [tab, setTab]           = useState<Tab>("overview");
+  const [isAdmin, setIsAdmin]   = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      if (!s) setBrand(null);
+      if (!s) { setBrand(null); setIsAdmin(false); setUserEmail(""); }
     });
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!session) return;
+    fetchMe().then(me => {
+      setUserEmail(me.email ?? "");
+      setIsAdmin(me.roles.some(r => ADMIN_ROLES.has(r.role)));
+    }).catch(() => {});
+  }, [session]);
+
   if (session === undefined) return null;
   if (!session) return <Login />;
-  if (!brand) return <BrandSearch onSelect={(id, name) => { setBrand({ id, name }); setTab("overview"); }} />;
+  if (!brand) return (
+    <BrandSearch
+      isAdmin={isAdmin}
+      onSelect={(id, name) => { setBrand({ id, name }); setTab("overview"); }}
+    />
+  );
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -66,6 +85,16 @@ function App() {
             >
               Topics
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => setTab("users")}
+                className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                  tab === "users" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                Users
+              </button>
+            )}
           </nav>
         </div>
         <button
@@ -76,9 +105,19 @@ function App() {
         </button>
       </header>
       <main className="max-w-screen-2xl mx-auto">
-        {tab === "overview" && <Overview brandId={brand.id} brandName={brand.name} />}
+        {tab === "overview" && (
+          <Overview
+            brandId={brand.id}
+            brandName={brand.name}
+            isAdmin={isAdmin}
+            userEmail={userEmail}
+          />
+        )}
         {tab === "sources" && <SourceBreakdown brandId={brand.id} />}
-        {tab === "topics" && <TopicsView brandId={brand.id} />}
+        {tab === "topics"  && <TopicsView brandId={brand.id} />}
+        {tab === "users"   && isAdmin && (
+          <UserManagement brandId={brand.id} brandName={brand.name} />
+        )}
       </main>
     </div>
   );

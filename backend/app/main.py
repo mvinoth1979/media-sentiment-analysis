@@ -1,11 +1,12 @@
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.pipeline.scheduler import start_scheduler
 from app.auth.router import router as auth_router
+from app.auth.dependencies import require_role
 from app.tenants.router import router as tenant_router
 from app.dashboard.router import router as dashboard_router
 
@@ -49,7 +50,7 @@ def health():
 
 
 @app.post("/pipeline/trigger")
-def trigger_pipeline():
+def trigger_pipeline(_user: dict = Depends(require_role("master_admin"))):
     from app.pipeline.scheduler import _enqueue_all_brands
     _enqueue_all_brands()
     return {"status": "enqueued"}

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { fetchMentions, deleteMentions } from "../../lib/api";
+import { fetchMentions, deleteMentions, exportMentionsCsv } from "../../lib/api";
 import { SentimentBadge } from "../ui/SentimentBadge";
 import type { ArticleItem } from "../../lib/types";
 
 interface Props {
   brandId: string;
+  brandName?: string;
   portals?: string[];
   topics?: string[];
   states?: string[];
@@ -37,6 +38,7 @@ function readParam(key: string, fallback = "") {
 
 export function MentionsList({
   brandId,
+  brandName = "",
   portals = [],
   topics = [],
   states = [],
@@ -58,6 +60,7 @@ export function MentionsList({
   const [q, setQ]                = useState(() => syncUrl ? readParam("q") : "");
   const [selected, setSelected]  = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -177,7 +180,7 @@ export function MentionsList({
         </div>
       )}
 
-      {/* Row 1: header + sentiment + language */}
+      {/* Row 1: header + sentiment + language + export */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-gray-200 mr-auto">All Mentions</span>
 
@@ -202,6 +205,27 @@ export function MentionsList({
               }`}>{f.label}</button>
           ))}
         </div>
+
+        <button
+          onClick={async () => {
+            setExporting(true);
+            const exportParams: Record<string, string> = {};
+            if (sentiment) exportParams.sentiment = sentiment;
+            if (language)  exportParams.language = language;
+            if (portalId)  exportParams.portal_id = portalId;
+            if (topic)     exportParams.topic = topic;
+            if (state)     exportParams.state = state;
+            if (dateFrom)  exportParams.date_from = dateFrom;
+            if (dateTo)    exportParams.date_to = dateTo;
+            if (q)         exportParams.q = q;
+            await exportMentionsCsv(brandId, brandName, exportParams);
+            setExporting(false);
+          }}
+          disabled={exporting}
+          className="text-xs px-3 py-1 border border-gray-700 rounded-lg text-gray-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-40 transition-colors"
+        >
+          {exporting ? "Exporting…" : "Export CSV"}
+        </button>
       </div>
 
       {/* Row 2: search, portal, topic, state, date */}
