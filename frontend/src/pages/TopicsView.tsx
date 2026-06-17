@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchTopics } from "../lib/api";
 import type { TopicStat } from "../lib/types";
 import { TopicSentimentChart } from "../components/charts/TopicSentimentChart";
+import { MentionsList } from "../components/mentions/MentionsList";
 
 interface Props {
   brandId: string;
@@ -20,6 +21,7 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 export function TopicsView({ brandId }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("count");
   const [sortDesc, setSortDesc] = useState(true);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
   const { data: topics = [], isLoading } = useQuery<TopicStat[]>({
     queryKey: ["topics", brandId],
@@ -47,7 +49,9 @@ export function TopicsView({ brandId }: Props) {
         <p className="text-xs text-gray-500 mt-0.5">All topics, sortable by any metric</p>
       </div>
 
-      {!isLoading && topics.length > 0 && <TopicSentimentChart topics={topics} />}
+      {!isLoading && topics.length > 0 && (
+        <TopicSentimentChart topics={topics} onSelect={setSelectedTopic} />
+      )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
         {isLoading ? (
@@ -74,7 +78,14 @@ export function TopicsView({ brandId }: Props) {
               <tbody className="divide-y divide-gray-800/50">
                 {sorted.map(t => (
                   <tr key={t.topic} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-2 pr-3 text-gray-200">{t.topic.replace(/_/g, " ")}</td>
+                    <td className="py-2 pr-3">
+                      <button
+                        onClick={() => setSelectedTopic(t.topic)}
+                        className="text-gray-200 hover:text-indigo-400 hover:underline text-left"
+                      >
+                        {t.topic.replace(/_/g, " ")}
+                      </button>
+                    </td>
                     <td className="py-2 pr-3 text-right text-gray-300">{t.count}</td>
                     <td className="py-2 pr-3 text-right text-green-400">{t.positive}</td>
                     <td className="py-2 pr-3 text-right text-red-400">{t.negative}</td>
@@ -86,6 +97,20 @@ export function TopicsView({ brandId }: Props) {
           </div>
         )}
       </div>
+
+      {selectedTopic && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">
+              Mentions tagged <span className="text-gray-200 font-medium">{selectedTopic.replace(/_/g, " ")}</span>
+            </span>
+            <button onClick={() => setSelectedTopic(null)} className="text-xs text-indigo-400 underline">
+              Clear
+            </button>
+          </div>
+          <MentionsList key={selectedTopic} brandId={brandId} initialTopic={selectedTopic} />
+        </div>
+      )}
     </div>
   );
 }
