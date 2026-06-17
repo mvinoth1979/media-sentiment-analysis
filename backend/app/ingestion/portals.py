@@ -25,6 +25,16 @@ PORTALS: list[Portal] = [
      "rss_url": "https://indianexpress.com/feed/"},
     {"id": "deccan_chronicle", "name": "Deccan Chronicle",  "language": "en", "credibility": 0.78,
      "rss_url": "https://www.deccanchronicle.com/feed"},
+    {"id": "hindustan_times",  "name": "Hindustan Times",   "language": "en", "credibility": 0.84,
+     "rss_url": "https://www.hindustantimes.com/feeds/rss/india/rssfeed.xml"},
+    {"id": "livemint",         "name": "Mint",              "language": "en", "credibility": 0.86,
+     "rss_url": "https://www.livemint.com/rss/news"},
+    {"id": "deccan_herald",    "name": "Deccan Herald",     "language": "en", "credibility": 0.82,
+     "rss_url": "https://www.deccanherald.com/feed"},
+    {"id": "the_quint",        "name": "The Quint",         "language": "en", "credibility": 0.79,
+     "rss_url": "https://www.thequint.com/feed"},
+    {"id": "news18",           "name": "News18",            "language": "en", "credibility": 0.76,
+     "rss_url": "https://www.news18.com/commonfeeds/v1/eng/rss/india.xml"},
     # Tamil portals (verified working 2026-06)
     # skip_keyword_filter=True: Tamil script cannot be matched by English regex;
     # relevance is handled by the 50 TA article cap + NLP sentiment analysis.
@@ -48,6 +58,8 @@ PORTALS: list[Portal] = [
      "rss_url": "https://www.puthiyathalaimurai.com/feed",                 "skip_keyword_filter": True},
     {"id": "daily_thanthi",    "name": "Daily Thanthi",    "language": "ta", "credibility": 0.80,
      "rss_url": "https://www.dailythanthi.com/feed",                       "skip_keyword_filter": True},
+    {"id": "sathiyam_tv",      "name": "Sathiyam TV",      "language": "ta", "credibility": 0.72,
+     "rss_url": "https://sathiyam.tv/feed/",                               "skip_keyword_filter": True},
     # Hindi portals (skip_keyword_filter=True: Devanagari script bypasses EN regex)
     {"id": "navbharat_times",  "name": "Navbharat Times",   "language": "hi", "credibility": 0.80,
      "rss_url": "https://navbharattimes.indiatimes.com/rssfeedstopstories.cms",  "skip_keyword_filter": True},
@@ -59,11 +71,19 @@ PORTALS: list[Portal] = [
      "rss_url": "https://ndtv.in/rss/top-stories",                              "skip_keyword_filter": True},
     {"id": "live_hindustan",   "name": "Hindustan",         "language": "hi", "credibility": 0.78,
      "rss_url": "https://www.livehindustan.com/rss/svn-livehindustan-topstories.xml", "skip_keyword_filter": True},
+    {"id": "dainik_bhaskar",   "name": "Dainik Bhaskar",   "language": "hi", "credibility": 0.82,
+     "rss_url": "https://www.bhaskar.com/rss-v1--category-1061.xml",           "skip_keyword_filter": True},
+    {"id": "prabhat_khabar",   "name": "Prabhat Khabar",   "language": "hi", "credibility": 0.76,
+     "rss_url": "https://www.prabhatkhabar.com/feed",                          "skip_keyword_filter": True},
+    {"id": "hari_bhoomi",      "name": "Hari Bhoomi",      "language": "hi", "credibility": 0.68,
+     "rss_url": "https://haribhoomi.com/feed/",                                "skip_keyword_filter": True},
     # Bengali portals
     {"id": "ei_samay",         "name": "Ei Samay",          "language": "bn", "credibility": 0.78,
      "rss_url": "https://eisamay.indiatimes.com/rssfeedstopstories.cms",        "skip_keyword_filter": True},
     {"id": "ananda_bazar",     "name": "Ananda Bazar",      "language": "bn", "credibility": 0.90,
      "rss_url": "https://www.anandabazar.com/feeds/top-stories.rss",            "skip_keyword_filter": True},
+    {"id": "sangbad_pratidin", "name": "Sangbad Pratidin",  "language": "bn", "credibility": 0.73,
+     "rss_url": "https://www.sangbadpratidin.in/feed/",                         "skip_keyword_filter": True},
     # Kannada portals
     {"id": "prajavani",        "name": "Prajavani",         "language": "kn", "credibility": 0.85,
      "rss_url": "https://www.prajavani.net/feed",                               "skip_keyword_filter": True},
@@ -71,15 +91,41 @@ PORTALS: list[Portal] = [
      "rss_url": "https://vijayakarnataka.indiatimes.com/rssfeedstopstories.cms","skip_keyword_filter": True},
     {"id": "udayavani",        "name": "Udayavani",         "language": "kn", "credibility": 0.80,
      "rss_url": "https://www.udayavani.com/feed",                               "skip_keyword_filter": True},
+    {"id": "kannada_prabha",   "name": "Kannada Prabha",   "language": "kn", "credibility": 0.78,
+     "rss_url": "https://kannadaprabha.com/feed/",                              "skip_keyword_filter": True},
+    {"id": "tv9_kannada",      "name": "TV9 Kannada",      "language": "kn", "credibility": 0.72,
+     "rss_url": "https://tv9kannada.com/feed/",                                 "skip_keyword_filter": True},
+    {"id": "public_tv",        "name": "Public TV",        "language": "kn", "credibility": 0.70,
+     "rss_url": "https://www.publictv.in/feed/",                                "skip_keyword_filter": True},
     # Gujarati portals
     {"id": "divya_bhaskar",    "name": "Divya Bhaskar",     "language": "gu", "credibility": 0.82,
      "rss_url": "https://www.divyabhaskar.co.in/rss-feed/1061/",                "skip_keyword_filter": True},
     {"id": "gujarat_samachar", "name": "Gujarat Samachar",  "language": "gu", "credibility": 0.80,
      "rss_url": "https://www.gujaratsamachar.com/rss/national-feed.xml",        "skip_keyword_filter": True},
-    # Excluded (RSS not available as of 2026-06):
-    # Dinamalar  — HTTP 500 on all paths; /rss returns HTML homepage (server-side bug).
-    # Dinamani   — RSS discontinued; all paths 404.
-    # Dinakaran  — HTTP 403 Forbidden on /rss and /feed; actively blocks scrapers.
+    {"id": "chitralekha",      "name": "Chitralekha",      "language": "gu", "credibility": 0.72,
+     "rss_url": "https://chitralekha.com/feed/",                                "skip_keyword_filter": True},
+    # Excluded (RSS not available or blocked as of 2026-06):
+    # Dinamalar        — HTTP 500 on all paths; /rss returns HTML homepage.
+    # Dinamani         — RSS discontinued; all paths 404.
+    # Dinakaran        — HTTP 403; actively blocks scrapers.
+    # Business Standard — HTTP 403 on all RSS paths.
+    # Financial Express — HTTP 410 (Gone); RSS retired.
+    # The Wire          — Returns 200 but HTML, not XML; no valid RSS endpoint found.
+    # The Print         — Returns 200 but HTML, not XML; no valid RSS endpoint found.
+    # Scroll.in         — Feedburner redirect broken (404).
+    # Zee News (EN/HI)  — HTTP 403 on all RSS paths.
+    # Dainik Jagran (alt paths) — main RSS works; alternative category feeds 404.
+    # ABP Live Hindi    — All RSS paths return errors or HTML.
+    # Nai Dunia         — 404 on all known RSS paths.
+    # Punjab Kesari     — 404 on all known RSS paths.
+    # Bartaman Patrika  — Connection error; no reachable RSS.
+    # Aajkaal           — 404 on RSS path.
+    # Pratidin Time (BN)— Connection error.
+    # Vishwa Karnataka  — Connection error.
+    # Hosadiganta       — Connection error.
+    # Sandesh (GU)      — Returns 200 but HTML, not XML.
+    # Nakkheeran (TA)   — Connection error.
+    # Suvarna News (KN) — Connection error.
 ]
 
 _portal_index: dict[str, Portal] = {p["id"]: p for p in PORTALS}
