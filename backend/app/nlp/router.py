@@ -8,7 +8,7 @@ from app.pipeline.rate_limiter import acquire_nlp_slot
 
 log = logging.getLogger(__name__)
 
-SUPPORTED_LANGUAGES = {"en", "ta"}
+SUPPORTED_LANGUAGES = {"en", "ta", "hi", "gu", "bn", "kn"}
 
 
 def analyse_article(article: dict) -> NLPResult | None:

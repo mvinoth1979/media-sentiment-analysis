@@ -45,19 +45,25 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         # This is the learning loop: user deletions feed article_rejections table and
         # new pipeline runs respect that knowledge before spending NLP quota.
         _new = [a for a in _new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
-        # Capped low (not 50) so total daily NLP call volume across all brands stays
-        # under Gemini/Groq free-tier daily quotas — see app/pipeline/scheduler.py
-        # for the staleness-based ordering that ensures fairness under this cap.
-        en_new = [a for a in _new if a.get("language") == "en"][:20]
-        ta_new = [a for a in _new if a.get("language") == "ta"][:20]
-        new_articles = en_new + ta_new
+        # Cap 20 articles per language to stay within Gemini/Groq free-tier daily
+        # quotas. Only process languages the brand is configured for.
+        per_lang: dict[str, list] = {}
+        for a in _new:
+            lang = a.get("language") or "en"
+            if lang not in languages:
+                continue
+            if lang not in per_lang:
+                per_lang[lang] = []
+            if len(per_lang[lang]) < 20:
+                per_lang[lang].append(a)
+        new_articles = [a for articles in per_lang.values() for a in articles]
 
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)
             return stats
 
-        log.info("Brand %s: %d EN + %d TA articles to process",
-                 brand_id[:8], len(en_new), len(ta_new))
+        lang_summary = " + ".join(f"{len(v)} {k.upper()}" for k, v in per_lang.items())
+        log.info("Brand %s: %s articles to process", brand_id[:8], lang_summary)
         processed_articles = []
         for article in new_articles:
             try:

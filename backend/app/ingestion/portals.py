@@ -48,6 +48,34 @@ PORTALS: list[Portal] = [
      "rss_url": "https://www.puthiyathalaimurai.com/feed",                 "skip_keyword_filter": True},
     {"id": "daily_thanthi",    "name": "Daily Thanthi",    "language": "ta", "credibility": 0.80,
      "rss_url": "https://www.dailythanthi.com/feed",                       "skip_keyword_filter": True},
+    # Hindi portals (skip_keyword_filter=True: Devanagari script bypasses EN regex)
+    {"id": "navbharat_times",  "name": "Navbharat Times",   "language": "hi", "credibility": 0.80,
+     "rss_url": "https://navbharattimes.indiatimes.com/rssfeedstopstories.cms",  "skip_keyword_filter": True},
+    {"id": "amar_ujala",       "name": "Amar Ujala",        "language": "hi", "credibility": 0.82,
+     "rss_url": "https://www.amarujala.com/rss/breaking-news.xml",              "skip_keyword_filter": True},
+    {"id": "jagran",           "name": "Dainik Jagran",     "language": "hi", "credibility": 0.80,
+     "rss_url": "https://www.jagran.com/rss/news-national.xml",                 "skip_keyword_filter": True},
+    {"id": "ndtv_india",       "name": "NDTV India",        "language": "hi", "credibility": 0.85,
+     "rss_url": "https://ndtv.in/rss/top-stories",                              "skip_keyword_filter": True},
+    {"id": "live_hindustan",   "name": "Hindustan",         "language": "hi", "credibility": 0.78,
+     "rss_url": "https://www.livehindustan.com/rss/svn-livehindustan-topstories.xml", "skip_keyword_filter": True},
+    # Bengali portals
+    {"id": "ei_samay",         "name": "Ei Samay",          "language": "bn", "credibility": 0.78,
+     "rss_url": "https://eisamay.indiatimes.com/rssfeedstopstories.cms",        "skip_keyword_filter": True},
+    {"id": "ananda_bazar",     "name": "Ananda Bazar",      "language": "bn", "credibility": 0.90,
+     "rss_url": "https://www.anandabazar.com/feeds/top-stories.rss",            "skip_keyword_filter": True},
+    # Kannada portals
+    {"id": "prajavani",        "name": "Prajavani",         "language": "kn", "credibility": 0.85,
+     "rss_url": "https://www.prajavani.net/feed",                               "skip_keyword_filter": True},
+    {"id": "vijaya_karnataka", "name": "Vijaya Karnataka",  "language": "kn", "credibility": 0.78,
+     "rss_url": "https://vijayakarnataka.indiatimes.com/rssfeedstopstories.cms","skip_keyword_filter": True},
+    {"id": "udayavani",        "name": "Udayavani",         "language": "kn", "credibility": 0.80,
+     "rss_url": "https://www.udayavani.com/feed",                               "skip_keyword_filter": True},
+    # Gujarati portals
+    {"id": "divya_bhaskar",    "name": "Divya Bhaskar",     "language": "gu", "credibility": 0.82,
+     "rss_url": "https://www.divyabhaskar.co.in/rss-feed/1061/",                "skip_keyword_filter": True},
+    {"id": "gujarat_samachar", "name": "Gujarat Samachar",  "language": "gu", "credibility": 0.80,
+     "rss_url": "https://www.gujaratsamachar.com/rss/national-feed.xml",        "skip_keyword_filter": True},
     # Excluded (RSS not available as of 2026-06):
     # Dinamalar  — HTTP 500 on all paths; /rss returns HTML homepage (server-side bug).
     # Dinamani   — RSS discontinued; all paths 404.

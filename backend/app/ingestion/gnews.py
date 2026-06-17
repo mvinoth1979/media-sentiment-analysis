@@ -1,8 +1,12 @@
 from urllib.parse import quote_plus
 
 _LANG_CONFIG = {
-    "en": {"hl": "en-IN", "ceid": "IN:en"},
-    "ta": {"hl": "ta-IN", "ceid": "IN:ta"},
+    "en": {"hl": "en-IN",  "ceid": "IN:en"},
+    "ta": {"hl": "ta-IN",  "ceid": "IN:ta"},
+    "hi": {"hl": "hi-IN",  "ceid": "IN:hi"},
+    "gu": {"hl": "gu-IN",  "ceid": "IN:gu"},
+    "bn": {"hl": "bn-IN",  "ceid": "IN:bn"},
+    "kn": {"hl": "kn-IN",  "ceid": "IN:kn"},
 }
 
 
