@@ -33,7 +33,26 @@ def _parse_label(label: str) -> str:
     return normalized if normalized in _VALID_LABELS else "neutral"
 
 
-_PROMPT = """Analyse the sentiment of the following news article text for the brand/product mentions it contains.
+_SOURCE_CONTEXT = {
+    "news": (
+        "This is a news article. Use journalistic framing to assess brand sentiment. "
+        "Extract Indian states mentioned in the text carefully — they are significant."
+    ),
+    "youtube_video": (
+        "This is a YouTube video title and description. The title may use clickbait phrasing — "
+        "weight the description more heavily than the title when judging true sentiment. "
+        "Focus on the creator's opinion about the brand or product."
+    ),
+    "youtube_comment": (
+        "This is a short YouTube comment. Emojis carry strong sentiment (😤😡=negative, 😊❤️=positive). "
+        "Slang and mixed languages (Hinglish, Tanglish) are intentional — focus on emotional tone. "
+        "states_mentioned will almost always be empty. Confidence should reflect text brevity."
+    ),
+}
+
+_PROMPT = """Analyse the sentiment of the following text for the brand/product mentions it contains.
+
+Source context: {source_context}
 
 Return ONLY valid JSON with this exact schema:
 {{
@@ -46,16 +65,23 @@ Return ONLY valid JSON with this exact schema:
   "confidence": <float 0.0 to 1.0>
 }}
 
-Article language: {language}
-Article text:
+Language: {language}
+Text:
 {text}"""
 
 
-def analyse_with_gemini(text: str, language: str) -> tuple[NLPResult | None, bool]:
+def analyse_with_gemini(text: str, language: str,
+                        source_type: str = "news") -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited). was_rate_limited is True only if every
     attempt failed due to a 429/rate-limit response, so callers can distinguish
     quota exhaustion from genuine parsing/content failures."""
-    prompt = _PROMPT.format(states=_INDIAN_STATES, language=language, text=text[:3000])
+    context = _SOURCE_CONTEXT.get(source_type, _SOURCE_CONTEXT["news"])
+    prompt = _PROMPT.format(
+        source_context=context,
+        states=_INDIAN_STATES,
+        language=language,
+        text=text[:3000],
+    )
     rate_limited = False
     for attempt in range(3):
         try:

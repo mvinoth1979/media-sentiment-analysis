@@ -3,6 +3,7 @@ from app.ingestion.portals import get_portals_for_languages
 from app.ingestion.gnews import get_gnews_portals
 from app.ingestion.rss_collector import collect_portal
 from app.ingestion.deduplication import filter_new_articles, mark_article_seen
+from app.ingestion.youtube_collector import collect_youtube_for_brand
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article, update_pipeline_status, decrement_bootstrap_runs
@@ -58,6 +59,20 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             if len(per_lang[lang]) < 20:
                 per_lang[lang].append(a)
         new_articles = [a for articles in per_lang.values() for a in articles]
+
+        # YouTube collection — separate sub-cap (10 videos + 50 comments) so it cannot
+        # crowd out news articles. Only runs when brand_config.youtube_enabled = True.
+        if config.get("youtube_enabled", False):
+            try:
+                yt_raw = collect_youtube_for_brand(brand, config)
+                yt_new = filter_new_articles(yt_raw, brand_id)
+                yt_new = [a for a in yt_new
+                          if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(yt_new)
+                stats["collected"] += len(yt_raw)
+            except Exception as e:
+                log.error("YouTube collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
 
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)

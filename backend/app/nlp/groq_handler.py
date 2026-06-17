@@ -35,12 +35,26 @@ def _parse_label(label: str) -> str:
     return normalized if normalized in _VALID_LABELS else "neutral"
 
 
+_SOURCE_CONTEXT = {
+    "news": "News article — use journalistic framing, extract Indian states carefully.",
+    "youtube_video": (
+        "YouTube video title+description — weight description over clickbait title, "
+        "focus on creator's opinion about the brand."
+    ),
+    "youtube_comment": (
+        "Short YouTube comment — emojis signal sentiment (😤😡=negative, 😊❤️=positive), "
+        "slang/Hinglish is intentional, states_mentioned usually empty."
+    ),
+}
+
 _SYSTEM = (
     "You are a sentiment analysis engine. "
     "Return ONLY valid JSON. No explanation, no markdown, no code fences."
 )
 
-_USER = """Analyse sentiment of this news article text for brand/product mentions.
+_USER = """Analyse sentiment of this text for brand/product mentions.
+
+Source: {source_context}
 
 Return JSON: {{"sentiment_score": float -1 to 1, "sentiment_label": "positive"|"negative"|"neutral",
 "entities": [strings], "topics": [strings], "keywords": [strings],
@@ -51,11 +65,18 @@ Language: {language}
 Text: {text}"""
 
 
-def analyse_with_groq(text: str, language: str) -> tuple[NLPResult | None, bool]:
+def analyse_with_groq(text: str, language: str,
+                      source_type: str = "news") -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited) so callers can distinguish quota
     exhaustion from genuine parsing/content failures."""
     try:
-        prompt = _USER.format(states=_INDIAN_STATES, language=language, text=text[:2000])
+        context = _SOURCE_CONTEXT.get(source_type, _SOURCE_CONTEXT["news"])
+        prompt = _USER.format(
+            source_context=context,
+            states=_INDIAN_STATES,
+            language=language,
+            text=text[:2000],
+        )
         resp = _get_client().chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
