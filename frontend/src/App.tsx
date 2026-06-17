@@ -31,13 +31,20 @@ function App() {
   useEffect(() => {
     if (!session) return;
     setUserEmail(session.user.email ?? "");
-    supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .then(({ data }) => {
-        setIsAdmin((data ?? []).some((r: { role: string }) => ADMIN_ROLES.has(r.role)));
-      });
+    fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_roles?select=role&user_id=eq.${session.user.id}`,
+      {
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      }
+    )
+      .then(r => r.json())
+      .then((rows: { role: string }[]) => {
+        setIsAdmin(Array.isArray(rows) && rows.some(r => ADMIN_ROLES.has(r.role)));
+      })
+      .catch(() => {});
   }, [session]);
 
   if (session === undefined) return null;

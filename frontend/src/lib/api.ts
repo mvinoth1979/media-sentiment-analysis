@@ -46,10 +46,29 @@ export const deleteMentions = (brandId: string, ids: string[]) =>
 
 export const exportMentionsCsv = async (brandId: string, brandName: string, params: Record<string, string>) => {
   const filtered = Object.fromEntries(Object.entries(params).filter(([, v]) => v));
-  const resp = await api.get(`/dashboard/export/${brandId}`, {
-    params: filtered,
-    responseType: "blob",
-  });
+  let resp;
+  try {
+    resp = await api.get(`/dashboard/export/${brandId}`, {
+      params: filtered,
+      responseType: "blob",
+    });
+  } catch (err: unknown) {
+    // Try to extract the real error message from the blob response
+    if (err && typeof err === "object" && "response" in err) {
+      const axiosErr = err as { response?: { status: number; data?: Blob } };
+      if (axiosErr.response?.data instanceof Blob) {
+        try {
+          const text = await axiosErr.response.data.text();
+          const json = JSON.parse(text);
+          throw new Error(`${axiosErr.response.status}: ${json.detail ?? text}`);
+        } catch (parseErr) {
+          if (parseErr instanceof Error && parseErr.message.startsWith(String(axiosErr.response.status))) throw parseErr;
+        }
+      }
+      if (axiosErr.response?.status) throw new Error(`HTTP ${axiosErr.response.status}`);
+    }
+    throw err;
+  }
   const url = URL.createObjectURL(new Blob([resp.data], { type: "text/csv" }));
   const a = document.createElement("a");
   a.href = url;
