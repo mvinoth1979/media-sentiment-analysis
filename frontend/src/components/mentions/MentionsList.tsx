@@ -27,9 +27,13 @@ const SENTIMENT_FILTERS = [
 ];
 
 const LANG_FILTERS = [
-  { label: "All", value: "" },
+  { label: "All languages", value: "" },
   { label: "English", value: "en" },
   { label: "Tamil", value: "ta" },
+  { label: "Hindi", value: "hi" },
+  { label: "Gujarati", value: "gu" },
+  { label: "Bengali", value: "bn" },
+  { label: "Kannada", value: "kn" },
 ];
 
 function readParam(key: string, fallback = "") {
@@ -195,16 +199,15 @@ export function MentionsList({
           ))}
         </div>
 
-        <div className="flex gap-1">
+        <select
+          value={language}
+          onChange={e => set(setLanguage)(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2.5 py-1 focus:outline-none focus:border-teal-500"
+        >
           {LANG_FILTERS.map(f => (
-            <button key={f.value} onClick={() => set(setLanguage)(f.value)}
-              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                language === f.value
-                  ? "bg-teal-700 border-teal-600 text-white"
-                  : "border-gray-700 text-gray-400 hover:border-gray-500"
-              }`}>{f.label}</button>
+            <option key={f.value} value={f.value}>{f.label}</option>
           ))}
-        </div>
+        </select>
 
         <button
           onClick={async () => {
