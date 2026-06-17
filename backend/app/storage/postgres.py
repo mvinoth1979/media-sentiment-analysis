@@ -117,6 +117,20 @@ def update_pipeline_status(brand_id: str, status: str, stats: dict | None = None
     db.table("brand_configs").update(payload).eq("brand_id", brand_id).execute()
 
 
+def decrement_bootstrap_runs(brand_id: str) -> None:
+    try:
+        db = get_db()
+        row = db.table("brand_configs") \
+                .select("bootstrap_runs_remaining") \
+                .eq("brand_id", brand_id).execute().data
+        if row and row[0].get("bootstrap_runs_remaining", 0) > 0:
+            db.table("brand_configs") \
+              .update({"bootstrap_runs_remaining": row[0]["bootstrap_runs_remaining"] - 1}) \
+              .eq("brand_id", brand_id).execute()
+    except Exception:
+        pass  # column may not exist on older deployments
+
+
 def get_pipeline_info(brand_id: str) -> dict:
     db = get_db()
     rows = db.table("brand_configs") \

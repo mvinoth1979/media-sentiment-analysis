@@ -8,33 +8,42 @@ log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-def _order_by_staleness(db, brands: list[dict]) -> list[dict]:
-    """Sorts brands by their most recent article's collected_at, oldest/never-processed
-    first — so a brand that got starved of NLP quota last cycle is first in line next
-    time, instead of the same brands always losing the race for the shared daily quota."""
+def _order_by_staleness(db, brands: list[dict], configs: dict[str, dict]) -> list[dict]:
+    """Brands with bootstrap_runs_remaining > 0 always sort first (new-brand fast-fill).
+    Within each tier, oldest last-collected article goes first so quota-starved brands
+    are not repeatedly skipped."""
     rows = db.table("articles").select("brand_id, collected_at") \
              .order("collected_at", desc=True).limit(2000).execute().data
     last_seen: dict[str, str] = {}
     for row in rows:
         last_seen.setdefault(row["brand_id"], row["collected_at"])
-    return sorted(brands, key=lambda b: last_seen.get(b["id"], ""))
+
+    def sort_key(b: dict) -> tuple:
+        cfg = configs.get(b["id"], {})
+        bootstrap = cfg.get("bootstrap_runs_remaining", 0)
+        # tier 0 = bootstrap priority, tier 1 = normal staleness order
+        return (0 if bootstrap > 0 else 1, last_seen.get(b["id"], ""))
+
+    return sorted(brands, key=sort_key)
 
 
 def _enqueue_all_brands():
     db = create_client(settings.supabase_url, settings.supabase_service_role_key)
     brands = db.table("brands").select("id, name").execute().data
-    brands = _order_by_staleness(db, brands)
+    config_rows = db.table("brand_configs").select("*").execute().data
+    configs = {r["brand_id"]: r for r in config_rows}
+    brands = _order_by_staleness(db, brands, configs)
     for brand in brands:
-        config_row = db.table("brand_configs").select("*") \
-                       .eq("brand_id", brand["id"]).execute().data
-        if not config_row:
+        config = configs.get(brand["id"])
+        if not config:
             continue
-        config = config_row[0]
         enqueue_brand(brand, {
-            "keywords": config.get("keywords", []),
-            "languages": config.get("languages", ["en"]),
+            "keywords":                  config.get("keywords", []),
+            "languages":                 config.get("languages", ["en"]),
+            "bootstrap_runs_remaining":  config.get("bootstrap_runs_remaining", 0),
         })
-    log.info("Enqueued %d brands for processing", len(brands))
+    bootstrap_count = sum(1 for c in configs.values() if c.get("bootstrap_runs_remaining", 0) > 0)
+    log.info("Enqueued %d brands (%d in bootstrap priority)", len(brands), bootstrap_count)
 
 
 def start_scheduler():

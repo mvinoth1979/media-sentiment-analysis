@@ -5,7 +5,7 @@ from app.ingestion.rss_collector import collect_portal
 from app.ingestion.deduplication import filter_new_articles, mark_article_seen
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
-from app.storage.postgres import save_article, update_pipeline_status
+from app.storage.postgres import save_article, update_pipeline_status, decrement_bootstrap_runs
 from app.storage.rejection_store import is_rejected
 from app.storage.influxdb import write_sentiment_point
 from app.storage.r2 import archive_article
@@ -97,5 +97,7 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
 
     finally:
         update_pipeline_status(brand_id, "idle", stats)
+        if config.get("bootstrap_runs_remaining", 0) > 0:
+            decrement_bootstrap_runs(brand_id)
 
     return stats
