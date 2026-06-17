@@ -16,3 +16,6 @@ dist/
 .superpowers/
 .playwright-mcp/
 screenshots/
+docs/UserCredential.md
+*.png
+backend_dev.log
