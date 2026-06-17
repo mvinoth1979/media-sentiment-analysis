@@ -41,6 +41,8 @@ def _enqueue_all_brands():
             "keywords":                  config.get("keywords", []),
             "languages":                 config.get("languages", ["en"]),
             "bootstrap_runs_remaining":  config.get("bootstrap_runs_remaining", 0),
+            "youtube_enabled":           config.get("youtube_enabled", False),
+            "youtube_channel_ids":       config.get("youtube_channel_ids") or [],
         })
     bootstrap_count = sum(1 for c in configs.values() if c.get("bootstrap_runs_remaining", 0) > 0)
     log.info("Enqueued %d brands (%d in bootstrap priority)", len(brands), bootstrap_count)
