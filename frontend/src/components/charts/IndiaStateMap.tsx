@@ -31,10 +31,10 @@ interface Tooltip {
 }
 
 function sentimentColor(stat: StateStat | undefined): string {
-  if (!stat || stat.total === 0) return "#1f2937"; // gray-800 — no data
+  if (!stat || stat.count === 0) return "#1f2937"; // gray-800 — no data
 
-  const positivePct = stat.positive / stat.total;
-  const negativePct = stat.negative / stat.total;
+  const positivePct = stat.positive / stat.count;
+  const negativePct = stat.negative / stat.count;
 
   if (positivePct >= 0.6) return "#166534";   // strong positive — green-800
   if (positivePct >= 0.4) return "#15803d";   // positive — green-700
@@ -43,19 +43,9 @@ function sentimentColor(stat: StateStat | undefined): string {
   return "#374151";                           // mostly neutral — gray-700
 }
 
-function sentimentLabel(stat: StateStat | undefined): string {
-  if (!stat || stat.total === 0) return "No data";
-  const positivePct = Math.round((stat.positive / stat.total) * 100);
-  const negativePct = Math.round((stat.negative / stat.total) * 100);
-  if (positivePct >= 50) return `${positivePct}% positive`;
-  if (negativePct >= 50) return `${negativePct}% negative`;
-  return `${Math.round(((stat.total - stat.positive - stat.negative) / stat.total) * 100)}% neutral`;
-}
-
 export function IndiaStateMap({ data, onStateClick }: Props) {
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
 
-  // Build lookup: normalised name → StateStat
   const statMap = new Map<string, StateStat>();
   for (const s of data) {
     statMap.set(NORMALISE(s.state), s);
@@ -116,7 +106,7 @@ export function IndiaStateMap({ data, onStateClick }: Props) {
                       onMouseEnter={(e) => {
                         setTooltip({
                           name: geoName,
-                          total: stat?.total ?? 0,
+                          total: stat?.count ?? 0,
                           positive: stat?.positive ?? 0,
                           negative: stat?.negative ?? 0,
                           neutral: stat?.neutral ?? 0,
