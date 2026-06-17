@@ -11,6 +11,7 @@ def save_article(article: dict, nlp: dict) -> str | None:
     row = {**article, **nlp}
     for field in ("body", "confidence", "portal_name"):
         row.pop(field, None)
+    row.setdefault("source_platform", "news")
     result = db.table("articles").upsert(row, on_conflict="brand_id,content_hash").execute()
     return result.data[0]["id"] if result.data else None
 
@@ -72,3 +73,24 @@ def get_kpi_summary(brand_id: str) -> dict:
         "negative_pct": round(counts["negative"] / total * 100, 1),
         "neutral_pct":  round(counts["neutral"]  / total * 100, 1),
     }
+
+
+def update_pipeline_status(brand_id: str, status: str, stats: dict | None = None) -> None:
+    from datetime import datetime, timezone
+    db = get_db()
+    payload: dict = {"pipeline_status": status}
+    if status == "running":
+        payload["pipeline_last_run_at"] = datetime.now(timezone.utc).isoformat()
+    if stats is not None:
+        payload["pipeline_last_stats"] = stats
+    db.table("brand_configs").update(payload).eq("brand_id", brand_id).execute()
+
+
+def get_pipeline_info(brand_id: str) -> dict:
+    db = get_db()
+    rows = db.table("brand_configs") \
+             .select("pipeline_status, pipeline_last_run_at, pipeline_last_stats") \
+             .eq("brand_id", brand_id).execute().data
+    if not rows:
+        return {"pipeline_status": "idle", "pipeline_last_run_at": None, "pipeline_last_stats": {}}
+    return rows[0]

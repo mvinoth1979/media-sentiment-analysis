@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from app.auth.dependencies import get_current_user, require_role
-from app.tenants.access import require_brand_access
+from app.auth.dependencies import get_current_user, require_brand_role, WRITE_ROLES
 from app.storage.postgres import get_db
 
 router = APIRouter()
@@ -48,8 +47,7 @@ def search_brands(
 def update_brand_config(
     brand_id: str,
     payload: BrandConfigUpdate,
-    _role: dict = Depends(require_role("agency_admin", "brand_admin")),
-    _access: dict = Depends(require_brand_access),
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
 ):
     db = get_db()
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}

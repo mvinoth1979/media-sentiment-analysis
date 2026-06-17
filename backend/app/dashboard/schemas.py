@@ -19,6 +19,15 @@ class TrendPoint(BaseModel):
     value: float
 
 
+class AuthorInfo(BaseModel):
+    display_name: str | None = None
+
+
+class MentionMetrics(BaseModel):
+    estimated_reach: int = 0
+    influence_score: float = 0.5
+
+
 class ArticleItem(BaseModel):
     id: str
     title: str
@@ -29,10 +38,13 @@ class ArticleItem(BaseModel):
     sentiment_score: float
     language: str
     source_credibility: float = 0.5
+    source_platform: str = "news"
     entities: list[str]
     topics: list[str]
     keywords: list[str]
     model_used: str | None = None
+    author_info: AuthorInfo | None = None
+    metrics: MentionMetrics | None = None
 
 
 class SourceStat(BaseModel):
@@ -69,6 +81,12 @@ class Annotation(BaseModel):
     created_at: str
 
 
+class PipelineStats(BaseModel):
+    collected: int = 0
+    processed: int = 0
+    errors: int = 0
+
+
 class OverviewResponse(BaseModel):
     kpi: KPISummary
     trend: list[TrendPoint]
@@ -77,3 +95,6 @@ class OverviewResponse(BaseModel):
     top_keywords: list[str]
     top_topics: list[str]
     last_processed_at: str | None = None
+    pipeline_status: str = "idle"
+    pipeline_last_run_at: str | None = None
+    pipeline_last_stats: PipelineStats = PipelineStats()

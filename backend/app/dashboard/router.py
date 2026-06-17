@@ -1,24 +1,52 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
-from app.tenants.access import require_brand_access
-from app.storage.postgres import get_articles, get_kpi_summary, get_db, delete_articles
+from app.auth.dependencies import require_brand_role, READ_ROLES, WRITE_ROLES
+from app.storage.postgres import (
+    get_articles, get_kpi_summary, get_db, delete_articles,
+    get_pipeline_info,
+)
 from app.storage.rejection_store import save_rejections
 from app.storage.influxdb import query_sentiment_trend
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
-    OverviewResponse, KPISummary, ArticleItem, SourceStat, TopicStat, TrendPoint,
-    Annotation, AnnotationCreate, DeleteMentionsRequest,
+    OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
+    SourceStat, TopicStat, TrendPoint,
+    Annotation, AnnotationCreate, DeleteMentionsRequest, PipelineStats,
 )
 
 router = APIRouter()
+
+
+def _article_to_item(a: dict) -> ArticleItem:
+    return ArticleItem(
+        id=a.get("id", ""),
+        title=a.get("title", ""),
+        url=a.get("url", ""),
+        portal_id=a.get("portal_id", ""),
+        published_at=a.get("published_at"),
+        sentiment_label=a.get("sentiment_label", "neutral"),
+        sentiment_score=a.get("sentiment_score") or 0.0,
+        language=a.get("language", "en"),
+        source_credibility=a.get("source_credibility") or 0.5,
+        source_platform=a.get("source_platform", "news"),
+        entities=a.get("entities") or [],
+        topics=a.get("topics") or [],
+        keywords=a.get("keywords") or [],
+        model_used=a.get("model_used"),
+        author_info=AuthorInfo(display_name=a.get("author")) if a.get("author") else None,
+        metrics=MentionMetrics(
+            estimated_reach=a.get("reach_score") or 0,
+            influence_score=a.get("source_credibility") or 0.5,
+        ),
+    )
 
 
 @router.get("/overview/{brand_id}", response_model=OverviewResponse)
 def get_overview(
     brand_id: str,
     days: int = Query(7, ge=1, le=90),
-    _user: dict = Depends(require_brand_access),
+    user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
     kpi_raw = get_kpi_summary(brand_id)
     try:
@@ -51,31 +79,24 @@ def get_overview(
     previous_window = _window_kpi(brand_id, previous_start.isoformat(), current_start.isoformat())
     wow_delta = _compute_wow_delta(current_window, previous_window)
 
+    pipeline_info = get_pipeline_info(brand_id)
+    raw_stats = pipeline_info.get("pipeline_last_stats") or {}
+
     return OverviewResponse(
         kpi=KPISummary(perception_score=recent_score, **kpi_raw, **wow_delta),
         trend=[TrendPoint(**p) for p in trend_raw],
-        recent_mentions=[
-            ArticleItem(
-                id=a.get("id", ""),
-                title=a.get("title", ""),
-                url=a.get("url", ""),
-                portal_id=a.get("portal_id", ""),
-                published_at=a.get("published_at"),
-                sentiment_label=a.get("sentiment_label", "neutral"),
-                sentiment_score=a.get("sentiment_score") or 0.0,
-                language=a.get("language", "en"),
-                source_credibility=a.get("source_credibility") or 0.5,
-                entities=a.get("entities") or [],
-                topics=a.get("topics") or [],
-                keywords=a.get("keywords") or [],
-                model_used=a.get("model_used"),
-            )
-            for a in recent
-        ],
+        recent_mentions=[_article_to_item(a) for a in recent],
         top_sources=_compute_source_stats(all_articles)[:5],
         top_keywords=[kw for kw, _ in kw_counter.most_common(15)],
         top_topics=[t for t, _ in topic_counter.most_common(10)],
         last_processed_at=recent[0].get("collected_at") if recent else None,
+        pipeline_status=pipeline_info.get("pipeline_status", "idle"),
+        pipeline_last_run_at=pipeline_info.get("pipeline_last_run_at"),
+        pipeline_last_stats=PipelineStats(
+            collected=raw_stats.get("collected", 0),
+            processed=raw_stats.get("processed", 0),
+            errors=raw_stats.get("errors", 0),
+        ),
     )
 
 
@@ -123,7 +144,7 @@ def _compute_source_stats(articles: list[dict]) -> list[SourceStat]:
 @router.get("/sources/{brand_id}", response_model=list[SourceStat])
 def get_sources(
     brand_id: str,
-    _user: dict = Depends(require_brand_access),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
     articles = get_articles(brand_id, limit=500)
     return _compute_source_stats(articles)
@@ -149,7 +170,7 @@ def _compute_topic_stats(articles: list[dict]) -> list[TopicStat]:
 @router.get("/topics/{brand_id}", response_model=list[TopicStat])
 def get_topics(
     brand_id: str,
-    _user: dict = Depends(require_brand_access),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
     articles = get_articles(brand_id, limit=500)
     return _compute_topic_stats(articles)
@@ -167,19 +188,20 @@ def get_mentions(
     date_from: str | None = None,
     date_to: str | None = None,
     q: str | None = None,
-    _user: dict = Depends(require_brand_access),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
-    return get_articles(brand_id, limit=limit, offset=offset,
-                        sentiment=sentiment, language=language,
-                        portal_id=portal_id, topic=topic,
-                        date_from=date_from, date_to=date_to, q=q)
+    articles = get_articles(brand_id, limit=limit, offset=offset,
+                            sentiment=sentiment, language=language,
+                            portal_id=portal_id, topic=topic,
+                            date_from=date_from, date_to=date_to, q=q)
+    return [_article_to_item(a) for a in articles]
 
 
 @router.delete("/mentions/{brand_id}")
 def delete_mentions(
     brand_id: str,
     body: DeleteMentionsRequest,
-    user: dict = Depends(require_brand_access),
+    user: dict = Depends(require_brand_role("master_admin")),
 ):
     deleted = delete_articles(body.ids, brand_id)
     if deleted:
@@ -190,7 +212,7 @@ def delete_mentions(
 @router.get("/trends/{brand_id}/annotations", response_model=list[Annotation])
 def get_trend_annotations(
     brand_id: str,
-    _user: dict = Depends(require_brand_access),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
     db = get_db()
     rows = db.table("trend_annotations").select("*") \
@@ -202,7 +224,7 @@ def get_trend_annotations(
 def create_trend_annotation(
     brand_id: str,
     payload: AnnotationCreate,
-    user: dict = Depends(require_brand_access),
+    user: dict = Depends(require_brand_role(*WRITE_ROLES)),
 ):
     db = get_db()
     row = {

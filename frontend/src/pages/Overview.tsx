@@ -30,7 +30,8 @@ export function Overview({ brandId, brandName }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["overview", brandId],
     queryFn: () => fetchOverview(brandId),
-    refetchInterval: 60_000,
+    refetchInterval: (query) =>
+      query.state.data?.pipeline_status === "running" ? 10_000 : 60_000,
   });
 
   if (isLoading) return <div className="text-gray-400 p-8">Loading...</div>;
@@ -50,6 +51,27 @@ export function Overview({ brandId, brandName }: Props) {
           <p className="text-xs text-gray-500 mt-0.5">
             Media sentiment report · last 7 days · Last updated {formatLastProcessed(data.last_processed_at)}
           </p>
+        </div>
+      )}
+
+      {/* Pipeline status banner */}
+      {data.pipeline_status === "running" && (
+        <div className="flex items-center gap-3 bg-indigo-950/60 border border-indigo-800/60 rounded-lg px-4 py-2.5 text-sm">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500" />
+          </span>
+          <span className="text-indigo-300 font-medium">Pipeline running</span>
+          <span className="text-indigo-500">— collecting and analysing new articles…</span>
+        </div>
+      )}
+      {data.pipeline_status === "idle" && data.pipeline_last_stats?.processed > 0 && (
+        <div className="flex items-center gap-3 bg-gray-900/40 border border-gray-800 rounded-lg px-4 py-2 text-xs text-gray-500">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          Last run: collected {data.pipeline_last_stats.collected}, processed {data.pipeline_last_stats.processed}
+          {data.pipeline_last_stats.errors > 0 && (
+            <span className="text-amber-500">, {data.pipeline_last_stats.errors} errors</span>
+          )}
         </div>
       )}
 

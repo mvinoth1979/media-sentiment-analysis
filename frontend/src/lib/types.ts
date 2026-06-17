@@ -13,6 +13,15 @@ export interface KPISummary {
 
 export interface TrendPoint { time: string; value: number; }
 
+export interface AuthorInfo {
+  display_name: string | null;
+}
+
+export interface MentionMetrics {
+  estimated_reach: number;
+  influence_score: number;
+}
+
 export interface ArticleItem {
   id: string;
   title: string;
@@ -23,10 +32,13 @@ export interface ArticleItem {
   sentiment_score: number;
   language: string;
   source_credibility: number;
+  source_platform: string;
   entities: string[];
   topics: string[];
   keywords: string[];
   model_used: string;
+  author_info?: AuthorInfo | null;
+  metrics?: MentionMetrics | null;
 }
 
 export interface SourceStat {
@@ -54,6 +66,12 @@ export interface Annotation {
   created_at: string;
 }
 
+export interface PipelineStats {
+  collected: number;
+  processed: number;
+  errors: number;
+}
+
 export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];
@@ -62,4 +80,7 @@ export interface OverviewData {
   top_keywords: string[];
   top_topics: string[];
   last_processed_at: string | null;
+  pipeline_status: "idle" | "running";
+  pipeline_last_run_at: string | null;
+  pipeline_last_stats: PipelineStats;
 }
