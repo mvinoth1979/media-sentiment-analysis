@@ -13,6 +13,8 @@ class BrandConfigUpdate(BaseModel):
     states: list[str] | None = None
     competitors: list[str] | None = None
     portal_ids: list[str] | None = None
+    youtube_enabled: bool | None = None
+    youtube_channel_ids: list[str] | None = None
 
 
 @router.get("/me")
@@ -53,6 +55,8 @@ class BrandCreate(BaseModel):
     name: str
     keywords: list[str]
     languages: list[str] = ["en"]
+    youtube_enabled: bool = False
+    youtube_channel_ids: list[str] = []
 
 
 @router.post("/brands", status_code=201)
@@ -72,9 +76,11 @@ def create_brand(
         agency_id = first[0]["id"]
     brand = db.table("brands").insert({"agency_id": agency_id, "name": payload.name}).execute().data[0]
     db.table("brand_configs").insert({
-        "brand_id":  brand["id"],
-        "keywords":  payload.keywords,
-        "languages": payload.languages,
+        "brand_id":           brand["id"],
+        "keywords":           payload.keywords,
+        "languages":          payload.languages,
+        "youtube_enabled":    payload.youtube_enabled,
+        "youtube_channel_ids": payload.youtube_channel_ids,
     }).execute()
     return brand
 

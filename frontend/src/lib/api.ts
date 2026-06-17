@@ -88,8 +88,20 @@ export const createAlert = (brandId: string, payload: { alert_type: string; thre
 export const deleteAlert = (brandId: string, alertId: string) =>
   api.delete(`/dashboard/alerts/${brandId}/${alertId}`).then(r => r.data);
 
-export const createBrand = (payload: { name: string; keywords: string[]; languages: string[] }) =>
-  api.post<{ id: string; name: string }>("/tenants/brands", payload).then(r => r.data);
+export const createBrand = (payload: {
+  name: string;
+  keywords: string[];
+  languages: string[];
+  youtube_enabled?: boolean;
+  youtube_channel_ids?: string[];
+}) => api.post<{ id: string; name: string }>("/tenants/brands", payload).then(r => r.data);
+
+export const updateBrandConfig = (brandId: string, payload: {
+  youtube_enabled?: boolean;
+  youtube_channel_ids?: string[];
+  keywords?: string[];
+  languages?: string[];
+}) => api.put(`/tenants/brands/${brandId}/config`, payload).then(r => r.data);
 
 export const deleteBrand = (brandId: string) =>
   api.delete(`/tenants/brands/${brandId}`).then(r => r.data);
