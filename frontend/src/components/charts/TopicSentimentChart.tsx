@@ -14,19 +14,19 @@ const SEGMENTS = [
 ] as const;
 
 interface TickProps {
-  x: number;
-  y: number;
-  payload: { value: string };
+  x?: number;
+  y?: number;
+  payload?: { value: string };
   nameToTopic: Map<string, string>;
   onSelect?: (topic: string) => void;
 }
 
 interface BarClickPayload {
-  payload: { topic: string };
+  payload?: { topic: string };
 }
 
-function ClickableTick({ x, y, payload, nameToTopic, onSelect }: TickProps) {
-  const topic = nameToTopic.get(payload.value);
+function ClickableTick({ x = 0, y = 0, payload, nameToTopic, onSelect }: TickProps) {
+  const topic = payload ? nameToTopic.get(payload.value) : undefined;
   return (
     <text
       x={x}
@@ -38,7 +38,7 @@ function ClickableTick({ x, y, payload, nameToTopic, onSelect }: TickProps) {
       onClick={topic && onSelect ? () => onSelect(topic) : undefined}
       style={{ cursor: topic && onSelect ? "pointer" : "default" }}
     >
-      {payload.value}
+      {payload?.value}
     </text>
   );
 }
@@ -79,7 +79,7 @@ export function TopicSentimentChart({ topics, limit = 8, onSelect }: Props) {
               fill={seg.color}
               radius={0}
               style={onSelect ? { cursor: "pointer" } : undefined}
-              onClick={onSelect ? (barData: BarClickPayload) => onSelect(barData.payload.topic) : undefined}
+              onClick={onSelect ? (barData: BarClickPayload) => barData.payload && onSelect(barData.payload.topic) : undefined}
             />
           ))}
         </BarChart>

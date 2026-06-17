@@ -14,19 +14,19 @@ const SEGMENTS = [
 ] as const;
 
 interface TickProps {
-  x: number;
-  y: number;
-  payload: { value: string };
+  x?: number;
+  y?: number;
+  payload?: { value: string };
   nameToId: Map<string, string>;
   onSelect?: (portalId: string) => void;
 }
 
 interface BarClickPayload {
-  payload: { portal_id: string };
+  payload?: { portal_id: string };
 }
 
-function ClickableTick({ x, y, payload, nameToId, onSelect }: TickProps) {
-  const id = nameToId.get(payload.value);
+function ClickableTick({ x = 0, y = 0, payload, nameToId, onSelect }: TickProps) {
+  const id = payload ? nameToId.get(payload.value) : undefined;
   return (
     <text
       x={x}
@@ -38,7 +38,7 @@ function ClickableTick({ x, y, payload, nameToId, onSelect }: TickProps) {
       onClick={id && onSelect ? () => onSelect(id) : undefined}
       style={{ cursor: id && onSelect ? "pointer" : "default" }}
     >
-      {payload.value}
+      {payload?.value}
     </text>
   );
 }
@@ -79,7 +79,7 @@ export function SourceSentimentChart({ sources, limit = 8, onSelect }: Props) {
               fill={seg.color}
               radius={0}
               style={onSelect ? { cursor: "pointer" } : undefined}
-              onClick={onSelect ? (barData: BarClickPayload) => onSelect(barData.payload.portal_id) : undefined}
+                      onClick={onSelect ? (barData: BarClickPayload) => barData.payload && onSelect(barData.payload.portal_id) : undefined}
             />
           ))}
         </BarChart>
