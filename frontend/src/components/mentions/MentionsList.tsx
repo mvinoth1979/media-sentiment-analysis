@@ -209,17 +209,23 @@ export function MentionsList({
         <button
           onClick={async () => {
             setExporting(true);
-            const exportParams: Record<string, string> = {};
-            if (sentiment) exportParams.sentiment = sentiment;
-            if (language)  exportParams.language = language;
-            if (portalId)  exportParams.portal_id = portalId;
-            if (topic)     exportParams.topic = topic;
-            if (state)     exportParams.state = state;
-            if (dateFrom)  exportParams.date_from = dateFrom;
-            if (dateTo)    exportParams.date_to = dateTo;
-            if (q)         exportParams.q = q;
-            await exportMentionsCsv(brandId, brandName, exportParams);
-            setExporting(false);
+            try {
+              const exportParams: Record<string, string> = {};
+              if (sentiment) exportParams.sentiment = sentiment;
+              if (language)  exportParams.language = language;
+              if (portalId)  exportParams.portal_id = portalId;
+              if (topic)     exportParams.topic = topic;
+              if (state)     exportParams.state = state;
+              if (dateFrom)  exportParams.date_from = dateFrom;
+              if (dateTo)    exportParams.date_to = dateTo;
+              if (q)         exportParams.q = q;
+              await exportMentionsCsv(brandId, brandName ?? brandId, exportParams);
+            } catch (err) {
+              alert("Export failed. Please try again.");
+              console.error("CSV export error:", err);
+            } finally {
+              setExporting(false);
+            }
           }}
           disabled={exporting}
           className="text-xs px-3 py-1 border border-gray-700 rounded-lg text-gray-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-40 transition-colors"
