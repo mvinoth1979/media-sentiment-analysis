@@ -46,16 +46,16 @@ Return ONLY valid JSON with this exact schema:
   "confidence": <float 0.0 to 1.0>
 }}
 
-Article language: {{language}}
+Article language: {language}
 Article text:
-{{text}}"""
+{text}"""
 
 
 def analyse_with_gemini(text: str, language: str) -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited). was_rate_limited is True only if every
     attempt failed due to a 429/rate-limit response, so callers can distinguish
     quota exhaustion from genuine parsing/content failures."""
-    prompt = _PROMPT.format(states=_INDIAN_STATES).format(language=language, text=text[:3000])
+    prompt = _PROMPT.format(states=_INDIAN_STATES, language=language, text=text[:3000])
     rate_limited = False
     for attempt in range(3):
         try:

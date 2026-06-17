@@ -47,15 +47,15 @@ Return JSON: {{"sentiment_score": float -1 to 1, "sentiment_label": "positive"|"
 "states_mentioned": [Indian state/UT names from text — use only: {states}. Empty list if none.],
 "confidence": float 0-1}}
 
-Language: {{language}}
-Text: {{text}}"""
+Language: {language}
+Text: {text}"""
 
 
 def analyse_with_groq(text: str, language: str) -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited) so callers can distinguish quota
     exhaustion from genuine parsing/content failures."""
     try:
-        prompt = _USER.format(states=_INDIAN_STATES).format(language=language, text=text[:2000])
+        prompt = _USER.format(states=_INDIAN_STATES, language=language, text=text[:2000])
         resp = _get_client().chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
