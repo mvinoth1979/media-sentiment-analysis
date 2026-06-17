@@ -11,6 +11,7 @@ class NLPResult:
     states_mentioned: list[str] = field(default_factory=list)
     model_used: str = ""
     confidence: float = 0.0
+    source_type: str = "news"       # pass-through from article — "news" | "youtube_video" | "youtube_comment"
 
     def to_dict(self) -> dict:
         return {
@@ -22,4 +23,5 @@ class NLPResult:
             "states_mentioned": self.states_mentioned,
             "model_used": self.model_used,
             "confidence": self.confidence,
+            "source_type": self.source_type,
         }

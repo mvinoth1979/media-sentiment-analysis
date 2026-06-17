@@ -19,7 +19,7 @@ def save_article(article: dict, nlp: dict) -> str | None:
 def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                  sentiment: str | None = None, language: str | None = None,
                  portal_id: str | None = None, topic: str | None = None,
-                 state: str | None = None,
+                 state: str | None = None, source_type: str | None = None,
                  date_from: str | None = None, date_to: str | None = None,
                  q: str | None = None) -> list[dict]:
     db = get_db()
@@ -34,6 +34,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
         query = query.contains("topics", [topic])
     if state:
         query = query.contains("states_mentioned", [state])
+    if source_type:
+        query = query.eq("source_type", source_type)
     if date_from:
         query = query.gte("collected_at", date_from)
     if date_to:
@@ -48,6 +50,7 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
             return get_articles(brand_id, limit=limit, offset=offset,
                                 sentiment=sentiment, language=language,
                                 portal_id=portal_id, topic=topic, state=None,
+                                source_type=source_type,
                                 date_from=date_from, date_to=date_to, q=q)
         return []
 
@@ -69,20 +72,25 @@ def delete_articles(article_ids: list[str], brand_id: str) -> list[dict]:
 
 def get_kpi_summary(brand_id: str) -> dict:
     db = get_db()
-    rows = db.table("articles").select("sentiment_label").eq("brand_id", brand_id).execute().data
+    rows = db.table("articles").select("sentiment_label, source_type").eq("brand_id", brand_id).execute().data
     total = len(rows)
     if total == 0:
         return {"total": 0, "positive": 0, "negative": 0, "neutral": 0,
-                "positive_pct": 0, "negative_pct": 0, "neutral_pct": 0}
+                "positive_pct": 0, "negative_pct": 0, "neutral_pct": 0,
+                "youtube_mention_count": 0}
     counts = {"positive": 0, "negative": 0, "neutral": 0}
+    youtube_count = 0
     for r in rows:
         counts[r["sentiment_label"]] = counts.get(r["sentiment_label"], 0) + 1
+        if r.get("source_type") in ("youtube_video", "youtube_comment"):
+            youtube_count += 1
     return {
         "total": total,
         **counts,
         "positive_pct": round(counts["positive"] / total * 100, 1),
         "negative_pct": round(counts["negative"] / total * 100, 1),
         "neutral_pct":  round(counts["neutral"]  / total * 100, 1),
+        "youtube_mention_count": youtube_count,
     }
 
 

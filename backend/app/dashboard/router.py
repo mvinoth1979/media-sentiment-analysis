@@ -34,10 +34,12 @@ def _article_to_item(a: dict) -> ArticleItem:
         language=a.get("language", "en"),
         source_credibility=a.get("source_credibility") or 0.5,
         source_platform=a.get("source_platform", "news"),
+        source_type=a.get("source_type") or "news",
         entities=a.get("entities") or [],
         topics=a.get("topics") or [],
         keywords=a.get("keywords") or [],
         states_mentioned=a.get("states_mentioned") or [],
+        reach_metadata=a.get("reach_metadata") or {},
         model_used=a.get("model_used"),
         author_info=AuthorInfo(display_name=a.get("author")) if a.get("author") else None,
         metrics=MentionMetrics(
@@ -192,6 +194,7 @@ def get_mentions(
     portal_id: str | None = None,
     topic: str | None = None,
     state: str | None = None,
+    source_type: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     q: str | None = None,
@@ -200,6 +203,7 @@ def get_mentions(
     articles = get_articles(brand_id, limit=limit, offset=offset,
                             sentiment=sentiment, language=language,
                             portal_id=portal_id, topic=topic, state=state,
+                            source_type=source_type,
                             date_from=date_from, date_to=date_to, q=q)
     return [_article_to_item(a) for a in articles]
 
@@ -212,6 +216,7 @@ def export_mentions_csv(
     portal_id: str | None = None,
     topic: str | None = None,
     state: str | None = None,
+    source_type: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     q: str | None = None,
@@ -220,16 +225,17 @@ def export_mentions_csv(
     articles = get_articles(brand_id, limit=2000, offset=0,
                             sentiment=sentiment, language=language,
                             portal_id=portal_id, topic=topic, state=state,
+                            source_type=source_type,
                             date_from=date_from, date_to=date_to, q=q)
     output = io.StringIO()
     fields = [
-        "title", "url", "portal_id", "published_at", "collected_at",
+        "title", "url", "portal_id", "source_type", "published_at", "collected_at",
         "sentiment_label", "sentiment_score", "language",
         "topics", "entities", "keywords", "states_mentioned", "source_credibility",
     ]
     writer = csv.DictWriter(output, fieldnames=fields)
     writer.writeheader()
-    scalar = ["title", "url", "portal_id", "published_at", "collected_at",
+    scalar = ["title", "url", "portal_id", "source_type", "published_at", "collected_at",
               "sentiment_label", "sentiment_score", "language", "source_credibility"]
     for a in articles:
         writer.writerow({

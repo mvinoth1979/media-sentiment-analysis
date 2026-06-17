@@ -10,6 +10,7 @@ class KPISummary(BaseModel):
     positive_pct: float
     negative_pct: float
     neutral_pct: float
+    youtube_mention_count: int = 0
     perception_score_delta: float | None = None
     mentions_delta_pct: float | None = None
 
@@ -39,10 +40,12 @@ class ArticleItem(BaseModel):
     language: str
     source_credibility: float = 0.5
     source_platform: str = "news"
+    source_type: str = "news"
     entities: list[str]
     topics: list[str]
     keywords: list[str]
     states_mentioned: list[str] = []
+    reach_metadata: dict = {}
     model_used: str | None = None
     author_info: AuthorInfo | None = None
     metrics: MentionMetrics | None = None

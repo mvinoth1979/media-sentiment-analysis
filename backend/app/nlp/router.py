@@ -28,6 +28,7 @@ def analyse_article(article: dict) -> NLPResult | None:
             sentiment_label="neutral",
             confidence=0.3,
             model_used="short-text-default",
+            source_type=source_type,
         )
 
     detected_lang, lang_conf = detect_language(text)
@@ -38,6 +39,7 @@ def analyse_article(article: dict) -> NLPResult | None:
 
     result, gemini_limited = analyse_with_gemini(text, language, source_type)
     if result is not None:
+        result.source_type = source_type
         return result
 
     result, groq_limited = analyse_with_groq(text, language, source_type)
@@ -46,4 +48,6 @@ def analyse_article(article: dict) -> NLPResult | None:
                      COOLDOWN_SECONDS)
         trip()
 
+    if result is not None:
+        result.source_type = source_type
     return result
