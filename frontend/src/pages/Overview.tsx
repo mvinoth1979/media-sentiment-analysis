@@ -5,6 +5,7 @@ import type { AlertConfig } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { SentimentPieChart } from "../components/charts/SentimentPieChart";
+import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { MentionsList } from "../components/mentions/MentionsList";
 
 interface Props {
@@ -259,6 +260,18 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
           </div>
         </div>
       </div>
+
+      {/* India state choropleth */}
+      <IndiaStateMap
+        data={data.state_breakdown}
+        onStateClick={(state) => {
+          // scroll to mentions and pre-filter by state — achieved via URL param
+          const url = new URL(window.location.href);
+          url.searchParams.set("state", state);
+          window.history.pushState({}, "", url.toString());
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        }}
+      />
 
       {/* Mentions table */}
       <MentionsList
