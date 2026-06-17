@@ -31,10 +31,10 @@ function App() {
 
   useEffect(() => {
     if (!session) return;
-    fetchMe().then(me => {
+    fetchMe(session.access_token).then(me => {
       setUserEmail(me.email ?? "");
       setIsAdmin(me.roles.some(r => ADMIN_ROLES.has(r.role)));
-    }).catch(() => {});
+    }).catch(console.error);
   }, [session]);
 
   if (session === undefined) return null;

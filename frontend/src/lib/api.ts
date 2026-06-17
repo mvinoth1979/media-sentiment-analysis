@@ -10,9 +10,11 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-export const fetchMe = () =>
-  api.get<{ user_id: string; email: string; roles: { role: string; agency_id: string | null; brand_id: string | null }[] }>("/tenants/me")
-     .then(r => r.data);
+export const fetchMe = (accessToken?: string) =>
+  api.get<{ user_id: string; email: string; roles: { role: string; agency_id: string | null; brand_id: string | null }[] }>(
+    "/tenants/me",
+    accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined
+  ).then(r => r.data);
 
 export const fetchBrands = (q = "") =>
   api.get<{ id: string; name: string; agency_id: string }[]>(`/tenants/brands?q=${encodeURIComponent(q)}`)
