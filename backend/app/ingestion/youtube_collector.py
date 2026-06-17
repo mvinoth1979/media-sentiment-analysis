@@ -4,8 +4,6 @@ import re
 from datetime import datetime, timezone
 
 import feedparser
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 from app.config import settings
 from app.ingestion.youtube_quota import quota_manager
@@ -48,7 +46,25 @@ def _parse_yt_datetime(raw: str) -> str:
 
 
 def _build_client():
+    # Lazy import — keeps the module loadable even if package is not yet installed,
+    # so a missing dependency never crashes the whole FastAPI app on startup.
+    try:
+        from googleapiclient.discovery import build
+    except ImportError:
+        raise RuntimeError(
+            "google-api-python-client is not installed. "
+            "Add it to requirements.txt and redeploy."
+        )
     return build("youtube", "v3", developerKey=settings.youtube_api_key, cache_discovery=False)
+
+
+def _is_quota_error(e: Exception) -> bool:
+    """True when the YouTube API returned HTTP 403 (quota exceeded or forbidden)."""
+    try:
+        from googleapiclient.errors import HttpError
+        return isinstance(e, HttpError) and e.resp.status == 403
+    except ImportError:
+        return False
 
 
 def get_channel_rss_videos(channel_id: str, brand_id: str) -> list[dict]:
@@ -83,7 +99,7 @@ def get_channel_rss_videos(channel_id: str, brand_id: str) -> list[dict]:
             "author": channel_name,
             "published_at": _parse_yt_datetime(entry.get("published", "")),
             "language": "en",
-            "source_credibility": 0.70,   # brand's own channel — reasonably authoritative
+            "source_credibility": 0.70,
             "source_type": "youtube_video",
             "external_id": video_id,
             "reach_score": 0,
@@ -98,7 +114,7 @@ def search_brand_videos(keywords: list[str], language: str,
     """
     100 units per search call + 1 unit per video detail batch + 1 unit per channel lookup.
     Searches YouTube for videos matching brand keywords, enriches with statistics.
-    Skips Shorts (< 62 seconds). Returns article dicts with source_type='youtube_video'.
+    Skips Shorts (<= 61 seconds). Returns article dicts with source_type='youtube_video'.
     """
     if not settings.youtube_api_key:
         log.warning("YOUTUBE_API_KEY not configured — skipping YouTube search")
@@ -107,7 +123,7 @@ def search_brand_videos(keywords: list[str], language: str,
         log.warning("YouTube quota exhausted — skipping search for brand %s", brand_id[:8])
         return []
 
-    query = " ".join(keywords[:3])   # top 3 keywords keep the query focused
+    query = " ".join(keywords[:3])
     try:
         yt = _build_client()
         search_resp = yt.search().list(
@@ -119,17 +135,21 @@ def search_brand_videos(keywords: list[str], language: str,
             regionCode="IN",
         ).execute()
         quota_manager.record_search()
-    except HttpError as e:
-        if e.resp.status == 403:
+    except Exception as e:
+        if _is_quota_error(e):
             quota_manager.trip()
         log.error("YouTube search.list failed: %s", e)
         return []
 
-    video_ids = [item["id"]["videoId"] for item in search_resp.get("items", []) if "videoId" in item.get("id", {})]
+    video_ids = [
+        item["id"]["videoId"]
+        for item in search_resp.get("items", [])
+        if "videoId" in item.get("id", {})
+    ]
     if not video_ids:
         return []
 
-    # Batch fetch statistics + content details for all videos (1 unit for the whole batch)
+    # Batch fetch statistics + content details (1 unit for the whole batch)
     if not quota_manager.can_fetch():
         log.warning("YouTube quota exhausted before video detail fetch")
         return []
@@ -139,8 +159,8 @@ def search_brand_videos(keywords: list[str], language: str,
             part="snippet,statistics,contentDetails",
         ).execute()
         quota_manager.record_fetch()
-    except HttpError as e:
-        if e.resp.status == 403:
+    except Exception as e:
+        if _is_quota_error(e):
             quota_manager.trip()
         log.error("YouTube videos.list failed: %s", e)
         return []
@@ -153,7 +173,7 @@ def search_brand_videos(keywords: list[str], language: str,
         content = item.get("contentDetails", {})
 
         duration_s = _parse_iso_duration(content.get("duration", ""))
-        # Skip YouTube Shorts (≤ 61 seconds) — different engagement pattern, Phase 2.1
+        # Skip YouTube Shorts — different engagement pattern, deferred to Phase 2.1
         if 0 < duration_s <= 61:
             continue
 
@@ -170,7 +190,7 @@ def search_brand_videos(keywords: list[str], language: str,
                 quota_manager.record_fetch()
                 if ch_resp.get("items"):
                     sub_count = int(ch_resp["items"][0]["statistics"].get("subscriberCount", 0))
-            except HttpError:
+            except Exception:
                 pass   # credibility defaults to 0.50
 
         video_url = _VIDEO_URL.format(video_id=video_id)
@@ -198,7 +218,7 @@ def search_brand_videos(keywords: list[str], language: str,
             "external_id": video_id,
             "reach_score": min(view_count // 10_000, 100),
             "reach_metadata": reach_metadata,
-            "_comment_count": comment_count,   # internal gate for comment fetching — stripped before save
+            "_comment_count": comment_count,   # internal gate — stripped before save
         })
 
     return articles
@@ -209,7 +229,7 @@ def get_video_comments(video_id: str, brand_id: str,
     """
     1 unit per call. Fetches top comments sorted by relevance.
     Each comment becomes a separate article with source_type='youtube_comment'.
-    Comments with < 5 characters are skipped.
+    Comments with fewer than 5 characters are skipped.
     """
     if not quota_manager.can_fetch():
         return []
@@ -223,9 +243,8 @@ def get_video_comments(video_id: str, brand_id: str,
             textFormat="plainText",
         ).execute()
         quota_manager.record_fetch()
-    except HttpError as e:
-        if e.resp.status == 403:
-            # Comments disabled on this video is a 403 with a different reason — not a quota error
+    except Exception as e:
+        if _is_quota_error(e):
             reason = str(e)
             if "disabled" in reason or "commentsDisabled" in reason:
                 log.debug("Comments disabled for video %s", video_id)
@@ -251,11 +270,11 @@ def get_video_comments(video_id: str, brand_id: str,
             "portal_id": "youtube_comment",
             "portal_name": "YouTube Comments",
             "url": comment_url,
-            "title": text[:120],       # displayed in UI
+            "title": text[:120],
             "body": text,              # full text for NLP — stripped by save_article before DB insert
             "author": top.get("authorDisplayName", ""),
             "published_at": _parse_yt_datetime(top.get("publishedAt", "")),
-            "language": "en",          # langdetect in NLP router will override for non-EN comments
+            "language": "en",          # langdetect in NLP router will override for non-EN
             "source_credibility": 0.45,
             "source_type": "youtube_comment",
             "external_id": comment_id,
@@ -269,9 +288,9 @@ def get_video_comments(video_id: str, brand_id: str,
 def collect_youtube_for_brand(brand: dict, config: dict) -> list[dict]:
     """
     Top-level function called by orchestrator.py.
-    Runs all three collection steps for one brand: channel RSS → search → comments.
-    Applies sub-caps (10 videos, 50 comments) to prevent YouTube from drowning news.
-    Strips internal fields (_comment_count) before returning.
+    Runs channel RSS (free) + keyword search + comments for one brand.
+    Sub-caps: 10 videos, 50 comments — YouTube cannot crowd out news articles.
+    Strips internal _comment_count field before returning.
     """
     brand_id = brand["id"]
     keywords = config.get("keywords", [])
@@ -282,14 +301,12 @@ def collect_youtube_for_brand(brand: dict, config: dict) -> list[dict]:
     for channel_id in channel_ids:
         results.extend(get_channel_rss_videos(channel_id, brand_id))
 
-    # Step 2 — keyword search across all of YouTube (100 units)
+    # Step 2 — keyword search across YouTube (100 units)
     videos = search_brand_videos(keywords, "en", brand_id, max_results=10)
-
-    # Cap: max 10 videos per brand per run
     videos = videos[:10]
     results.extend(videos)
 
-    # Step 3 — comments on matched videos that have them (1 unit each)
+    # Step 3 — comments on matched videos (1 unit each, cap 50 total)
     comment_cap = 50
     comments_collected = 0
     for video in videos:
@@ -298,12 +315,12 @@ def collect_youtube_for_brand(brand: dict, config: dict) -> list[dict]:
         if video.get("_comment_count", 0) == 0:
             continue
         remaining = comment_cap - comments_collected
-        comments = get_video_comments(video["external_id"], brand_id,
-                                      max_comments=min(20, remaining))
+        comments = get_video_comments(
+            video["external_id"], brand_id, max_comments=min(20, remaining)
+        )
         results.extend(comments)
         comments_collected += len(comments)
 
-    # Strip internal orchestration field before handing off to pipeline
     for r in results:
         r.pop("_comment_count", None)
 
