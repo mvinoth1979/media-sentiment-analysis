@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { fetchMe } from "./lib/api";
 import { Overview } from "./pages/Overview";
 import { Login } from "./pages/Login";
 import { BrandSearch } from "./pages/BrandSearch";
@@ -31,10 +30,14 @@ function App() {
 
   useEffect(() => {
     if (!session) return;
-    fetchMe(session.access_token).then(me => {
-      setUserEmail(me.email ?? "");
-      setIsAdmin(me.roles.some(r => ADMIN_ROLES.has(r.role)));
-    }).catch(console.error);
+    setUserEmail(session.user.email ?? "");
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .then(({ data }) => {
+        setIsAdmin((data ?? []).some((r: { role: string }) => ADMIN_ROLES.has(r.role)));
+      });
   }, [session]);
 
   if (session === undefined) return null;
