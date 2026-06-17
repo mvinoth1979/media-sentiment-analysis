@@ -13,7 +13,9 @@
 - Multi-language ingestion & NLP: EN, TA, HI, GU, BN, KN
 - Portals: 29 (7 EN, 10 TA, 5 HI, 2 BN, 3 KN, 2 GU)
 - RBAC: 5 roles across 3 tiers (platform / agency / brand)
-- Dashboard: KPIs, sentiment trend, source breakdown, topics, state filtering, mention explorer
+- Dashboard: KPIs, sentiment trend, source breakdown, topics, state filtering, state choropleth map, mention explorer with CSV export
+- Alerts: email notifications (perception_score_below, negative_pct_above, mention_spike) — per-brand, 4h rate-limit
+- Self-serve: brand wizard (name/keywords/languages), user invite (magic-link via Supabase), UserManagement page
 - Pipeline: Google News RSS + static portals, hourly batch, DLQ, circuit breaker, rejection learning, bootstrap priority
 - Infrastructure: Vercel (frontend) + Railway (backend) + Supabase (DB/auth) + Upstash Redis + Cloudflare R2
 
@@ -43,11 +45,12 @@
 - No historical data backfill
 
 ### Product Completeness — Medium Severity
-- No export (CSV / PDF reports for client decks)
-- No alert system (sentiment threshold notifications)
+- ~~No export (CSV / PDF reports for client decks)~~ **✅ CSV export shipped (Wave 3)**
+- ~~No alert system (sentiment threshold notifications)~~ **✅ Email alerts shipped (Wave 3) — 3 types, 4h rate-limit**
 - No full-text search across mentions
 - No billing / subscription management (cannot charge customers)
-- No self-serve brand or user onboarding (every new brand requires SQL migrations)
+- ~~No self-serve brand or user onboarding~~ **✅ Brand wizard + user invite shipped (Wave 3)**
+- No branded PDF report generation
 
 ### NLP Scalability — Medium-Long Term
 - Gemini + Groq free tiers cap at ~1,500 calls/day combined
@@ -135,7 +138,7 @@ All figures use Indian senior-market rates (mid–senior band). USD column at �
 
 **What the savings bought:** Full backend pipeline, RBAC, multi-language NLP, 29-portal ingestion, React dashboard, DLQ, circuit breaker, rejection learning, state filtering.
 
-**What they didn't buy:** Security audit, performance engineering, social media coverage, formal QA suite, billing, self-serve onboarding, SLA guarantees, HA architecture.
+**What they didn't buy:** Security audit, performance engineering, social media coverage, formal QA suite, billing, SLA guarantees, HA architecture, PDF reports.
 
 ---
 
@@ -145,13 +148,14 @@ All figures use Indian senior-market rates (mid–senior band). USD column at �
 |---|---|---|---|
 | Security fixes (auth on trigger, rate limiting, audit log) | 0.5 Backend Engineer × 1 month | ₹1,25,000 | Can be done now without new hires |
 | Performance fixes (SQL aggregation, connection pooling) | 0.5 Backend Engineer × 1 month | ₹1,25,000 | Can be done now |
-| Export (CSV + PDF reports) | 1 Frontend + 0.5 Backend × 1.5 months | ₹4,50,000 | Wave 3 priority |
-| Alerts system | 0.5 Backend × 1 month | ₹1,25,000 | Wave 3 priority |
+| ~~Export (CSV + PDF reports)~~ | ~~1 Frontend + 0.5 Backend × 1.5 months~~ | ~~₹4,50,000~~ | ✅ CSV shipped Wave 3; PDF pending Wave 4 |
+| ~~Alerts system~~ | ~~0.5 Backend × 1 month~~ | ~~₹1,25,000~~ | ✅ Email alerts shipped Wave 3 |
 | Full-text search | 0.5 Backend × 0.5 months | ₹62,500 | Wave 3 priority |
 | CI/CD + staging env | 1 DevOps × 1 month | ₹2,50,000 | Should be done before scaling |
 | Test suite (unit + integration) | 1 QA Engineer × 2 months | ₹2,40,000 | Technical debt |
 | Social media (Phase 2) | +1 Data Engineer + API costs | ₹15,00,000+ | Requires platform API agreements |
-| Billing / self-serve onboarding | 1 Full-stack + 1 PM × 2 months | ₹9,00,000 | Needed before commercialisation |
+| ~~Self-serve onboarding~~ | ~~0.5 Full-stack × 1 month~~ | ~~₹2,50,000~~ | ✅ Brand wizard + user invite shipped Wave 3 |
+| Billing / subscription management | 1 Full-stack + 1 PM × 2 months | ₹9,00,000 | Wave 4 — blocks first paying customer |
 | HA architecture (multi-instance Railway/K8s) | 1 DevOps × 1 month + infra | ₹5,00,000+ | Needed before enterprise SLA |
 
 **Realistic 2-person team to competitive MVP:** 4 months, ~₹28–35L — closes all gaps except social media.
@@ -163,3 +167,4 @@ All figures use Indian senior-market rates (mid–senior band). USD column at �
 | Date | Update | Features added |
 |---|---|---|
 | 2026-06-17 | Initial document | News monitoring, 6 languages, 29 portals, 12 brands, RBAC, state filtering, pipeline visibility, DLQ, circuit breaker, rejection learning, bootstrap priority |
+| 2026-06-17 | Wave 3 shipped | CSV export, email alerts (3 types), self-serve brand wizard, user invite/management, India state choropleth map; gap table updated |

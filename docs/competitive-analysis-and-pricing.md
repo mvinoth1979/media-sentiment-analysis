@@ -28,6 +28,11 @@
 | State-level mention tagging | ✅ Live | NLP extracts Indian states from article content |
 | State filter in Mention Explorer | ✅ Live | URL-synced, click-to-drill |
 | State breakdown on Overview | ✅ Live | Top states by mention volume + sentiment |
+| India state choropleth map | ✅ Live | Color-coded sentiment by state; click-to-drill to filtered mentions |
+| CSV export (Mention Explorer) | ✅ Live | Respects all active filters; streams up to 2,000 rows |
+| Email alert system | ✅ Live | 3 alert types: perception_score_below, negative_pct_above, mention_spike; per-brand; 4h rate-limit |
+| Self-serve brand onboarding | ✅ Live | 3-step wizard (name → keywords → languages); agency_admin / master_admin only |
+| User invite & management | ✅ Live | Magic-link invite via Supabase; role assignment at brand or agency scope |
 | Multi-brand support | ✅ Live | 12 brands in current deployment |
 | RBAC (5 roles: master_admin / agency_admin / agency_analyst / brand_admin / brand_viewer) | ✅ Live | 3-tier hierarchy: platform / agency / brand |
 | Multi-tenant isolation | ✅ Live | Agency-scoped and brand-scoped access; no cross-brand data leakage |
@@ -47,12 +52,10 @@
 |---|---|---|
 | Social media (Twitter/X, Instagram, Facebook, YouTube, Reddit) | Phase 2 | Critical competitive gap |
 | Real-time / near-real-time ingestion (< 15 min) | Phase 2 | High |
-| Export (CSV download, PDF report) | Wave 3 | High |
-| Alert / notification system (sentiment threshold, spike detection) | Wave 3 | High |
-| Full-text search across all stored articles | Wave 3 | Medium |
+| Export (PDF / PPT report) | Wave 4 | High |
+| Full-text search across all stored articles | Wave 4 | Medium |
 | Competitive benchmarking / share of voice | Phase 3 | Medium |
-| Self-serve brand onboarding (no SQL required) | Phase 3 | High (needed for commercialisation) |
-| Billing / subscription management | Phase 3 | Critical for revenue |
+| Billing / subscription management | Wave 4 | Critical for revenue |
 | API access (for BI tools: Power BI, Tableau) | Phase 3 | Medium |
 | White-label reports (agency PDF with client branding) | Phase 3 | High for agencies |
 | Influencer / journalist identification | Phase 3 | Low |
@@ -89,9 +92,9 @@
 | Influencer / journalist identification | ❌ | ✅ | ⚠️ | ✅ | ✅ | ⚠️ | ✅ |
 | Image / visual brand recognition | ❌ | ❌ | ❌ | ❌ | ⚠️ Iris AI | ✅ | ❌ |
 | **Workflow** | | | | | | | |
-| Real-time / near-real-time alerts | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Email / Slack / WhatsApp notifications | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| CSV / Excel export | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Real-time / near-real-time alerts | ⚠️ Email only, hourly cadence | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Email / Slack / WhatsApp notifications | ⚠️ Email only | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CSV / Excel export | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | PDF / PPT report generation | ❌ | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
 | White-label reports (agency branding) | ❌ | ✅ | ✅ | ⚠️ | ✅ | ❌ | ❌ |
 | CRM / ticketing integration | ❌ | ✅ | ✅ | ⚠️ | ✅ | ❌ | ❌ |
@@ -100,7 +103,7 @@
 | Agency / multi-brand workspace | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | RBAC (role-based access control) | ✅ 5 roles | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
 | Multi-tenant isolation | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Self-serve onboarding | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Self-serve onboarding | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mobile app | ❌ | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ | ⚠️ |
 | India mid-market pricing (< ₹3L/brand/year) | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
 | India-based support | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ | ❌ |
@@ -329,3 +332,4 @@ These blockers must be resolved before the first paying customer can be acquired
 | Date | Update | Features added / changed |
 |---|---|---|
 | 2026-06-17 | Initial document | News monitoring, 6 languages, 29 portals, 12 brands, RBAC, state filtering, pipeline visibility, DLQ, circuit breaker, rejection learning |
+| 2026-06-17 | Wave 3 shipped | CSV export, email alerts (3 types, 4h rate-limit), self-serve brand wizard, user invite/management, India state choropleth map; competitor matrix updated (CSV ✅, self-serve ✅, email alerts ⚠️) |
