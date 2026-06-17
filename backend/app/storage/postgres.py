@@ -41,7 +41,15 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
     if q:
         query = query.ilike("title", f"%{q}%")
     query = query.order("collected_at", desc=True).range(offset, offset + limit - 1)
-    return query.execute().data
+    try:
+        return query.execute().data
+    except Exception:
+        if state:
+            return get_articles(brand_id, limit=limit, offset=offset,
+                                sentiment=sentiment, language=language,
+                                portal_id=portal_id, topic=topic, state=None,
+                                date_from=date_from, date_to=date_to, q=q)
+        return []
 
 
 def delete_articles(article_ids: list[str], brand_id: str) -> list[dict]:
@@ -79,10 +87,13 @@ def get_kpi_summary(brand_id: str) -> dict:
 
 
 def get_state_breakdown(brand_id: str) -> list[dict]:
-    db = get_db()
-    rows = db.table("articles") \
-             .select("states_mentioned, sentiment_label") \
-             .eq("brand_id", brand_id).execute().data
+    try:
+        db = get_db()
+        rows = db.table("articles") \
+                 .select("states_mentioned, sentiment_label") \
+                 .eq("brand_id", brand_id).execute().data
+    except Exception:
+        return []
     state_map: dict[str, dict] = {}
     for row in rows:
         label = row.get("sentiment_label", "neutral")
