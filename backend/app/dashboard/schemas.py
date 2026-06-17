@@ -52,6 +52,10 @@ class TopicStat(BaseModel):
     neutral: int
 
 
+class DeleteMentionsRequest(BaseModel):
+    ids: list[str]
+
+
 class AnnotationCreate(BaseModel):
     date: str
     label: str

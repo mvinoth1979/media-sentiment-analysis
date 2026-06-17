@@ -87,3 +87,96 @@ def test_compute_wow_delta_with_no_previous_data():
 
     assert delta["perception_score_delta"] is None
     assert delta["mentions_delta_pct"] is None
+
+
+# --- rejection knowledge tests ---
+
+def test_extract_words_removes_stopwords():
+    from app.storage.rejection_store import _extract_words
+
+    words = _extract_words("CIPET opens new campus in Vijayawada")
+    assert "the" not in words
+    assert "in" not in words
+    assert "cipet" in words
+    assert "campus" in words
+    assert "vijayawada" in words
+
+
+def test_extract_words_filters_short_tokens():
+    from app.storage.rejection_store import _extract_words
+
+    words = _extract_words("No go up at it")
+    assert words == []
+
+
+def test_is_rejected_exact_url():
+    from app.storage.rejection_store import is_rejected
+
+    mock_db = MagicMock()
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {"id": "abc"}
+    ]
+
+    with patch("app.storage.rejection_store.get_db", return_value=mock_db):
+        result = is_rejected("brand-1", "https://example.com/article", "Some title")
+
+    assert result is True
+
+
+def test_is_rejected_similar_title():
+    from app.storage.rejection_store import is_rejected
+
+    stored_words = ["cipet", "campus", "vijayawada", "opens"]
+    mock_db = MagicMock()
+    # URL check returns no match
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+    # Title words query returns stored rejections
+    mock_db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
+        {"title_words": stored_words}
+    ]
+
+    with patch("app.storage.rejection_store.get_db", return_value=mock_db):
+        # "CIPET opens its new campus" → words: cipet, opens, campus → 3/3 = 100% overlap
+        result = is_rejected("brand-1", "https://other.com/news", "CIPET opens its new campus")
+
+    assert result is True
+
+
+def test_is_rejected_unrelated_title_not_blocked():
+    from app.storage.rejection_store import is_rejected
+
+    stored_words = ["cipet", "campus", "vijayawada", "opens"]
+    mock_db = MagicMock()
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+    mock_db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
+        {"title_words": stored_words}
+    ]
+
+    with patch("app.storage.rejection_store.get_db", return_value=mock_db):
+        # "stock market rally india" → words: stock, market, rally, india → 0% overlap
+        result = is_rejected("brand-1", "https://other.com/stocks", "Stock market rally india")
+
+    assert result is False
+
+
+def test_delete_mentions_endpoint():
+    client = _make_client()
+    article = {
+        "id": "art-1", "brand_id": "brand-123",
+        "url": "https://example.com/1", "title": "Test article",
+        "portal_id": "test_portal", "language": "en",
+    }
+
+    with patch("app.dashboard.router.delete_articles", return_value=[article]) as mock_del, \
+         patch("app.dashboard.router.save_rejections") as mock_save:
+        resp = client.request(
+            "DELETE",
+            "/dashboard/mentions/brand-123",
+            json={"ids": ["art-1"]},
+            headers=_auth_header(),
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] == 1
+    mock_del.assert_called_once_with(["art-1"], "brand-123")
+    mock_save.assert_called_once()

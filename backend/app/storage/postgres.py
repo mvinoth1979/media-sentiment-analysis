@@ -40,6 +40,21 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
     return query.execute().data
 
 
+def delete_articles(article_ids: list[str], brand_id: str) -> list[dict]:
+    db = get_db()
+    rows = (
+        db.table("articles")
+        .select("*")
+        .eq("brand_id", brand_id)
+        .in_("id", article_ids)
+        .execute()
+        .data
+    )
+    if rows:
+        db.table("articles").delete().eq("brand_id", brand_id).in_("id", article_ids).execute()
+    return rows
+
+
 def get_kpi_summary(brand_id: str) -> dict:
     db = get_db()
     rows = db.table("articles").select("sentiment_label").eq("brand_id", brand_id).execute().data

@@ -2,12 +2,13 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
 from app.tenants.access import require_brand_access
-from app.storage.postgres import get_articles, get_kpi_summary, get_db
+from app.storage.postgres import get_articles, get_kpi_summary, get_db, delete_articles
+from app.storage.rejection_store import save_rejections
 from app.storage.influxdb import query_sentiment_trend
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, SourceStat, TopicStat, TrendPoint,
-    Annotation, AnnotationCreate,
+    Annotation, AnnotationCreate, DeleteMentionsRequest,
 )
 
 router = APIRouter()
@@ -172,6 +173,18 @@ def get_mentions(
                         sentiment=sentiment, language=language,
                         portal_id=portal_id, topic=topic,
                         date_from=date_from, date_to=date_to, q=q)
+
+
+@router.delete("/mentions/{brand_id}")
+def delete_mentions(
+    brand_id: str,
+    body: DeleteMentionsRequest,
+    user: dict = Depends(require_brand_access),
+):
+    deleted = delete_articles(body.ids, brand_id)
+    if deleted:
+        save_rejections(brand_id, deleted, rejected_by=user.get("user_id"))
+    return {"deleted": len(deleted)}
 
 
 @router.get("/trends/{brand_id}/annotations", response_model=list[Annotation])

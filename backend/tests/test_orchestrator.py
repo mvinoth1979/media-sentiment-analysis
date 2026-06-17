@@ -1,6 +1,13 @@
+import pytest
 from unittest.mock import patch
 from app.pipeline.orchestrator import run_brand_pipeline
 from app.nlp.schemas import NLPResult
+
+
+@pytest.fixture(autouse=True)
+def _mock_rejection_store():
+    with patch("app.pipeline.orchestrator.is_rejected", return_value=False):
+        yield
 
 
 def _nlp_result():

@@ -6,6 +6,7 @@ from app.ingestion.deduplication import filter_new_articles, mark_article_seen
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article
+from app.storage.rejection_store import is_rejected
 from app.storage.influxdb import write_sentiment_point
 from app.storage.r2 import archive_article
 from app.pipeline.dead_letter import push_to_dlq
@@ -37,6 +38,10 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
 
     stats["collected"] = len(all_articles)
     _new = filter_new_articles(all_articles, brand_id)
+    # Skip articles that match user-rejected content (exact URL or similar title).
+    # This is the learning loop: user deletions feed article_rejections table and
+    # new pipeline runs respect that knowledge before spending NLP quota.
+    _new = [a for a in _new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
     # Capped low (not 50) so total daily NLP call volume across all brands stays
     # under Gemini/Groq free-tier daily quotas — see app/pipeline/scheduler.py
     # for the staleness-based ordering that ensures fairness under this cap.
