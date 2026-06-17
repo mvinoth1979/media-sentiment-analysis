@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSources } from "../lib/api";
 import { SourceSentimentChart } from "../components/charts/SourceSentimentChart";
+import { MentionsList } from "../components/mentions/MentionsList";
 import type { SourceStat } from "../lib/types";
 
 interface Props {
@@ -21,6 +22,7 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 export function SourceBreakdown({ brandId }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("count");
   const [sortDesc, setSortDesc] = useState(true);
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
 
   const { data: sources = [], isLoading } = useQuery<SourceStat[]>({
     queryKey: ["sources", brandId],
@@ -48,7 +50,9 @@ export function SourceBreakdown({ brandId }: Props) {
         <p className="text-xs text-gray-500 mt-0.5">All sources, sortable by any metric</p>
       </div>
 
-      {!isLoading && sources.length > 0 && <SourceSentimentChart sources={sources} />}
+      {!isLoading && sources.length > 0 && (
+        <SourceSentimentChart sources={sources} onSelect={setSelectedSource} />
+      )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
         {isLoading ? (
@@ -75,7 +79,14 @@ export function SourceBreakdown({ brandId }: Props) {
               <tbody className="divide-y divide-gray-800/50">
                 {sorted.map(s => (
                   <tr key={s.portal_id} className="hover:bg-gray-800/40 transition-colors">
-                    <td className="py-2 pr-3 text-gray-200">{s.portal_id.replace(/_/g, " ")}</td>
+                    <td className="py-2 pr-3">
+                      <button
+                        onClick={() => setSelectedSource(s.portal_id)}
+                        className="text-gray-200 hover:text-indigo-400 hover:underline text-left"
+                      >
+                        {s.portal_id.replace(/_/g, " ")}
+                      </button>
+                    </td>
                     <td className="py-2 pr-3 text-right text-gray-300">{s.count}</td>
                     <td className="py-2 pr-3 text-right text-green-400">{s.positive}</td>
                     <td className="py-2 pr-3 text-right text-red-400">{s.negative}</td>
@@ -98,6 +109,20 @@ export function SourceBreakdown({ brandId }: Props) {
           </div>
         )}
       </div>
+
+      {selectedSource && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">
+              Mentions from <span className="text-gray-200 font-medium">{selectedSource.replace(/_/g, " ")}</span>
+            </span>
+            <button onClick={() => setSelectedSource(null)} className="text-xs text-indigo-400 underline">
+              Clear
+            </button>
+          </div>
+          <MentionsList key={selectedSource} brandId={brandId} initialPortalId={selectedSource} />
+        </div>
+      )}
     </div>
   );
 }

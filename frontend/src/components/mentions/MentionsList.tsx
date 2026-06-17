@@ -8,6 +8,8 @@ interface Props {
   brandId: string;
   portals?: string[];
   topics?: string[];
+  initialPortalId?: string;
+  initialTopic?: string;
 }
 
 const PAGE_SIZE = 50;
@@ -25,12 +27,12 @@ const LANG_FILTERS = [
   { label: "Tamil", value: "ta" },
 ];
 
-export function MentionsList({ brandId, portals = [], topics = [] }: Props) {
+export function MentionsList({ brandId, portals = [], topics = [], initialPortalId = "", initialTopic = "" }: Props) {
   const [page, setPage] = useState(0);
   const [sentiment, setSentiment] = useState("");
   const [language, setLanguage] = useState("");
-  const [portalId, setPortalId] = useState("");
-  const [topic, setTopic] = useState("");
+  const [portalId, setPortalId] = useState(initialPortalId);
+  const [topic, setTopic] = useState(initialTopic);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [qDraft, setQDraft] = useState("");
