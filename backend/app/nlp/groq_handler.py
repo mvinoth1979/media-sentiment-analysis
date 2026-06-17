@@ -10,6 +10,14 @@ log = logging.getLogger(__name__)
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
 
+_INDIAN_STATES = (
+    "Andhra Pradesh, Arunachal Pradesh, Assam, Bihar, Chhattisgarh, Goa, Gujarat, "
+    "Haryana, Himachal Pradesh, Jharkhand, Karnataka, Kerala, Madhya Pradesh, "
+    "Maharashtra, Manipur, Meghalaya, Mizoram, Nagaland, Odisha, Punjab, Rajasthan, "
+    "Sikkim, Tamil Nadu, Telangana, Tripura, Uttar Pradesh, Uttarakhand, West Bengal, "
+    "Delhi, Jammu & Kashmir, Ladakh, Chandigarh, Puducherry"
+)
+
 
 def _get_client():
     global _client
@@ -35,21 +43,24 @@ _SYSTEM = (
 _USER = """Analyse sentiment of this news article text for brand/product mentions.
 
 Return JSON: {{"sentiment_score": float -1 to 1, "sentiment_label": "positive"|"negative"|"neutral",
-"entities": [strings], "topics": [strings], "keywords": [strings], "confidence": float 0-1}}
+"entities": [strings], "topics": [strings], "keywords": [strings],
+"states_mentioned": [Indian state/UT names from text — use only: {states}. Empty list if none.],
+"confidence": float 0-1}}
 
-Language: {language}
-Text: {text}"""
+Language: {{language}}
+Text: {{text}}"""
 
 
 def analyse_with_groq(text: str, language: str) -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited) so callers can distinguish quota
     exhaustion from genuine parsing/content failures."""
     try:
+        prompt = _USER.format(states=_INDIAN_STATES).format(language=language, text=text[:2000])
         resp = _get_client().chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": _SYSTEM},
-                {"role": "user", "content": _USER.format(language=language, text=text[:2000])},
+                {"role": "user", "content": prompt},
             ],
             temperature=0.1,
             max_tokens=512,
@@ -62,6 +73,7 @@ def analyse_with_groq(text: str, language: str) -> tuple[NLPResult | None, bool]
             entities=data.get("entities", []),
             topics=data.get("topics", []),
             keywords=data.get("keywords", []),
+            states_mentioned=data.get("states_mentioned", []),
             model_used="groq-llama-3.1-8b-instant",
             confidence=float(data.get("confidence", 0.0)),
         ), False

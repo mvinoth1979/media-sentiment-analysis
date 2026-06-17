@@ -36,6 +36,7 @@ export interface ArticleItem {
   entities: string[];
   topics: string[];
   keywords: string[];
+  states_mentioned: string[];
   model_used: string;
   author_info?: AuthorInfo | null;
   metrics?: MentionMetrics | null;
@@ -52,6 +53,14 @@ export interface SourceStat {
 
 export interface TopicStat {
   topic: string;
+  count: number;
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
+export interface StateStat {
+  state: string;
   count: number;
   positive: number;
   negative: number;
@@ -79,6 +88,7 @@ export interface OverviewData {
   top_sources: SourceStat[];
   top_keywords: string[];
   top_topics: string[];
+  state_breakdown: StateStat[];
   last_processed_at: string | null;
   pipeline_status: "idle" | "running";
   pipeline_last_run_at: string | null;

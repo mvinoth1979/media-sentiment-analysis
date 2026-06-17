@@ -19,6 +19,7 @@ def save_article(article: dict, nlp: dict) -> str | None:
 def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                  sentiment: str | None = None, language: str | None = None,
                  portal_id: str | None = None, topic: str | None = None,
+                 state: str | None = None,
                  date_from: str | None = None, date_to: str | None = None,
                  q: str | None = None) -> list[dict]:
     db = get_db()
@@ -31,6 +32,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
         query = query.eq("portal_id", portal_id)
     if topic:
         query = query.contains("topics", [topic])
+    if state:
+        query = query.contains("states_mentioned", [state])
     if date_from:
         query = query.gte("collected_at", date_from)
     if date_to:
@@ -73,6 +76,23 @@ def get_kpi_summary(brand_id: str) -> dict:
         "negative_pct": round(counts["negative"] / total * 100, 1),
         "neutral_pct":  round(counts["neutral"]  / total * 100, 1),
     }
+
+
+def get_state_breakdown(brand_id: str) -> list[dict]:
+    db = get_db()
+    rows = db.table("articles") \
+             .select("states_mentioned, sentiment_label") \
+             .eq("brand_id", brand_id).execute().data
+    state_map: dict[str, dict] = {}
+    for row in rows:
+        label = row.get("sentiment_label", "neutral")
+        for state in row.get("states_mentioned") or []:
+            if state not in state_map:
+                state_map[state] = {"state": state, "count": 0,
+                                    "positive": 0, "negative": 0, "neutral": 0}
+            state_map[state]["count"] += 1
+            state_map[state][label] = state_map[state].get(label, 0) + 1
+    return sorted(state_map.values(), key=lambda x: x["count"], reverse=True)
 
 
 def update_pipeline_status(brand_id: str, status: str, stats: dict | None = None) -> None:

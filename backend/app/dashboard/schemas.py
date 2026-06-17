@@ -42,6 +42,7 @@ class ArticleItem(BaseModel):
     entities: list[str]
     topics: list[str]
     keywords: list[str]
+    states_mentioned: list[str] = []
     model_used: str | None = None
     author_info: AuthorInfo | None = None
     metrics: MentionMetrics | None = None
@@ -58,6 +59,14 @@ class SourceStat(BaseModel):
 
 class TopicStat(BaseModel):
     topic: str
+    count: int
+    positive: int
+    negative: int
+    neutral: int
+
+
+class StateStat(BaseModel):
+    state: str
     count: int
     positive: int
     negative: int
@@ -94,6 +103,7 @@ class OverviewResponse(BaseModel):
     top_sources: list[SourceStat]
     top_keywords: list[str]
     top_topics: list[str]
+    state_breakdown: list[StateStat] = []
     last_processed_at: str | None = None
     pipeline_status: str = "idle"
     pipeline_last_run_at: str | None = None

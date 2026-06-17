@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, Query
 from app.auth.dependencies import require_brand_role, READ_ROLES, WRITE_ROLES
 from app.storage.postgres import (
     get_articles, get_kpi_summary, get_db, delete_articles,
-    get_pipeline_info,
+    get_pipeline_info, get_state_breakdown,
 )
 from app.storage.rejection_store import save_rejections
 from app.storage.influxdb import query_sentiment_trend
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
-    SourceStat, TopicStat, TrendPoint,
+    SourceStat, TopicStat, StateStat, TrendPoint,
     Annotation, AnnotationCreate, DeleteMentionsRequest, PipelineStats,
 )
 
@@ -33,6 +33,7 @@ def _article_to_item(a: dict) -> ArticleItem:
         entities=a.get("entities") or [],
         topics=a.get("topics") or [],
         keywords=a.get("keywords") or [],
+        states_mentioned=a.get("states_mentioned") or [],
         model_used=a.get("model_used"),
         author_info=AuthorInfo(display_name=a.get("author")) if a.get("author") else None,
         metrics=MentionMetrics(
@@ -89,6 +90,7 @@ def get_overview(
         top_sources=_compute_source_stats(all_articles)[:5],
         top_keywords=[kw for kw, _ in kw_counter.most_common(15)],
         top_topics=[t for t, _ in topic_counter.most_common(10)],
+        state_breakdown=[StateStat(**s) for s in get_state_breakdown(brand_id)],
         last_processed_at=recent[0].get("collected_at") if recent else None,
         pipeline_status=pipeline_info.get("pipeline_status", "idle"),
         pipeline_last_run_at=pipeline_info.get("pipeline_last_run_at"),
@@ -185,6 +187,7 @@ def get_mentions(
     language: str | None = None,
     portal_id: str | None = None,
     topic: str | None = None,
+    state: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     q: str | None = None,
@@ -192,7 +195,7 @@ def get_mentions(
 ):
     articles = get_articles(brand_id, limit=limit, offset=offset,
                             sentiment=sentiment, language=language,
-                            portal_id=portal_id, topic=topic,
+                            portal_id=portal_id, topic=topic, state=state,
                             date_from=date_from, date_to=date_to, q=q)
     return [_article_to_item(a) for a in articles]
 

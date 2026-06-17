@@ -8,6 +8,7 @@ class NLPResult:
     entities: list[str] = field(default_factory=list)
     topics: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
+    states_mentioned: list[str] = field(default_factory=list)
     model_used: str = ""
     confidence: float = 0.0
 
@@ -18,6 +19,7 @@ class NLPResult:
             "entities": self.entities,
             "topics": self.topics,
             "keywords": self.keywords,
+            "states_mentioned": self.states_mentioned,
             "model_used": self.model_used,
             "confidence": self.confidence,
         }

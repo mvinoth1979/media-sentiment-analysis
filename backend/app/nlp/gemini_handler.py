@@ -8,6 +8,14 @@ from app.nlp.schemas import NLPResult
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
 
+_INDIAN_STATES = (
+    "Andhra Pradesh, Arunachal Pradesh, Assam, Bihar, Chhattisgarh, Goa, Gujarat, "
+    "Haryana, Himachal Pradesh, Jharkhand, Karnataka, Kerala, Madhya Pradesh, "
+    "Maharashtra, Manipur, Meghalaya, Mizoram, Nagaland, Odisha, Punjab, Rajasthan, "
+    "Sikkim, Tamil Nadu, Telangana, Tripura, Uttar Pradesh, Uttarakhand, West Bengal, "
+    "Delhi, Jammu & Kashmir, Ladakh, Chandigarh, Puducherry"
+)
+
 
 def _get_client():
     global _client
@@ -34,19 +42,20 @@ Return ONLY valid JSON with this exact schema:
   "entities": [<named entities: brands, people, locations, products>],
   "topics": [<topics from: product_quality, pricing, customer_service, leadership, campaign, legal, expansion, financial, other>],
   "keywords": [<up to 8 significant keywords>],
+  "states_mentioned": [<Indian states or UTs explicitly named or clearly implied by a city/region in the text. Use only full official state names from this list: {states}. Empty list if none found.>],
   "confidence": <float 0.0 to 1.0>
 }}
 
-Article language: {language}
+Article language: {{language}}
 Article text:
-{text}"""
+{{text}}"""
 
 
 def analyse_with_gemini(text: str, language: str) -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited). was_rate_limited is True only if every
     attempt failed due to a 429/rate-limit response, so callers can distinguish
     quota exhaustion from genuine parsing/content failures."""
-    prompt = _PROMPT.format(language=language, text=text[:3000])
+    prompt = _PROMPT.format(states=_INDIAN_STATES).format(language=language, text=text[:3000])
     rate_limited = False
     for attempt in range(3):
         try:
@@ -62,6 +71,7 @@ def analyse_with_gemini(text: str, language: str) -> tuple[NLPResult | None, boo
                 entities=data.get("entities", []),
                 topics=data.get("topics", []),
                 keywords=data.get("keywords", []),
+                states_mentioned=data.get("states_mentioned", []),
                 model_used="gemini-2.0-flash",
                 confidence=float(data.get("confidence", 0.0)),
             ), False

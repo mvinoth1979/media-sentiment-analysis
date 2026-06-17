@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { fetchMentions, deleteMentions } from "../../lib/api";
 import { SentimentBadge } from "../ui/SentimentBadge";
 import type { ArticleItem } from "../../lib/types";
@@ -8,9 +8,12 @@ interface Props {
   brandId: string;
   portals?: string[];
   topics?: string[];
+  states?: string[];
   initialPortalId?: string;
   initialTopic?: string;
+  initialState?: string;
   selectable?: boolean;
+  syncUrl?: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -28,20 +31,51 @@ const LANG_FILTERS = [
   { label: "Tamil", value: "ta" },
 ];
 
-export function MentionsList({ brandId, portals = [], topics = [], initialPortalId = "", initialTopic = "", selectable = false }: Props) {
-  const [page, setPage] = useState(0);
-  const [sentiment, setSentiment] = useState("");
-  const [language, setLanguage] = useState("");
-  const [portalId, setPortalId] = useState(initialPortalId);
-  const [topic, setTopic] = useState(initialTopic);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [qDraft, setQDraft] = useState("");
-  const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+function readParam(key: string, fallback = "") {
+  return new URLSearchParams(window.location.search).get(key) ?? fallback;
+}
+
+export function MentionsList({
+  brandId,
+  portals = [],
+  topics = [],
+  states = [],
+  initialPortalId = "",
+  initialTopic = "",
+  initialState = "",
+  selectable = false,
+  syncUrl = false,
+}: Props) {
+  const [page, setPage]         = useState(0);
+  const [sentiment, setSentiment] = useState(() => syncUrl ? readParam("sentiment") : "");
+  const [language, setLanguage]  = useState(() => syncUrl ? readParam("language") : "");
+  const [portalId, setPortalId]  = useState(initialPortalId);
+  const [topic, setTopic]        = useState(initialTopic);
+  const [state, setState]        = useState(() => syncUrl ? readParam("state") : initialState);
+  const [dateFrom, setDateFrom]  = useState(() => syncUrl ? readParam("date_from") : "");
+  const [dateTo, setDateTo]      = useState(() => syncUrl ? readParam("date_to") : "");
+  const [qDraft, setQDraft]      = useState(() => syncUrl ? readParam("q") : "");
+  const [q, setQ]                = useState(() => syncUrl ? readParam("q") : "");
+  const [selected, setSelected]  = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const queryClient = useQueryClient();
+
+  // URL sync — write all active filters back to the browser URL whenever they change
+  const syncRef = useRef(syncUrl);
+  useEffect(() => {
+    if (!syncRef.current) return;
+    const sp = new URLSearchParams();
+    if (sentiment) sp.set("sentiment", sentiment);
+    if (language)  sp.set("language", language);
+    if (state)     sp.set("state", state);
+    if (dateFrom)  sp.set("date_from", dateFrom);
+    if (dateTo)    sp.set("date_to", dateTo);
+    if (q)         sp.set("q", q);
+    const qs = sp.toString();
+    history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [sentiment, language, state, dateFrom, dateTo, q]);
+
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => deleteMentions(brandId, ids),
     onSuccess: () => {
@@ -60,20 +94,22 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
 
   const params: Record<string, string> = { limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) };
   if (sentiment) params.sentiment = sentiment;
-  if (language) params.language = language;
-  if (portalId) params.portal_id = portalId;
-  if (topic) params.topic = topic;
-  if (dateFrom) params.date_from = dateFrom;
-  if (dateTo) params.date_to = dateTo;
-  if (q) params.q = q;
+  if (language)  params.language = language;
+  if (portalId)  params.portal_id = portalId;
+  if (topic)     params.topic = topic;
+  if (state)     params.state = state;
+  if (dateFrom)  params.date_from = dateFrom;
+  if (dateTo)    params.date_to = dateTo;
+  if (q)         params.q = q;
 
-  const { data: articles = [], isLoading } = useQuery<ArticleItem[]>({
-    queryKey: ["mentions", brandId, page, sentiment, language, portalId, topic, dateFrom, dateTo, q],
+  const { data: articles = [], isLoading, isFetching } = useQuery<ArticleItem[]>({
+    queryKey: ["mentions", brandId, page, sentiment, language, portalId, topic, state, dateFrom, dateTo, q],
     queryFn: () => fetchMentions(brandId, params),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 
-  const hasFilters = !!(sentiment || language || portalId || topic || dateFrom || dateTo || q);
+  const hasFilters = !!(sentiment || language || portalId || topic || state || dateFrom || dateTo || q);
 
   function toggleSelect(id: string) {
     setSelected(prev => {
@@ -92,15 +128,13 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
   }
 
   function resetFilters() {
-    setSentiment("");
-    setLanguage("");
-    setPortalId("");
-    setTopic("");
-    setDateFrom("");
-    setDateTo("");
-    setQDraft("");
-    setQ("");
-    setPage(0);
+    setSentiment(""); setLanguage(""); setPortalId("");
+    setTopic(""); setState(""); setDateFrom(""); setDateTo("");
+    setQDraft(""); setQ(""); setPage(0);
+  }
+
+  function set<T>(setter: (v: T) => void) {
+    return (v: T) => { setter(v); setPage(0); };
   }
 
   return (
@@ -123,10 +157,7 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
               >
                 {deleteMutation.isPending ? "Deleting…" : "Confirm delete"}
               </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="text-xs text-gray-400 hover:text-gray-200"
-              >
+              <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-400 hover:text-gray-200">
                 Cancel
               </button>
             </>
@@ -138,10 +169,7 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
               >
                 Delete selected
               </button>
-              <button
-                onClick={() => setSelected(new Set())}
-                className="text-xs text-gray-500 hover:text-gray-300"
-              >
+              <button onClick={() => setSelected(new Set())} className="text-xs text-gray-500 hover:text-gray-300">
                 Clear
               </button>
             </>
@@ -149,86 +177,71 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
         </div>
       )}
 
-      {/* Header + filters */}
+      {/* Row 1: header + sentiment + language */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-gray-200 mr-auto">All Mentions</span>
 
         <div className="flex gap-1">
           {SENTIMENT_FILTERS.map(f => (
-            <button key={f.value}
-              onClick={() => { setSentiment(f.value); setPage(0); }}
+            <button key={f.value} onClick={() => set(setSentiment)(f.value)}
               className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                 sentiment === f.value
                   ? "bg-indigo-600 border-indigo-500 text-white"
                   : "border-gray-700 text-gray-400 hover:border-gray-500"
-              }`}
-            >{f.label}</button>
+              }`}>{f.label}</button>
           ))}
         </div>
 
         <div className="flex gap-1">
           {LANG_FILTERS.map(f => (
-            <button key={f.value}
-              onClick={() => { setLanguage(f.value); setPage(0); }}
+            <button key={f.value} onClick={() => set(setLanguage)(f.value)}
               className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                 language === f.value
                   ? "bg-teal-700 border-teal-600 text-white"
                   : "border-gray-700 text-gray-400 hover:border-gray-500"
-              }`}
-            >{f.label}</button>
+              }`}>{f.label}</button>
           ))}
         </div>
       </div>
 
-      {/* Second filter row: search, portal, topic, date range */}
+      {/* Row 2: search, portal, topic, state, date */}
       <div className="flex flex-wrap items-center gap-2">
         <input
-          type="text"
-          value={qDraft}
+          type="text" value={qDraft}
           onChange={e => { setQDraft(e.target.value); setPage(0); }}
           placeholder="Search title…"
           className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2.5 py-1.5 placeholder:text-gray-500 focus:outline-none focus:border-indigo-500 w-40"
         />
 
         {portals.length > 0 && (
-          <select
-            value={portalId}
-            onChange={e => { setPortalId(e.target.value); setPage(0); }}
-            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
-          >
+          <select value={portalId} onChange={e => set(setPortalId)(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500">
             <option value="">All sources</option>
-            {portals.map(p => (
-              <option key={p} value={p}>{p.replace(/_/g, " ")}</option>
-            ))}
+            {portals.map(p => <option key={p} value={p}>{p.replace(/_/g, " ")}</option>)}
           </select>
         )}
 
         {topics.length > 0 && (
-          <select
-            value={topic}
-            onChange={e => { setTopic(e.target.value); setPage(0); }}
-            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
-          >
+          <select value={topic} onChange={e => set(setTopic)(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500">
             <option value="">All topics</option>
-            {topics.map(t => (
-              <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
-            ))}
+            {topics.map(t => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
           </select>
         )}
 
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={e => { setDateFrom(e.target.value); setPage(0); }}
-          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
-        />
+        {states.length > 0 && (
+          <select value={state} onChange={e => set(setState)(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+            <option value="">All states</option>
+            {states.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+
+        <input type="date" value={dateFrom} onChange={e => set(setDateFrom)(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500" />
         <span className="text-gray-600 text-xs">to</span>
-        <input
-          type="date"
-          value={dateTo}
-          onChange={e => { setDateTo(e.target.value); setPage(0); }}
-          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
-        />
+        <input type="date" value={dateTo} onChange={e => set(setDateTo)(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500" />
 
         {hasFilters && (
           <button onClick={resetFilters} className="text-xs text-indigo-400 underline ml-auto">
@@ -237,7 +250,7 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
         )}
       </div>
 
-      {/* Table */}
+      {/* Table — non-destructive refetch: keep rows visible with a subtle overlay while updating */}
       {isLoading ? (
         <div className="text-gray-500 text-sm py-8 text-center">Loading mentions…</div>
       ) : articles.length === 0 ? (
@@ -248,18 +261,23 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
+          {isFetching && (
+            <div className="absolute inset-0 bg-gray-900/50 z-10 flex items-center justify-center rounded-lg pointer-events-none">
+              <span className="text-xs text-gray-400 bg-gray-900 px-3 py-1 rounded-full border border-gray-700">
+                Updating…
+              </span>
+            </div>
+          )}
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800 text-gray-500 text-left">
                 {selectable && (
                   <th className="pb-2 pr-3 w-8">
-                    <input
-                      type="checkbox"
+                    <input type="checkbox"
                       checked={articles.length > 0 && selected.size === articles.length}
                       onChange={toggleSelectAll}
-                      className="accent-indigo-500 cursor-pointer"
-                    />
+                      className="accent-indigo-500 cursor-pointer" />
                   </th>
                 )}
                 <th className="pb-2 pr-3 font-medium hidden sm:table-cell w-12">#</th>
@@ -274,15 +292,13 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {articles.map((a, i) => (
-                <tr key={a.id} className={`hover:bg-gray-800/40 transition-colors ${selected.has(a.id) ? "bg-red-950/20" : ""}`}>
+                <tr key={a.id}
+                  className={`hover:bg-gray-800/40 transition-colors ${selected.has(a.id) ? "bg-red-950/20" : ""}`}>
                   {selectable && (
                     <td className="py-2 pr-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(a.id)}
+                      <input type="checkbox" checked={selected.has(a.id)}
                         onChange={() => toggleSelect(a.id)}
-                        className="accent-indigo-500 cursor-pointer"
-                      />
+                        className="accent-indigo-500 cursor-pointer" />
                     </td>
                   )}
                   <td className="py-2 pr-3 text-gray-600 hidden sm:table-cell">{page * PAGE_SIZE + i + 1}</td>
@@ -291,33 +307,34 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
                        className="text-gray-200 hover:text-indigo-400 line-clamp-2 leading-snug">
                       {a.title}
                     </a>
+                    {a.states_mentioned?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {a.states_mentioned.map(s => (
+                          <span key={s} className="text-[9px] px-1 py-0.5 bg-violet-900/30 text-violet-400 rounded">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 pr-3 text-gray-500 truncate max-w-[80px] sm:max-w-[96px]">
                     {a.portal_id.replace(/_/g, " ")}
                   </td>
                   <td className="py-2 pr-3 hidden md:table-cell">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                      a.language === "ta"
-                        ? "bg-teal-900/40 text-teal-400"
-                        : "bg-gray-800 text-gray-400"
+                      a.language === "ta" ? "bg-teal-900/40 text-teal-400" : "bg-gray-800 text-gray-400"
                     }`}>{a.language.toUpperCase()}</span>
                   </td>
-                  <td className="py-2 pr-3">
-                    <SentimentBadge label={a.sentiment_label} />
-                  </td>
+                  <td className="py-2 pr-3"><SentimentBadge label={a.sentiment_label} /></td>
                   <td className="py-2 pr-3 text-right font-mono text-gray-400 hidden lg:table-cell">
                     {a.sentiment_score.toFixed(2)}
                   </td>
                   <td className="py-2 pr-3 text-right hidden lg:table-cell">
                     <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
-                      a.source_credibility >= 0.85
-                        ? "bg-green-900/40 text-green-400"
-                        : a.source_credibility >= 0.75
-                        ? "bg-yellow-900/40 text-yellow-400"
+                      a.source_credibility >= 0.85 ? "bg-green-900/40 text-green-400"
+                        : a.source_credibility >= 0.75 ? "bg-yellow-900/40 text-yellow-400"
                         : "bg-gray-800 text-gray-500"
-                    }`}>
-                      {a.source_credibility.toFixed(2)}
-                    </span>
+                    }`}>{a.source_credibility.toFixed(2)}</span>
                   </td>
                   <td className="py-2 text-gray-600 hidden sm:table-cell">
                     {a.published_at ? new Date(a.published_at).toLocaleDateString("en-IN") : "—"}
