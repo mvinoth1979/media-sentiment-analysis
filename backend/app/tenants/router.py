@@ -134,6 +134,24 @@ def list_brand_users(
     return enriched
 
 
+@router.delete("/brands/{brand_id}", status_code=204)
+def delete_brand(
+    brand_id: str,
+    _user: dict = Depends(require_role("master_admin")),
+):
+    db = get_db()
+    db.table("brands").delete().eq("id", brand_id).execute()
+
+
+@router.delete("/users/roles/{role_id}", status_code=204)
+def delete_user_role(
+    role_id: str,
+    _user: dict = Depends(require_role("agency_admin", "master_admin")),
+):
+    db = get_db()
+    db.table("user_roles").delete().eq("id", role_id).execute()
+
+
 @router.put("/brands/{brand_id}/config")
 def update_brand_config(
     brand_id: str,

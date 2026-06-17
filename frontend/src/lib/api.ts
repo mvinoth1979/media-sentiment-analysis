@@ -91,6 +91,12 @@ export const deleteAlert = (brandId: string, alertId: string) =>
 export const createBrand = (payload: { name: string; keywords: string[]; languages: string[] }) =>
   api.post<{ id: string; name: string }>("/tenants/brands", payload).then(r => r.data);
 
+export const deleteBrand = (brandId: string) =>
+  api.delete(`/tenants/brands/${brandId}`).then(r => r.data);
+
+export const deleteUserRole = (roleId: string) =>
+  api.delete(`/tenants/users/roles/${roleId}`).then(r => r.data);
+
 export const inviteUser = (payload: { email: string; role: string; brand_id?: string }) =>
   api.post<{ status: string; email: string }>("/tenants/users/invite", payload).then(r => r.data);
 

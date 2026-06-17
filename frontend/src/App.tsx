@@ -16,14 +16,15 @@ function App() {
   const [session, setSession]   = useState<Session | null | undefined>(undefined);
   const [brand, setBrand]       = useState<{ id: string; name: string } | null>(null);
   const [tab, setTab]           = useState<Tab>("overview");
-  const [isAdmin, setIsAdmin]   = useState(false);
+  const [isAdmin, setIsAdmin]         = useState(false);
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      if (!s) { setBrand(null); setIsAdmin(false); setUserEmail(""); }
+      if (!s) { setBrand(null); setIsAdmin(false); setIsMasterAdmin(false); setUserEmail(""); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -42,7 +43,9 @@ function App() {
     )
       .then(r => r.json())
       .then((rows: { role: string }[]) => {
-        setIsAdmin(Array.isArray(rows) && rows.some(r => ADMIN_ROLES.has(r.role)));
+        const validRows = Array.isArray(rows) ? rows : [];
+        setIsAdmin(validRows.some(r => ADMIN_ROLES.has(r.role)));
+        setIsMasterAdmin(validRows.some(r => r.role === "master_admin"));
       })
       .catch(() => {});
   }, [session]);
@@ -52,6 +55,7 @@ function App() {
   if (!brand) return (
     <BrandSearch
       isAdmin={isAdmin}
+      isMasterAdmin={isMasterAdmin}
       onSelect={(id, name) => { setBrand({ id, name }); setTab("overview"); }}
     />
   );

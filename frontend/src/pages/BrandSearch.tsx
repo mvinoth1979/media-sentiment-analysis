@@ -1,16 +1,27 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchBrands } from "../lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchBrands, deleteBrand } from "../lib/api";
 import { BrandSetup } from "./BrandSetup";
 
 interface Props {
   onSelect: (brandId: string, brandName: string) => void;
   isAdmin?: boolean;
+  isMasterAdmin?: boolean;
 }
 
-export function BrandSearch({ onSelect, isAdmin }: Props) {
-  const [q, setQ]               = useState("");
+export function BrandSearch({ onSelect, isAdmin, isMasterAdmin }: Props) {
+  const [q, setQ]                 = useState("");
   const [showSetup, setShowSetup] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (brandId: string) => deleteBrand(brandId),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
+    },
+  });
 
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ["brands", q],
@@ -56,21 +67,52 @@ export function BrandSearch({ onSelect, isAdmin }: Props) {
         {brands.length > 0 && (
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             {brands.map((b, i) => (
-              <button
-                key={b.id}
-                onClick={() => onSelect(b.id, b.name)}
-                className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition-colors ${
-                  i > 0 ? "border-t border-gray-800" : ""
-                }`}
-              >
-                <div>
-                  <div className="text-sm font-medium text-gray-100">{b.name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Brand ID: {b.id.slice(0, 8)}…</div>
-                </div>
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <div key={b.id} className={`flex items-center ${i > 0 ? "border-t border-gray-800" : ""}`}>
+                {confirmDelete === b.id ? (
+                  <div className="flex-1 px-4 py-3 flex items-center gap-3 bg-red-950/30">
+                    <span className="text-xs text-red-300 flex-1">
+                      Delete <strong>{b.name}</strong> and ALL its articles? This cannot be undone.
+                    </span>
+                    <button
+                      onClick={() => deleteMutation.mutate(b.id)}
+                      disabled={deleteMutation.isPending}
+                      className="text-xs px-2.5 py-1 bg-red-700 hover:bg-red-600 text-white rounded disabled:opacity-50"
+                    >
+                      {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                    </button>
+                    <button onClick={() => setConfirmDelete(null)} className="text-xs text-gray-400 hover:text-gray-200">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => onSelect(b.id, b.name)}
+                      className="flex-1 text-left px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition-colors"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-gray-100">{b.name}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">Brand ID: {b.id.slice(0, 8)}…</div>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    {isMasterAdmin && (
+                      <button
+                        onClick={() => setConfirmDelete(b.id)}
+                        className="px-3 py-3 text-gray-600 hover:text-red-400 transition-colors"
+                        title="Delete brand"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             ))}
           </div>
         )}

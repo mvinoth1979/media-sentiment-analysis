@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchBrandUsers, inviteUser } from "../lib/api";
+import { fetchBrandUsers, inviteUser, deleteUserRole } from "../lib/api";
 import type { BrandUser } from "../lib/types";
 
 interface Props {
@@ -34,8 +34,9 @@ function RoleBadge({ role }: { role: string }) {
 export function UserManagement({ brandId, brandName }: Props) {
   const [email, setEmail]   = useState("");
   const [role, setRole]     = useState("brand_viewer");
-  const [invError, setInvError] = useState("");
+  const [invError, setInvError]     = useState("");
   const [invSuccess, setInvSuccess] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -43,6 +44,14 @@ export function UserManagement({ brandId, brandName }: Props) {
     queryKey: ["users", brandId],
     queryFn: () => fetchBrandUsers(brandId),
     staleTime: 30_000,
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (roleId: string) => deleteUserRole(roleId),
+    onSuccess: () => {
+      setConfirmRemove(null);
+      queryClient.invalidateQueries({ queryKey: ["users", brandId] });
+    },
   });
 
   const inviteMutation = useMutation({
@@ -83,12 +92,39 @@ export function UserManagement({ brandId, brandName }: Props) {
         ) : (
           <div className="divide-y divide-gray-800">
             {users.map((u: BrandUser) => (
-              <div key={u.id} className="px-4 py-3 flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-200">{u.email || <span className="text-gray-600 italic">email not available</span>}</div>
+              <div key={u.id} className="px-4 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-gray-200 truncate">
+                    {u.email || <span className="text-gray-600 italic">email not available</span>}
+                  </div>
                   <div className="text-xs text-gray-600 mt-0.5 font-mono">{u.user_id.slice(0, 8)}…</div>
                 </div>
                 <RoleBadge role={u.role} />
+                {confirmRemove === u.id ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-red-400">Remove access?</span>
+                    <button
+                      onClick={() => removeMutation.mutate(u.id)}
+                      disabled={removeMutation.isPending}
+                      className="text-xs px-2 py-0.5 bg-red-700 hover:bg-red-600 text-white rounded disabled:opacity-50"
+                    >
+                      {removeMutation.isPending ? "…" : "Remove"}
+                    </button>
+                    <button onClick={() => setConfirmRemove(null)} className="text-xs text-gray-500 hover:text-gray-300">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmRemove(u.id)}
+                    className="shrink-0 text-gray-600 hover:text-red-400 transition-colors"
+                    title="Remove user access"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             ))}
           </div>
