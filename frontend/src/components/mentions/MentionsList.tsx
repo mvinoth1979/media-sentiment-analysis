@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { fetchMentions, deleteMentions, exportMentionsCsv } from "../../lib/api";
 import { SentimentBadge } from "../ui/SentimentBadge";
+import { YouTubeIcon } from "../ui/YouTubeIcon";
 import type { ArticleItem } from "../../lib/types";
 
 interface Props {
@@ -36,8 +37,21 @@ const LANG_FILTERS = [
   { label: "Kannada", value: "kn" },
 ];
 
+const SOURCE_TYPE_FILTERS = [
+  { label: "All types", value: "" },
+  { label: "News", value: "news" },
+  { label: "YT Videos", value: "youtube_video" },
+  { label: "YT Comments", value: "youtube_comment" },
+];
+
 function readParam(key: string, fallback = "") {
   return new URLSearchParams(window.location.search).get(key) ?? fallback;
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
 }
 
 export function MentionsList({
@@ -52,36 +66,37 @@ export function MentionsList({
   selectable = false,
   syncUrl = false,
 }: Props) {
-  const [page, setPage]         = useState(0);
-  const [sentiment, setSentiment] = useState(() => syncUrl ? readParam("sentiment") : "");
-  const [language, setLanguage]  = useState(() => syncUrl ? readParam("language") : "");
-  const [portalId, setPortalId]  = useState(initialPortalId);
-  const [topic, setTopic]        = useState(initialTopic);
-  const [state, setState]        = useState(() => syncUrl ? readParam("state") : initialState);
-  const [dateFrom, setDateFrom]  = useState(() => syncUrl ? readParam("date_from") : "");
-  const [dateTo, setDateTo]      = useState(() => syncUrl ? readParam("date_to") : "");
-  const [qDraft, setQDraft]      = useState(() => syncUrl ? readParam("q") : "");
-  const [q, setQ]                = useState(() => syncUrl ? readParam("q") : "");
-  const [selected, setSelected]  = useState<Set<string>>(new Set());
+  const [page, setPage]           = useState(0);
+  const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : "");
+  const [language, setLanguage]   = useState(() => syncUrl ? readParam("language") : "");
+  const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
+  const [portalId, setPortalId]   = useState(initialPortalId);
+  const [topic, setTopic]         = useState(initialTopic);
+  const [state, setState]         = useState(() => syncUrl ? readParam("state") : initialState);
+  const [dateFrom, setDateFrom]   = useState(() => syncUrl ? readParam("date_from") : "");
+  const [dateTo, setDateTo]       = useState(() => syncUrl ? readParam("date_to") : "");
+  const [qDraft, setQDraft]       = useState(() => syncUrl ? readParam("q") : "");
+  const [q, setQ]                 = useState(() => syncUrl ? readParam("q") : "");
+  const [selected, setSelected]   = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const queryClient = useQueryClient();
 
-  // URL sync — write all active filters back to the browser URL whenever they change
   const syncRef = useRef(syncUrl);
   useEffect(() => {
     if (!syncRef.current) return;
     const sp = new URLSearchParams();
-    if (sentiment) sp.set("sentiment", sentiment);
-    if (language)  sp.set("language", language);
-    if (state)     sp.set("state", state);
-    if (dateFrom)  sp.set("date_from", dateFrom);
-    if (dateTo)    sp.set("date_to", dateTo);
-    if (q)         sp.set("q", q);
+    if (sentiment)   sp.set("sentiment", sentiment);
+    if (language)    sp.set("language", language);
+    if (sourceType)  sp.set("source_type", sourceType);
+    if (state)       sp.set("state", state);
+    if (dateFrom)    sp.set("date_from", dateFrom);
+    if (dateTo)      sp.set("date_to", dateTo);
+    if (q)           sp.set("q", q);
     const qs = sp.toString();
     history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
-  }, [sentiment, language, state, dateFrom, dateTo, q]);
+  }, [sentiment, language, sourceType, state, dateFrom, dateTo, q]);
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => deleteMentions(brandId, ids),
@@ -100,23 +115,24 @@ export function MentionsList({
   }, [qDraft]);
 
   const params: Record<string, string> = { limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) };
-  if (sentiment) params.sentiment = sentiment;
-  if (language)  params.language = language;
-  if (portalId)  params.portal_id = portalId;
-  if (topic)     params.topic = topic;
-  if (state)     params.state = state;
-  if (dateFrom)  params.date_from = dateFrom;
-  if (dateTo)    params.date_to = dateTo;
-  if (q)         params.q = q;
+  if (sentiment)  params.sentiment    = sentiment;
+  if (language)   params.language     = language;
+  if (sourceType) params.source_type  = sourceType;
+  if (portalId)   params.portal_id    = portalId;
+  if (topic)      params.topic        = topic;
+  if (state)      params.state        = state;
+  if (dateFrom)   params.date_from    = dateFrom;
+  if (dateTo)     params.date_to      = dateTo;
+  if (q)          params.q            = q;
 
   const { data: articles = [], isLoading, isFetching } = useQuery<ArticleItem[]>({
-    queryKey: ["mentions", brandId, page, sentiment, language, portalId, topic, state, dateFrom, dateTo, q],
+    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, portalId, topic, state, dateFrom, dateTo, q],
     queryFn: () => fetchMentions(brandId, params),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
-  const hasFilters = !!(sentiment || language || portalId || topic || state || dateFrom || dateTo || q);
+  const hasFilters = !!(sentiment || language || sourceType || portalId || topic || state || dateFrom || dateTo || q);
 
   function toggleSelect(id: string) {
     setSelected(prev => {
@@ -135,7 +151,7 @@ export function MentionsList({
   }
 
   function resetFilters() {
-    setSentiment(""); setLanguage(""); setPortalId("");
+    setSentiment(""); setLanguage(""); setSourceType(""); setPortalId("");
     setTopic(""); setState(""); setDateFrom(""); setDateTo("");
     setQDraft(""); setQ(""); setPage(0);
   }
@@ -184,7 +200,7 @@ export function MentionsList({
         </div>
       )}
 
-      {/* Row 1: header + sentiment + language + export */}
+      {/* Row 1: header + sentiment + language + source type + export */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-gray-200 mr-auto">All Mentions</span>
 
@@ -209,19 +225,30 @@ export function MentionsList({
           ))}
         </select>
 
+        <select
+          value={sourceType}
+          onChange={e => set(setSourceType)(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2.5 py-1 focus:outline-none focus:border-red-500"
+        >
+          {SOURCE_TYPE_FILTERS.map(f => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+
         <button
           onClick={async () => {
             setExporting(true);
             try {
               const exportParams: Record<string, string> = {};
-              if (sentiment) exportParams.sentiment = sentiment;
-              if (language)  exportParams.language = language;
-              if (portalId)  exportParams.portal_id = portalId;
-              if (topic)     exportParams.topic = topic;
-              if (state)     exportParams.state = state;
-              if (dateFrom)  exportParams.date_from = dateFrom;
-              if (dateTo)    exportParams.date_to = dateTo;
-              if (q)         exportParams.q = q;
+              if (sentiment)  exportParams.sentiment    = sentiment;
+              if (language)   exportParams.language     = language;
+              if (sourceType) exportParams.source_type  = sourceType;
+              if (portalId)   exportParams.portal_id    = portalId;
+              if (topic)      exportParams.topic        = topic;
+              if (state)      exportParams.state        = state;
+              if (dateFrom)   exportParams.date_from    = dateFrom;
+              if (dateTo)     exportParams.date_to      = dateTo;
+              if (q)          exportParams.q            = q;
               await exportMentionsCsv(brandId, brandName ?? brandId, exportParams);
             } catch (err) {
               alert("Export failed. Please try again.");
@@ -283,7 +310,7 @@ export function MentionsList({
         )}
       </div>
 
-      {/* Table — non-destructive refetch: keep rows visible with a subtle overlay while updating */}
+      {/* Table */}
       {isLoading ? (
         <div className="text-gray-500 text-sm py-8 text-center">Loading mentions…</div>
       ) : articles.length === 0 ? (
@@ -335,11 +362,28 @@ export function MentionsList({
                     </td>
                   )}
                   <td className="py-2 pr-3 text-gray-600 hidden sm:table-cell">{page * PAGE_SIZE + i + 1}</td>
+
+                  {/* Title + reach metadata + state tags */}
                   <td className="py-2 pr-3 max-w-[180px] sm:max-w-xs">
                     <a href={a.url} target="_blank" rel="noreferrer"
                        className="text-gray-200 hover:text-indigo-400 line-clamp-2 leading-snug">
                       {a.title}
                     </a>
+                    {a.source_type === "youtube_video" && (a.reach_metadata?.view_count ?? 0) > 0 && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <YouTubeIcon className="inline w-2.5 h-2.5" />
+                        <span className="text-[9px] text-gray-500">
+                          {formatCount(a.reach_metadata!.view_count)} views
+                        </span>
+                      </div>
+                    )}
+                    {a.source_type === "youtube_comment" && (a.reach_metadata?.like_count ?? 0) > 0 && (
+                      <div className="mt-0.5">
+                        <span className="text-[9px] text-gray-500">
+                          ♥ {a.reach_metadata!.like_count} likes
+                        </span>
+                      </div>
+                    )}
                     {a.states_mentioned?.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {a.states_mentioned.map(s => (
@@ -350,9 +394,15 @@ export function MentionsList({
                       </div>
                     )}
                   </td>
+
+                  {/* Source — YouTube icon prefix for youtube_ portal_ids */}
                   <td className="py-2 pr-3 text-gray-500 truncate max-w-[80px] sm:max-w-[96px]">
+                    {a.source_type?.startsWith("youtube_") && (
+                      <YouTubeIcon className="inline w-3 h-3 mr-0.5 mb-0.5" />
+                    )}
                     {a.portal_id.replace(/_/g, " ")}
                   </td>
+
                   <td className="py-2 pr-3 hidden md:table-cell">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       a.language === "ta" ? "bg-teal-900/40 text-teal-400" : "bg-gray-800 text-gray-400"

@@ -7,6 +7,7 @@ export interface KPISummary {
   positive_pct: number;
   negative_pct: number;
   neutral_pct: number;
+  youtube_mention_count?: number;
   perception_score_delta: number | null;
   mentions_delta_pct: number | null;
 }
@@ -33,10 +34,12 @@ export interface ArticleItem {
   language: string;
   source_credibility: number;
   source_platform: string;
+  source_type?: string;
   entities: string[];
   topics: string[];
   keywords: string[];
   states_mentioned: string[];
+  reach_metadata?: Record<string, number>;
   model_used: string;
   author_info?: AuthorInfo | null;
   metrics?: MentionMetrics | null;

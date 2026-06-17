@@ -215,6 +215,15 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
               sub={formatDelta(kpi.mentions_delta_pct, "%")}
             />
           </div>
+          {(kpi.youtube_mention_count ?? 0) > 0 && (
+            <div className="flex-1">
+              <KPICard
+                label="YouTube Mentions"
+                value={kpi.youtube_mention_count!}
+                color="red"
+              />
+            </div>
+          )}
         </div>
         <div className="sm:col-span-2">
           <SentimentPieChart

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSources } from "../lib/api";
 import { SourceSentimentChart } from "../components/charts/SourceSentimentChart";
 import { MentionsList } from "../components/mentions/MentionsList";
+import { YouTubeIcon } from "../components/ui/YouTubeIcon";
 import type { SourceStat } from "../lib/types";
 
 interface Props {
@@ -82,8 +83,11 @@ export function SourceBreakdown({ brandId }: Props) {
                     <td className="py-2 pr-3">
                       <button
                         onClick={() => setSelectedSource(s.portal_id)}
-                        className="text-gray-200 hover:text-indigo-400 hover:underline text-left"
+                        className="text-gray-200 hover:text-indigo-400 hover:underline text-left flex items-center gap-1"
                       >
+                        {s.portal_id.startsWith("youtube_") && (
+                          <YouTubeIcon className="inline w-3 h-3 shrink-0" />
+                        )}
                         {s.portal_id.replace(/_/g, " ")}
                       </button>
                     </td>
