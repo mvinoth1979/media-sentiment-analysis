@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-17
+> **Last updated:** 2026-06-17 (Wave 3 admin + map fix)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -10,12 +10,12 @@
 
 | Feature | Status | Notes |
 |---|---|---|
-| News portal ingestion — English | ✅ Live | 7 curated portals (The Hindu, TOI, NDTV, India Today, ET, Indian Express, Deccan Chronicle) |
-| News portal ingestion — Tamil | ✅ Live | 10 portals (Hindu Tamil, Vikatan, Samayam, Polimer, Maalaimalar, Daily Thanthi, etc.) |
-| News portal ingestion — Hindi | ✅ Live | 5 portals (Navbharat Times, Amar Ujala, Jagran, NDTV India, Hindustan) |
-| News portal ingestion — Bengali | ✅ Live | 2 portals (Ei Samay, Ananda Bazar) |
-| News portal ingestion — Kannada | ✅ Live | 3 portals (Prajavani, Vijaya Karnataka, Udayavani) |
-| News portal ingestion — Gujarati | ✅ Live | 2 portals (Divya Bhaskar, Gujarat Samachar) |
+| News portal ingestion — English | ✅ Live | 12 portals (The Hindu, TOI, NDTV, India Today, ET, Indian Express, Deccan Chronicle, Hindustan Times, Mint, Deccan Herald, The Quint, News18) |
+| News portal ingestion — Tamil | ✅ Live | 11 portals (Hindu Tamil, Vikatan, Samayam, Polimer, Maalaimalar, Daily Thanthi, Tamil Murasu, Oneindia Tamil, News Tamil, Puthiyathalaimurai, Sathiyam TV) |
+| News portal ingestion — Hindi | ✅ Live | 8 portals (Navbharat Times, Amar Ujala, Jagran, NDTV India, Hindustan, Dainik Bhaskar, Prabhat Khabar, Hari Bhoomi) |
+| News portal ingestion — Bengali | ✅ Live | 3 portals (Ei Samay, Ananda Bazar, Sangbad Pratidin) |
+| News portal ingestion — Kannada | ✅ Live | 6 portals (Prajavani, Vijaya Karnataka, Udayavani, Kannada Prabha, TV9 Kannada, Public TV) |
+| News portal ingestion — Gujarati | ✅ Live | 3 portals (Divya Bhaskar, Gujarat Samachar, Chitralekha) |
 | AI sentiment analysis (Gemini primary, Groq fallback) | ✅ Live | 3-class: positive/negative/neutral with confidence score |
 | Entity extraction (brand, person, org, location) | ✅ Live | Per-article, returned in API and dashboard |
 | Topic extraction | ✅ Live | Per-article, used in Topics View |
@@ -28,11 +28,14 @@
 | State-level mention tagging | ✅ Live | NLP extracts Indian states from article content |
 | State filter in Mention Explorer | ✅ Live | URL-synced, click-to-drill |
 | State breakdown on Overview | ✅ Live | Top states by mention volume + sentiment |
-| India state choropleth map | ✅ Live | Color-coded sentiment by state; click-to-drill to filtered mentions |
+| India state sentiment grid | ✅ Live | Chip grid per state, color-coded by sentiment ratio; hover tooltip; click-to-drill to filtered mentions; sorted by mention count (replaced choropleth — remote TopoJSON source was 404) |
 | CSV export (Mention Explorer) | ✅ Live | Respects all active filters; streams up to 2,000 rows |
 | Email alert system | ✅ Live | 3 alert types: perception_score_below, negative_pct_above, mention_spike; per-brand; 4h rate-limit |
 | Self-serve brand onboarding | ✅ Live | 3-step wizard (name → keywords → languages); agency_admin / master_admin only |
 | User invite & management | ✅ Live | Magic-link invite via Supabase; role assignment at brand or agency scope |
+| Delete brand | ✅ Live | master_admin only; inline confirm; cascades all articles, configs, user_roles, dedupe hashes |
+| Remove user role | ✅ Live | agency_admin+ can remove brand-scoped user access; inline confirm per row |
+| Language filter (Mention Explorer) | ✅ Live | Dropdown with 6 options: EN, TA, HI, GU, BN, KN; URL-synced |
 | Multi-brand support | ✅ Live | 12 brands in current deployment |
 | RBAC (5 roles: master_admin / agency_admin / agency_analyst / brand_admin / brand_viewer) | ✅ Live | 3-tier hierarchy: platform / agency / brand |
 | Multi-tenant isolation | ✅ Live | Agency-scoped and brand-scoped access; no cross-brand data leakage |
@@ -115,7 +118,7 @@
 ### Where MediaSense Genuinely Leads
 
 **1. Curated Indian news portal depth (unique)**
-No competitor maintains a hand-verified list of 29 Indian regional RSS feeds with credibility scores, per-portal keyword filtering, and skip_keyword_filter logic for non-English scripts. Meltwater has a larger news index globally, but India-specific regional portals (Vikatan, Prajavani, Divya Bhaskar) are not well-indexed. This is a real and structural advantage — it takes months to build and verify this portal list.
+No competitor maintains a hand-verified list of 43 Indian regional RSS feeds with credibility scores, per-portal keyword filtering, and skip_keyword_filter logic for non-English scripts. Meltwater has a larger news index globally, but India-specific regional portals (Vikatan, Prajavani, Divya Bhaskar, Prabhat Khabar, Sathiyam TV) are not well-indexed. This is a real and structural advantage — it takes months to build and verify this portal list.
 
 **2. State-level mention tagging via NLP (first mover)**
 Locobuzz markets "region-level insight" but there is no verifiable feature behind it. MediaSense uses Gemini to extract Indian states from article prose and filters by state in the Mention Explorer — this is live code, not a marketing claim. No competitor has shipped this verifiably.
@@ -137,17 +140,17 @@ Deleted articles are remembered. Future pipeline runs automatically skip similar
 **1. Social media — single biggest gap**
 Every competitor has Twitter/X, Instagram, Facebook. MediaSense has zero social coverage. In a brand crisis, 60–70% of the initial spread happens on social. Without social, MediaSense cannot be a brand's primary monitoring tool — it is a supplement. This must be addressed in Phase 2 before serious commercial traction is possible.
 
-**2. No alerts — the tool is retrospective, not proactive**
-Locobuzz, Konnect, Meltwater, Brand24 all notify within minutes of a sentiment spike or keyword mention. MediaSense requires users to log in and look. For crisis management, this is a disqualifying gap for most buyers.
+**2. ~~No alerts — the tool is retrospective, not proactive~~ ✅ Fixed (Wave 3)**
+Email alerts shipped: perception_score_below, negative_pct_above, mention_spike — per-brand, 4h rate-limit via Resend. Gap remains vs. competitors: alerts are email-only (no Slack/WhatsApp) and fire after hourly batch, not in near-real-time. Upgrading to webhooks + real-time alerts is Wave 4.
 
-**3. No export — agencies cannot deliver client reports**
-Every agency engagement ends with a client report. MediaSense cannot produce one. An agency_admin looking at the dashboard has no way to share the data outside the platform. This is a hard blocker for agency sales.
+**3. ~~No export — agencies cannot deliver client reports~~ ✅ Fixed (Wave 3)**
+CSV export live in Mention Explorer — respects all active filters (sentiment, language, portal, topic, state, date range, free-text), streams up to 2,000 rows. Gap remains: PDF/PPT branded reports not yet available.
 
 **4. Hourly batch vs near-real-time**
 The fastest competitor delivers alerts in 5–15 minutes. MediaSense delivers data up to 60 minutes stale. For a PR crisis, the difference between 15 minutes and 60 minutes is significant.
 
-**5. No self-serve onboarding**
-Every new brand requires SQL migrations. Every new user requires manual `user_roles` inserts. This makes MediaSense unsellable without a dedicated ops person behind every account. This is a commercialisation blocker.
+**5. ~~No self-serve onboarding~~ ✅ Fixed (Wave 3)**
+Brand wizard (3-step: name → keywords → languages), user invite (magic-link via Supabase), UserManagement page, delete brand, and remove user role all shipped. No SQL required for any tenant operation. Remaining gap: billing/payment flow — cannot charge without Razorpay/Stripe integration (Wave 4).
 
 **6. Hinglish / Tanglish mixed-script detection**
 Locobuzz's ContextualPulse™ specifically markets Hinglish/Tanglish social text handling. MediaSense uses fasttext langdetect which misclassifies code-mixed text (a Tamil sentence with English brand names). This matters more for social (Phase 2) than for news portals.
@@ -212,8 +215,8 @@ Target: Mid-market brands with pan-India or multi-state presence; PR managers
 - State-level filtering
 - 10 dashboard users
 - 12-month article history
-- CSV export (requires export feature, ETA Wave 3)
-- Monthly PDF summary report (requires export feature)
+- CSV export ✅ (live)
+- Monthly PDF summary report (Wave 4 — not yet available)
 
 *Justification:* Positioned squarely against the Konnect/Locobuzz entry tier (₹15,000–20,000/month) but news-focused with far superior language depth. Brands currently paying Meltwater ₹40,000+/month for English-only will find this compelling.
 
@@ -248,20 +251,21 @@ Target: Large brands with national campaigns, PR firms with 20+ clients
 
 ### Pricing Phasing Recommendations
 
-#### Now (news-only, no export/alerts)
-Launch at 25–30% discount as **Founder Pricing** — position it honestly:
-> "You're getting early access before social media monitoring is added. Lock in this rate permanently while we build the full platform."
+#### Now — Wave 3 complete ✅ (news monitoring fully featured)
+Export, alerts, self-serve onboarding, and RBAC management are all live. MediaSense is now feature-complete for news monitoring. **Move to full pricing.** The Founder Pricing window (pre-export/pre-alerts) has passed.
 
-| Tier | Founder Price | Future Price |
+**Current recommended pricing:**
+
+| Tier | Price | Ready to sell? |
 |---|---|---|
-| News Essentials | ₹4,500/month | ₹6,500/month |
-| News Professional | ₹10,000/month | ₹14,000/month |
-| Agency (5 brands) | ₹32,000/month | ₹45,000/month |
+| News Essentials | ₹6,500/month | ✅ Yes — pending billing integration |
+| News Professional | ₹14,000/month | ✅ Yes — pending billing integration |
+| Agency (5 brands) | ₹45,000/month | ✅ Yes — pending billing integration |
 
-This converts early customers into advocates, funds Phase 2 development, and creates switching cost before social media competitors notice.
+**Only blocker before first invoice:** Razorpay / Stripe billing integration (Wave 4). Can currently be handled manually (bank transfer / invoice) for the first 2–3 customers.
 
-#### After Wave 3 (export + alerts added)
-Move to full pricing. At this point MediaSense is feature-complete for news monitoring and can be sold on value, not discount.
+#### After Wave 4 (billing + PDF reports)
+Fully automated self-serve. Remove manual billing workaround. Launch PDF/PPT export for agency tier.
 
 #### After Phase 2 (social media added)
 Reprice significantly upward. Add a **Social + News** tier at ₹25,000–40,000/month per brand — this directly competes with Locobuzz/Konnect's core offering at a comparable price but with better language depth.
@@ -315,15 +319,15 @@ At this scale, MediaSense is genuinely competing with Locobuzz for mid-market ag
 
 These blockers must be resolved before the first paying customer can be acquired:
 
-| Blocker | Effort | Why it matters |
+| Blocker | Status | Why it matters |
 |---|---|---|
-| Self-serve brand + user onboarding | Medium | Currently requires SQL; cannot onboard without ops support |
-| Billing integration (Razorpay / Stripe India) | Medium | Cannot charge without a payment flow |
-| Export (CSV minimum) | Low | Agencies will not pay without takeout capability |
-| Alert / email notification | Medium | News-only tool without alerts is purely retrospective |
-| Auth on `/pipeline/trigger` | Low (1 line) | Security requirement before charging customers |
-| Terms of service + privacy policy | Low | Required for any paid SaaS |
-| Supabase row limits | Low | Free tier caps at 50,000 rows; will be hit with 12 brands in ~2 months |
+| ~~Self-serve brand + user onboarding~~ | ✅ Done | Brand wizard, user invite, delete brand, remove user role — all shipped Wave 3 |
+| ~~Export (CSV minimum)~~ | ✅ Done | CSV export live in Mention Explorer; filter-respecting, up to 2,000 rows |
+| ~~Alert / email notification~~ | ✅ Done | 3 alert types, 4h rate-limit, Resend email delivery |
+| ~~Auth on `/pipeline/trigger`~~ | ✅ Done | Now requires master_admin JWT; unauth requests return 403 |
+| **Billing integration (Razorpay / Stripe India)** | ❌ Not started | **Critical — cannot charge customers without payment flow** |
+| Terms of service + privacy policy | ❌ Not started | Required for any paid SaaS |
+| Supabase row limits | ⚠️ Monitor | Free tier caps at 50,000 rows; ~12 brands × 20 articles/run × hourly = risk in 2–3 months |
 
 ---
 
@@ -333,3 +337,5 @@ These blockers must be resolved before the first paying customer can be acquired
 |---|---|---|
 | 2026-06-17 | Initial document | News monitoring, 6 languages, 29 portals, 12 brands, RBAC, state filtering, pipeline visibility, DLQ, circuit breaker, rejection learning |
 | 2026-06-17 | Wave 3 shipped | CSV export, email alerts (3 types, 4h rate-limit), self-serve brand wizard, user invite/management, India state choropleth map; competitor matrix updated (CSV ✅, self-serve ✅, email alerts ⚠️) |
+| 2026-06-17 | Wave 3 admin + map fix | Delete brand (master_admin, cascade), remove user role (agency_admin+); state choropleth replaced with chip grid (dead external TopoJSON removed); language filter expanded to 6-option dropdown; `/pipeline/trigger` auth fixed; Go-to-Market blockers table updated (4 of 7 resolved); pricing phasing updated — Wave 3 complete, move to full pricing; Railway backend fully deployed with all Wave 3/4 routes |
+| 2026-06-17 | Portal expansion | 29 → 43 portals: +5 EN, +3 HI, +1 TA, +1 BN, +3 KN, +1 GU; all URLs verified live RSS before adding; 21 candidates documented as excluded with reasons; competitor matrix "Indian news portal depth" updated from 29 to 43 |

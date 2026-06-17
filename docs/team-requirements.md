@@ -1,6 +1,6 @@
 # MediaSense — Team Requirements & Cost Analysis
 
-> **Last updated:** 2026-06-17
+> **Last updated:** 2026-06-17 (Wave 3 admin + map fix)
 > **Scope:** MVP to production-grade SaaS (news monitoring, 6 Indian languages, 12 brands, RBAC)
 > **Update this document** whenever a major feature (social media, alerts, export, billing, etc.) is added.
 > **See also:** `docs/competitive-analysis-and-pricing.md` for feature comparison and pricing tiers.
@@ -11,12 +11,12 @@
 
 - Multi-brand: 12 brands (CIPET, Reliance, Bank of Baroda, Canara Bank + 8 others)
 - Multi-language ingestion & NLP: EN, TA, HI, GU, BN, KN
-- Portals: 29 (7 EN, 10 TA, 5 HI, 2 BN, 3 KN, 2 GU)
+- Portals: 43 (12 EN, 11 TA, 8 HI, 3 BN, 6 KN, 3 GU) — all URLs verified working
 - RBAC: 5 roles across 3 tiers (platform / agency / brand)
-- Dashboard: KPIs, sentiment trend, source breakdown, topics, state filtering, state choropleth map, mention explorer with CSV export
+- Dashboard: KPIs, sentiment trend, source breakdown, topics, state filtering, state sentiment chip grid (click-to-drill), mention explorer with CSV export; language filter dropdown (6 languages)
 - Alerts: email notifications (perception_score_below, negative_pct_above, mention_spike) — per-brand, 4h rate-limit
-- Self-serve: brand wizard (name/keywords/languages), user invite (magic-link via Supabase), UserManagement page
-- Pipeline: Google News RSS + static portals, hourly batch, DLQ, circuit breaker, rejection learning, bootstrap priority
+- Self-serve: brand wizard (name/keywords/languages), user invite (magic-link via Supabase), UserManagement page, delete brand (master_admin, cascade), remove user role (agency_admin+)
+- Pipeline: Google News RSS + static portals, hourly batch, DLQ, circuit breaker, rejection learning, bootstrap priority; `/pipeline/trigger` auth-gated (master_admin only)
 - Infrastructure: Vercel (frontend) + Railway (backend) + Supabase (DB/auth) + Upstash Redis + Cloudflare R2
 
 ---
@@ -24,7 +24,7 @@
 ## Critical Gaps (honest assessment)
 
 ### Security — High Severity
-- `POST /pipeline/trigger` has no auth guard — anyone with the Railway URL can exhaust NLP quota
+- ~~`POST /pipeline/trigger` has no auth guard~~ **✅ Fixed — now requires master_admin JWT**
 - No API rate limiting on dashboard endpoints
 - JWT token refresh not handled in frontend (silent 401s after expiry)
 - No audit log (required for enterprise contracts)
@@ -50,6 +50,7 @@
 - No full-text search across mentions
 - No billing / subscription management (cannot charge customers)
 - ~~No self-serve brand or user onboarding~~ **✅ Brand wizard + user invite shipped (Wave 3)**
+- ~~No delete brand / remove user~~ **✅ Delete brand (master_admin, cascade all articles) + remove user role (agency_admin+) shipped**
 - No branded PDF report generation
 
 ### NLP Scalability — Medium-Long Term
@@ -154,7 +155,7 @@ All figures use Indian senior-market rates (mid–senior band). USD column at �
 | CI/CD + staging env | 1 DevOps × 1 month | ₹2,50,000 | Should be done before scaling |
 | Test suite (unit + integration) | 1 QA Engineer × 2 months | ₹2,40,000 | Technical debt |
 | Social media (Phase 2) | +1 Data Engineer + API costs | ₹15,00,000+ | Requires platform API agreements |
-| ~~Self-serve onboarding~~ | ~~0.5 Full-stack × 1 month~~ | ~~₹2,50,000~~ | ✅ Brand wizard + user invite shipped Wave 3 |
+| ~~Self-serve onboarding~~ | ~~0.5 Full-stack × 1 month~~ | ~~₹2,50,000~~ | ✅ Brand wizard + user invite + delete brand/user shipped Wave 3 |
 | Billing / subscription management | 1 Full-stack + 1 PM × 2 months | ₹9,00,000 | Wave 4 — blocks first paying customer |
 | HA architecture (multi-instance Railway/K8s) | 1 DevOps × 1 month + infra | ₹5,00,000+ | Needed before enterprise SLA |
 
@@ -168,3 +169,5 @@ All figures use Indian senior-market rates (mid–senior band). USD column at �
 |---|---|---|
 | 2026-06-17 | Initial document | News monitoring, 6 languages, 29 portals, 12 brands, RBAC, state filtering, pipeline visibility, DLQ, circuit breaker, rejection learning, bootstrap priority |
 | 2026-06-17 | Wave 3 shipped | CSV export, email alerts (3 types), self-serve brand wizard, user invite/management, India state choropleth map; gap table updated |
+| 2026-06-17 | Wave 3 admin + map fix | Delete brand (master_admin, cascade), remove user role (agency_admin+) with inline confirm; state choropleth replaced with chip grid (dead TopoJSON URL removed, zero external dependency); language filter → 6-option dropdown; `/pipeline/trigger` auth fixed; Railway backend fully re-deployed with all Wave 3/4 routes |
+| 2026-06-17 | Portal expansion | 29 → 43 portals: +5 EN (HT, Mint, Deccan Herald, Quint, News18), +3 HI (Bhaskar, Prabhat Khabar, Hari Bhoomi), +1 TA (Sathiyam TV), +1 BN (Sangbad Pratidin), +3 KN (Kannada Prabha, TV9 Kannada, Public TV), +1 GU (Chitralekha); all 14 URLs verified working RSS; 21 candidates excluded with documented reasons |
