@@ -123,6 +123,7 @@ export function Overview({ brandId, brandName }: Props) {
         brandId={brandId}
         portals={data.top_sources.map(s => s.portal_id)}
         topics={data.top_topics}
+        selectable
       />
 
       {/* Topics + Keywords */}

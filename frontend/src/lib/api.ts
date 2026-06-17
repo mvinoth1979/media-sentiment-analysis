@@ -34,4 +34,8 @@ export const createAnnotation = (brandId: string, date: string, label: string) =
   api.post<import("./types").Annotation>(`/dashboard/trends/${brandId}/annotations`, { date, label })
      .then(r => r.data);
 
+export const deleteMentions = (brandId: string, ids: string[]) =>
+  api.delete<{ deleted: number }>(`/dashboard/mentions/${brandId}`, { data: { ids } })
+     .then(r => r.data);
+
 export default api;

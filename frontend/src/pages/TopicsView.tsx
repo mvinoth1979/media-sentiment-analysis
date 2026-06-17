@@ -108,7 +108,7 @@ export function TopicsView({ brandId }: Props) {
               Clear
             </button>
           </div>
-          <MentionsList key={selectedTopic} brandId={brandId} initialTopic={selectedTopic} />
+          <MentionsList key={selectedTopic} brandId={brandId} initialTopic={selectedTopic} selectable />
         </div>
       )}
     </div>

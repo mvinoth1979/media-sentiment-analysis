@@ -120,7 +120,7 @@ export function SourceBreakdown({ brandId }: Props) {
               Clear
             </button>
           </div>
-          <MentionsList key={selectedSource} brandId={brandId} initialPortalId={selectedSource} />
+          <MentionsList key={selectedSource} brandId={brandId} initialPortalId={selectedSource} selectable />
         </div>
       )}
     </div>

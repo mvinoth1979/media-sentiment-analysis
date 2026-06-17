@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchMentions } from "../../lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchMentions, deleteMentions } from "../../lib/api";
 import { SentimentBadge } from "../ui/SentimentBadge";
 import type { ArticleItem } from "../../lib/types";
 
@@ -10,6 +10,7 @@ interface Props {
   topics?: string[];
   initialPortalId?: string;
   initialTopic?: string;
+  selectable?: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -27,7 +28,7 @@ const LANG_FILTERS = [
   { label: "Tamil", value: "ta" },
 ];
 
-export function MentionsList({ brandId, portals = [], topics = [], initialPortalId = "", initialTopic = "" }: Props) {
+export function MentionsList({ brandId, portals = [], topics = [], initialPortalId = "", initialTopic = "", selectable = false }: Props) {
   const [page, setPage] = useState(0);
   const [sentiment, setSentiment] = useState("");
   const [language, setLanguage] = useState("");
@@ -37,6 +38,20 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
   const [dateTo, setDateTo] = useState("");
   const [qDraft, setQDraft] = useState("");
   const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const queryClient = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: (ids: string[]) => deleteMentions(brandId, ids),
+    onSuccess: () => {
+      setSelected(new Set());
+      setConfirmDelete(false);
+      queryClient.invalidateQueries({ queryKey: ["mentions", brandId] });
+      queryClient.invalidateQueries({ queryKey: ["sources", brandId] });
+      queryClient.invalidateQueries({ queryKey: ["topics", brandId] });
+    },
+  });
 
   useEffect(() => {
     const id = setTimeout(() => setQ(qDraft), 400);
@@ -60,6 +75,22 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
 
   const hasFilters = !!(sentiment || language || portalId || topic || dateFrom || dateTo || q);
 
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === articles.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(articles.map(a => a.id)));
+    }
+  }
+
   function resetFilters() {
     setSentiment("");
     setLanguage("");
@@ -74,6 +105,50 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4">
+      {/* Delete confirmation bar */}
+      {selectable && selected.size > 0 && (
+        <div className="flex items-center gap-3 bg-red-950/40 border border-red-800/50 rounded-lg px-3 py-2">
+          <span className="text-sm text-red-300">
+            {selected.size} mention{selected.size > 1 ? "s" : ""} selected
+          </span>
+          {confirmDelete ? (
+            <>
+              <span className="text-xs text-red-400 ml-auto">
+                Permanently delete and block similar articles?
+              </span>
+              <button
+                onClick={() => deleteMutation.mutate(Array.from(selected))}
+                disabled={deleteMutation.isPending}
+                className="text-xs px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded-lg disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Confirm delete"}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-gray-400 hover:text-gray-200"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="ml-auto text-xs px-3 py-1 bg-red-900/60 hover:bg-red-800/80 border border-red-700 text-red-300 rounded-lg"
+              >
+                Delete selected
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs text-gray-500 hover:text-gray-300"
+              >
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Header + filters */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-gray-200 mr-auto">All Mentions</span>
@@ -177,6 +252,16 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800 text-gray-500 text-left">
+                {selectable && (
+                  <th className="pb-2 pr-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={articles.length > 0 && selected.size === articles.length}
+                      onChange={toggleSelectAll}
+                      className="accent-indigo-500 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="pb-2 pr-3 font-medium hidden sm:table-cell w-12">#</th>
                 <th className="pb-2 pr-3 font-medium">Title</th>
                 <th className="pb-2 pr-3 font-medium w-24">Source</th>
@@ -189,7 +274,17 @@ export function MentionsList({ brandId, portals = [], topics = [], initialPortal
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {articles.map((a, i) => (
-                <tr key={a.id} className="hover:bg-gray-800/40 transition-colors">
+                <tr key={a.id} className={`hover:bg-gray-800/40 transition-colors ${selected.has(a.id) ? "bg-red-950/20" : ""}`}>
+                  {selectable && (
+                    <td className="py-2 pr-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(a.id)}
+                        onChange={() => toggleSelect(a.id)}
+                        className="accent-indigo-500 cursor-pointer"
+                      />
+                    </td>
+                  )}
                   <td className="py-2 pr-3 text-gray-600 hidden sm:table-cell">{page * PAGE_SIZE + i + 1}</td>
                   <td className="py-2 pr-3 max-w-[180px] sm:max-w-xs">
                     <a href={a.url} target="_blank" rel="noreferrer"
