@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://mediasense-backend-production.up.railway.app/:path*" },
+    { "source": "/api/:path*", "destination": "https://mediasentimentanalysis-cc-production.up.railway.app/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
