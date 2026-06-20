@@ -9,7 +9,7 @@ def get_db() -> Client:
 def save_article(article: dict, nlp: dict) -> str | None:
     db = get_db()
     row = {**article, **nlp}
-    for field in ("body", "confidence", "portal_name"):
+    for field in ("body", "portal_name"):
         row.pop(field, None)
     row.setdefault("source_platform", "news")
     result = db.table("articles").upsert(row, on_conflict="brand_id,content_hash").execute()
