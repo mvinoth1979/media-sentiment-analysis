@@ -53,9 +53,10 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
           <div className="flex items-center gap-1">
             <span className="text-base font-bold text-gray-900">{ratingLabel}</span>
             <span className="text-[10px] text-gray-400">/5</span>
+            <StarRating rating={avg_rating} />
           </div>
         </div>
-        <div className="flex-1 min-h-0 space-y-0.5 overflow-hidden">
+        <div className="space-y-0.5 flex-none">
           {distribution.map(d => (
             <div key={d.stars} className="flex items-center gap-1">
               <span className="text-[8px] text-gray-400 w-2 shrink-0">{d.stars}</span>
@@ -66,9 +67,24 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
             </div>
           ))}
         </div>
-        <div className="mt-1 flex-none">
-          <StarRating rating={avg_rating} />
-        </div>
+        {(top_positive_topics.length > 0 || top_negative_topics.length > 0) && (
+          <div className="mt-1.5 flex-1 min-h-0 overflow-hidden space-y-1">
+            {top_positive_topics.slice(0, 2).map(t => (
+              <div key={t.label} className="flex items-center gap-1 text-[9px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <span className="text-gray-600 truncate flex-1">{t.label}</span>
+                <span className="text-green-600 font-semibold shrink-0">{t.pct}%</span>
+              </div>
+            ))}
+            {top_negative_topics.slice(0, 2).map(t => (
+              <div key={t.label} className="flex items-center gap-1 text-[9px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                <span className="text-gray-600 truncate flex-1">{t.label}</span>
+                <span className="text-red-500 font-semibold shrink-0">{t.pct}%</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

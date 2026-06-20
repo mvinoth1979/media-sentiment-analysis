@@ -86,23 +86,23 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
           )}
         </div>
         <div className="flex items-center gap-2 flex-1 min-h-0">
-          <div className="relative w-[70px] h-[70px] shrink-0">
+          <div className="relative w-[80px] h-[80px] shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={entries} dataKey="pct" cx="50%" cy="50%" innerRadius={20} outerRadius={32} paddingAngle={2} startAngle={90} endAngle={-270}>
+                <Pie data={entries} dataKey="pct" cx="50%" cy="50%" innerRadius={22} outerRadius={36} paddingAngle={2} startAngle={90} endAngle={-270}>
                   {entries.map(d => <Cell key={d.name} fill={d.color} strokeWidth={0} />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-[8px] text-gray-500">SoV</span>
             </div>
           </div>
           <div className="flex-1 space-y-1 min-w-0 overflow-hidden">
-            {entries.slice(0, 4).map(d => (
+            {entries.slice(0, 5).map(d => (
               <div key={d.name} className="flex items-center gap-1 text-[9px]">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                <span className="text-gray-600 truncate flex-1">{d.name}</span>
+                <span className={`truncate flex-1 ${d.is_brand ? "font-semibold text-gray-800" : "text-gray-600"}`}>{d.name}</span>
                 <span className="font-bold text-gray-700 shrink-0">{d.pct}%</span>
               </div>
             ))}

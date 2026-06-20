@@ -77,26 +77,40 @@ export function MentionsBySourceDonut({ brandId, dateFrom, dateTo, compact, onCl
       <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
         <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Mentions by Source</div>
         <div className="flex items-center gap-2 flex-1 min-h-0">
-          <div className="shrink-0 relative w-[80px] h-[80px]">
+          <div className="shrink-0 relative w-[90px] h-[90px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={cats} cx="50%" cy="50%" innerRadius={24} outerRadius={36} dataKey="count" paddingAngle={2} startAngle={90} endAngle={-270}>
+                <Pie data={cats} cx="50%" cy="50%" innerRadius={26} outerRadius={40} dataKey="count" paddingAngle={2} startAngle={90} endAngle={-270}>
                   {cats.map(cat => <Cell key={cat.category} fill={cat.color} strokeWidth={0} />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] font-bold text-gray-900">{formatCount(total)}</span>
+              <span className="text-[11px] font-bold text-gray-900">{formatCount(total)}</span>
+              <span className="text-[8px] text-gray-400">total</span>
             </div>
           </div>
-          <div className="flex-1 space-y-1 min-w-0 overflow-hidden">
-            {cats.slice(0, 4).map(cat => (
-              <div key={cat.category} className="flex items-center gap-1.5 text-[9px]">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                <span className="text-gray-600 truncate flex-1">{cat.label}</span>
-                <span className="text-gray-400 shrink-0">{cat.pct}%</span>
-              </div>
-            ))}
+          <div className="flex-1 space-y-1.5 min-w-0 overflow-hidden">
+            {cats.slice(0, 5).map(cat => {
+              const t = cat.positive + cat.neutral + cat.negative || 1;
+              const posPct = Math.round(cat.positive / t * 100);
+              const negPct = Math.round(cat.negative / t * 100);
+              const neuPct = 100 - posPct - negPct;
+              return (
+                <div key={cat.category}>
+                  <div className="flex items-center gap-1 text-[9px] mb-0.5">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                    <span className="text-gray-600 truncate flex-1">{cat.label}</span>
+                    <span className="text-gray-500 font-medium shrink-0">{cat.pct}%</span>
+                  </div>
+                  <div className="flex rounded-full overflow-hidden h-1 ml-3">
+                    <div className="bg-green-400" style={{ width: `${posPct}%` }} />
+                    <div className="bg-gray-200" style={{ width: `${neuPct}%` }} />
+                    <div className="bg-red-400" style={{ width: `${negPct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

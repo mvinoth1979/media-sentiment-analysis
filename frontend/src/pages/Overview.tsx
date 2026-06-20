@@ -159,9 +159,26 @@ function AlertsRiskCards({
     mention_spike:          { label: "Medium Risk", color: "text-orange-600 bg-orange-100" },
   };
 
+  const ALERT_CATEGORIES = [
+    { type: "perception_score_below", label: "Reputation Score",  icon: "📊", hint: "Alert when score drops below threshold" },
+    { type: "negative_pct_above",     label: "Negative %",        icon: "📉", hint: "Alert when negative % exceeds threshold" },
+    { type: "mention_spike",          label: "Mention Spike",     icon: "🔔", hint: "Alert on sudden volume increase" },
+  ];
+
   const inner = alerts.length === 0 ? (
-    <div className="text-[10px] text-gray-400 text-center py-2">
-      No active alerts.{isAdmin ? "" : " Ask an admin."}
+    <div className="space-y-1.5">
+      {ALERT_CATEGORIES.map(cat => (
+        <div key={cat.type} className="flex items-center gap-2 rounded-md border border-dashed border-gray-200 px-2 py-1.5 bg-gray-50">
+          <span className="text-sm shrink-0">{cat.icon}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-medium text-gray-600 truncate">{cat.label}</div>
+            <div className="text-[8px] text-gray-400 truncate">{cat.hint}</div>
+          </div>
+          <span className="text-[8px] text-gray-400 shrink-0 border border-gray-200 rounded px-1 py-0.5">
+            {isAdmin ? "Set up" : "Not set"}
+          </span>
+        </div>
+      ))}
     </div>
   ) : (
     <div className={`grid ${compact ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-2`}>
@@ -371,7 +388,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       {/* ── Row 1: KPI cards ────────────────────────────────────── flex-none */}
-      <div className="grid grid-cols-5 gap-1.5 flex-none" style={{ height: "58px" }}>
+      <div className="grid grid-cols-5 gap-1.5 flex-none">
         <KPICard compact label="Total Mentions"    value={formatCount(kpi.total)}       delta={kpi.mentions_delta_pct}   deltaUnit="%" sub="vs last period" icon="📰" accentColor="blue"   onClick={() => setActivePanel("mentions")} />
         <KPICard compact label="Positive Mentions" value={formatCount(kpi.positive)}    pct={kpi.positive_pct}                                                       icon="😊" accentColor="green"  onClick={() => setActivePanel("mentions-positive")} />
         <KPICard compact label="Neutral Mentions"  value={formatCount(kpi.neutral)}     pct={kpi.neutral_pct}                                                        icon="😐" accentColor="gray"   onClick={() => setActivePanel("mentions-neutral")} />

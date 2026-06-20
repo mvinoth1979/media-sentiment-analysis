@@ -15,7 +15,7 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
     staleTime: 5 * 60_000,
   });
 
-  const limit = compact ? 6 : 7;
+  const limit = compact ? 8 : 10;
   const topics = (data ?? []).slice(0, limit);
   const maxCount = topics[0]?.count ?? 1;
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
@@ -40,12 +40,13 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
               const net = posPct - negPct;
               const isPos = net >= 0;
               return (
-                <div key={t.topic} className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-gray-700 truncate flex-1 capitalize">{t.topic.replace(/_/g, " ")}</span>
-                  <div className="w-10 h-1 bg-gray-100 rounded-full shrink-0">
+                <div key={t.topic} className="flex items-center gap-1">
+                  <span className="text-[9px] text-gray-700 truncate flex-1 capitalize">{t.topic.replace(/_/g, " ")}</span>
+                  <span className="text-[8px] text-gray-400 shrink-0 w-5 text-right">{t.count}</span>
+                  <div className="w-8 h-1 bg-gray-100 rounded-full shrink-0">
                     <div className={`h-full rounded-full ${isPos ? "bg-green-400" : "bg-red-400"}`} style={{ width: `${(t.count / maxCount) * 100}%` }} />
                   </div>
-                  <span className={`text-[9px] font-semibold w-8 text-right shrink-0 ${isPos ? "text-green-600" : "text-red-500"}`}>{isPos?"+":""}{net}%</span>
+                  <span className={`text-[9px] font-semibold w-7 text-right shrink-0 ${isPos ? "text-green-600" : "text-red-500"}`}>{isPos?"+":""}{net}%</span>
                 </div>
               );
             })}

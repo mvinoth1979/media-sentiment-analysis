@@ -22,17 +22,18 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
   const displayCats = compact ? cats.slice(0, 4) : cats;
 
   if (compact) {
+    const totalAll = cats.reduce((s, c) => s + c.count, 0);
     return (
       <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
-        <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Sentiment by Source</div>
+        <div className="text-[11px] font-semibold text-gray-800 mb-1.5 flex-none">Sentiment by Source</div>
         {isLoading ? (
-          <div className="space-y-1.5">
-            {[1,2,3].map(i => <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" />)}
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-5 bg-gray-100 rounded animate-pulse" />)}
           </div>
         ) : displayCats.length === 0 ? (
           <div className="text-[10px] text-gray-400 py-2 text-center">No data yet.</div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-hidden space-y-1.5">
+          <div className="flex-1 min-h-0 overflow-hidden space-y-2">
             {displayCats.map(cat => {
               const total = cat.positive + cat.neutral + cat.negative || 1;
               const posPct = Math.round((cat.positive / total) * 100);
@@ -43,16 +44,30 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
                 <div key={cat.category}>
                   <div className="flex items-center justify-between text-[10px] mb-0.5">
                     <span className="text-gray-700 font-medium truncate">{cat.label}</span>
-                    <span className="text-gray-800 font-bold shrink-0 ml-1">{score}</span>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      <span className="text-gray-400 text-[9px]">{cat.count} mentions</span>
+                      <span className="text-gray-800 font-bold">{score}</span>
+                    </div>
                   </div>
-                  <div className="flex rounded-full overflow-hidden h-1.5">
+                  <div className="flex rounded-full overflow-hidden h-2">
                     <div className="bg-green-400" style={{ width: `${posPct}%` }} />
                     <div className="bg-gray-200" style={{ width: `${neuPct}%` }} />
                     <div className="bg-red-400" style={{ width: `${negPct}%` }} />
                   </div>
+                  <div className="flex justify-between text-[8px] mt-0.5 text-gray-400">
+                    <span className="text-green-600">{posPct}% pos</span>
+                    <span>{neuPct}% neu</span>
+                    <span className="text-red-500">{negPct}% neg</span>
+                  </div>
                 </div>
               );
             })}
+            {totalAll > 0 && cats.length > 0 && (
+              <div className="pt-1 border-t border-gray-100 flex justify-between text-[9px] text-gray-400">
+                <span>All sources</span>
+                <span className="font-medium text-gray-600">{totalAll} total mentions</span>
+              </div>
+            )}
           </div>
         )}
       </div>
