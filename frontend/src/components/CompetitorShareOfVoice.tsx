@@ -1,20 +1,16 @@
+import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { fetchCompetitorSoV } from "../lib/api";
+import type { CompetitorSoVData, SoVEntry } from "../lib/types";
 
 interface Props {
+  brandId: string;
   brandName?: string;
   compact?: boolean;
   onClick?: () => void;
 }
 
-const COMPETITORS = [
-  { name: "CIPET",        pct: 40.2, color: "#3b82f6" },
-  { name: "Competitor A", pct: 33.3, color: "#8b5cf6" },
-  { name: "Competitor B", pct: 18.9, color: "#06b6d4" },
-  { name: "Competitor C", pct: 5.1,  color: "#f59e0b" },
-  { name: "Others",       pct: 3.3,  color: "#d1d5db" },
-];
-
-interface TooltipEntry { payload: { name: string; pct: number } }
+interface TooltipEntry { payload: SoVEntry }
 interface SovTooltipProps { active?: boolean; payload?: TooltipEntry[] }
 
 function SovTooltip({ active, payload }: SovTooltipProps) {
@@ -24,15 +20,27 @@ function SovTooltip({ active, payload }: SovTooltipProps) {
     <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-md">
       <div className="font-semibold text-gray-700">{d.name}</div>
       <div className="text-blue-600 font-bold">{d.pct}% share</div>
+      <div className="text-gray-400">{d.count.toLocaleString()} mentions</div>
     </div>
   );
 }
 
-export function CompetitorShareOfVoice({ brandName, compact, onClick }: Props) {
-  const data = brandName
-    ? COMPETITORS.map(c => ({ ...c, name: c.name === "CIPET" ? brandName : c.name }))
-    : COMPETITORS;
+const FALLBACK_ENTRIES: SoVEntry[] = [
+  { name: "Brand", count: 0, pct: 100, color: "#3b82f6", is_brand: true },
+];
+
+export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
+  const [data, setData] = useState<CompetitorSoVData | null>(null);
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
+
+  useEffect(() => {
+    fetchCompetitorSoV(brandId)
+      .then(setData)
+      .catch(() => {});
+  }, [brandId]);
+
+  const entries = data?.entries ?? FALLBACK_ENTRIES;
+  const source = data?.source ?? "entity_fallback";
 
   if (compact) {
     return (
@@ -42,8 +50,8 @@ export function CompetitorShareOfVoice({ brandName, compact, onClick }: Props) {
           <div className="relative w-[70px] h-[70px] shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={data} dataKey="pct" cx="50%" cy="50%" innerRadius={20} outerRadius={32} paddingAngle={2} startAngle={90} endAngle={-270}>
-                  {data.map(d => <Cell key={d.name} fill={d.color} strokeWidth={0} />)}
+                <Pie data={entries} dataKey="pct" cx="50%" cy="50%" innerRadius={20} outerRadius={32} paddingAngle={2} startAngle={90} endAngle={-270}>
+                  {entries.map(d => <Cell key={d.name} fill={d.color} strokeWidth={0} />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
@@ -52,7 +60,7 @@ export function CompetitorShareOfVoice({ brandName, compact, onClick }: Props) {
             </div>
           </div>
           <div className="flex-1 space-y-1 min-w-0 overflow-hidden">
-            {data.slice(0, 4).map(d => (
+            {entries.slice(0, 4).map(d => (
               <div key={d.name} className="flex items-center gap-1 text-[9px]">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
                 <span className="text-gray-600 truncate flex-1">{d.name}</span>
@@ -70,18 +78,17 @@ export function CompetitorShareOfVoice({ brandName, compact, onClick }: Props) {
       <div className="text-sm font-semibold text-gray-800 mb-3">Competitor Share of Voice</div>
 
       <div className="flex items-center gap-3">
-        {/* Donut */}
         <div className="relative w-[110px] h-[110px] shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={data} dataKey="pct"
+                data={entries} dataKey="pct"
                 cx="50%" cy="50%"
                 innerRadius={32} outerRadius={52}
                 paddingAngle={2}
                 startAngle={90} endAngle={-270}
               >
-                {data.map(d => <Cell key={d.name} fill={d.color} strokeWidth={0} />)}
+                {entries.map(d => <Cell key={d.name} fill={d.color} strokeWidth={0} />)}
               </Pie>
               <Tooltip content={<SovTooltip />} />
             </PieChart>
@@ -92,9 +99,8 @@ export function CompetitorShareOfVoice({ brandName, compact, onClick }: Props) {
           </div>
         </div>
 
-        {/* Legend */}
         <div className="flex-1 space-y-1.5">
-          {data.map(d => (
+          {entries.map(d => (
             <div key={d.name} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
@@ -107,7 +113,9 @@ export function CompetitorShareOfVoice({ brandName, compact, onClick }: Props) {
       </div>
 
       <p className="text-[10px] text-gray-400 mt-3">
-        Placeholder data — connect competitor brand IDs to enable live tracking.
+        {source === "configured"
+          ? "Based on competitor mentions in brand coverage"
+          : "Based on top co-mentioned entities · Add competitors in brand settings for named tracking"}
       </p>
     </div>
   );

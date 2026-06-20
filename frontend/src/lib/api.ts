@@ -150,4 +150,12 @@ export const fetchReviewSummary = (
     .get<import("./types").ReviewSummaryData>(`/dashboard/review-summary/${brandId}`, { params })
     .then(r => r.data);
 
+export const fetchCompetitorSoV = (
+  brandId: string,
+  params?: { date_from?: string; date_to?: string }
+) =>
+  api
+    .get<import("./types").CompetitorSoVData>(`/dashboard/competitor-sov/${brandId}`, { params })
+    .then(r => r.data);
+
 export default api;

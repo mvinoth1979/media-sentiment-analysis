@@ -196,3 +196,19 @@ class ReviewSummaryResponse(BaseModel):
     distribution: list[ReviewStarBucket]
     top_positive_topics: list[TopicTheme]
     top_negative_topics: list[TopicTheme]
+
+
+# --- Competitor Share of Voice ---
+
+class SoVEntry(BaseModel):
+    name: str
+    count: int
+    pct: float
+    color: str
+    is_brand: bool = False
+
+
+class CompetitorSoVResponse(BaseModel):
+    total_articles: int
+    entries: list[SoVEntry]
+    source: str  # "configured" | "entity_fallback"

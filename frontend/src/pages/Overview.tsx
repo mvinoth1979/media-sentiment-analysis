@@ -307,7 +307,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           )}
           {activePanel === "competitor-sov" && (
             <div className="max-w-md">
-              <CompetitorShareOfVoice brandName={brandName} />
+              <CompetitorShareOfVoice brandId={brandId} />
             </div>
           )}
           {activePanel === "alerts" && (
@@ -408,7 +408,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ── Row 4: Competitor SoV | Alerts ──────────────────────── flex-[2] */}
       <div className="grid grid-cols-3 gap-1.5 flex-[2] min-h-0">
         <div className="min-h-0">
-          <CompetitorShareOfVoice brandName={brandName} compact onClick={() => setActivePanel("competitor-sov")} />
+          <CompetitorShareOfVoice brandId={brandId} compact onClick={() => setActivePanel("competitor-sov")} />
         </div>
         <div className="col-span-2 min-h-0 cursor-pointer" onClick={() => setActivePanel("alerts")}>
           <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} compact />

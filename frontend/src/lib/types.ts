@@ -196,3 +196,17 @@ export interface ReviewSummaryData {
   top_positive_topics: TopicTheme[];
   top_negative_topics: TopicTheme[];
 }
+
+export interface SoVEntry {
+  name: string;
+  count: number;
+  pct: number;
+  color: string;
+  is_brand: boolean;
+}
+
+export interface CompetitorSoVData {
+  total_articles: number;
+  entries: SoVEntry[];
+  source: "configured" | "entity_fallback";
+}

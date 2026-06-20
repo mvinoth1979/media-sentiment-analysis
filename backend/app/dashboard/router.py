@@ -25,6 +25,7 @@ from app.dashboard.schemas import (
     SourceCategoryPoint, SourceCategoriesResponse,
     HeadlineItem, HeadlinesResponse,
     ReviewSummaryResponse, ReviewStarBucket, TopicTheme,
+    SoVEntry, CompetitorSoVResponse,
 )
 
 router = APIRouter()
@@ -608,3 +609,82 @@ def get_review_summary(
             for t, c in neg_topics.most_common(5)
         ],
     )
+
+
+# SoV colour palette — brand always gets index 0 (blue)
+_SOV_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#d1d5db"]
+
+
+@router.get("/competitor-sov/{brand_id}", response_model=CompetitorSoVResponse)
+def get_competitor_sov(
+    brand_id: str,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    db = get_db()
+
+    brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "Brand"
+
+    config_row = db.table("brand_configs").select("competitors").eq("brand_id", brand_id).execute().data
+    configured_competitors: list[str] = (config_row[0].get("competitors") or []) if config_row else []
+
+    articles = get_articles(brand_id, limit=2000, date_from=date_from, date_to=date_to)
+    total = len(articles)
+
+    if total == 0:
+        return CompetitorSoVResponse(
+            total_articles=0,
+            entries=[SoVEntry(name=brand_name, count=0, pct=100.0, color=_SOV_COLORS[0], is_brand=True)],
+            source="configured" if configured_competitors else "entity_fallback",
+        )
+
+    if configured_competitors:
+        # Count articles where each competitor name appears in title or entities
+        comp_counts: dict[str, int] = {}
+        for comp in configured_competitors[:5]:
+            comp_lower = comp.lower()
+            count = sum(
+                1 for a in articles
+                if comp_lower in (a.get("title") or "").lower()
+                or any(comp_lower in (e or "").lower() for e in (a.get("entities") or []))
+            )
+            if count > 0:
+                comp_counts[comp] = count
+        source = "configured"
+    else:
+        # Fallback: top co-mentioned named entities across all articles
+        entity_counter: Counter = Counter()
+        for a in articles:
+            entity_counter.update(e for e in (a.get("entities") or []) if e and len(e) > 2)
+        # drop the brand's own name to avoid self-reference
+        brand_lower = brand_name.lower()
+        for key in list(entity_counter.keys()):
+            if brand_lower in key.lower() or key.lower() in brand_lower:
+                del entity_counter[key]
+        comp_counts = dict(entity_counter.most_common(4))
+        source = "entity_fallback"
+
+    # Normalize to SoV: brand has weight = total; each competitor weight = its count
+    grand_total = total + sum(comp_counts.values())
+    entries: list[SoVEntry] = [
+        SoVEntry(
+            name=brand_name,
+            count=total,
+            pct=round(total / grand_total * 100, 1),
+            color=_SOV_COLORS[0],
+            is_brand=True,
+        )
+    ]
+    for i, (name, count) in enumerate(
+        sorted(comp_counts.items(), key=lambda x: x[1], reverse=True), start=1
+    ):
+        entries.append(SoVEntry(
+            name=name,
+            count=count,
+            pct=round(count / grand_total * 100, 1),
+            color=_SOV_COLORS[min(i, len(_SOV_COLORS) - 1)],
+        ))
+
+    return CompetitorSoVResponse(total_articles=total, entries=entries, source=source)
