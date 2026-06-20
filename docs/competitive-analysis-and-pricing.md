@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-20 (Phase 1 data quality — wire dedup, headline/body sentiment, regulatory flag)
+> **Last updated:** 2026-06-21 (Phase 2.1 Reddit live; Phase 3.2 structured issue taxonomy + YouTube creator vs audience split)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -62,6 +62,13 @@
 | **Editorial tone classification** | ✅ Live | Every news article tagged as `factual \| positive_frame \| negative_frame \| critical`. Added alongside headline/body scoring at no cost. |
 | **Author/journalist name extraction** | ✅ Live | RSS `<author>`, `dc:creator`, `author_detail.name` tried in priority order. Foundation for journalist-beat tracking. |
 | **Regulatory/government source flag** | ✅ Live | `is_regulatory_source` auto-set when article URL is `.gov.in` domain or title contains SEBI / RBI / Ministry of / Parliament / Supreme Court / Enforcement Directorate etc. (14 domains + keyword list). Critical for PSU/government client reporting. |
+| **Reddit monitoring (Phase 2.1)** | ✅ Live | Public JSON API (no OAuth, no app registration). Keyword × subreddit search — 3 keywords × 5 subreddits × 10 posts + 5 top comments = up to 225 items/run. `source_type = reddit_post / reddit_comment`. reach_metadata: {upvotes, upvote_ratio, comment_count, subreddit}. r/ orange badge in Mention Explorer. Per-brand toggle + subreddit list in Channel Settings (brand wizard Step 4). Migration 015. |
+| **Structured issue taxonomy (Phase 3.2)** | ✅ Live | Every article/comment classified into 12 predefined issue categories (Financial Performance, Regulatory & Compliance, Product Quality, Leadership & Governance, Crisis & Controversy, Awards & Recognition, CSR & Sustainability, Policy & Government, Competitive Landscape, Customer Experience, Brand Advocacy, Market Opportunity) — single Gemini/Groq call, zero extra API cost. `issue_category` stored on articles (migration 016). `/dashboard/issue-categories/{brand_id}` endpoint. TopIssuesTable has Clusters\|Categories toggle with color-coded severity accents. |
+| **YouTube Creator vs Audience sentiment split (Phase 3.2)** | ✅ Live | `youtube_video` (creator) and `youtube_comment` (audience) sentiment displayed separately — two-column stacked bars (positive/neutral/negative %) + divergent video list (creator positive, audience negative) surfaced via portal_id grouping. `/dashboard/youtube-sentiment-split/{brand_id}` endpoint. |
+| **Journalist Coverage page (Tier 1)** | ✅ Live | Table of journalists sorted by negative article count; avatar initial; stacked sentiment bar; negative% color-coded; expandable recent article rows. Powered by `/dashboard/journalist-coverage/{brand_id}` endpoint (Counter on author field). |
+| **Editorial Tone analytics (Tier 1)** | ✅ Live | Recharts donut (factual/positive_frame/negative_frame/critical) + 4-row % bars; 8-week ISO trend; compact + expanded modes. `/dashboard/tone-breakdown/{brand_id}` endpoint. |
+| **Divergent Headlines panel (Tier 1)** | ✅ Live | Top articles where headline sentiment diverges sharply from body sentiment (|diff| ≥ 0.4). `/dashboard/divergence-summary/{brand_id}` endpoint. |
+| **Channel Settings page** | ✅ Live | Edit YouTube + Reddit config for existing brands (wizard is create-only). `GET/PUT /brands/{id}/config` endpoints. "Channel Settings" in sidebar (adminOnly). |
 | Mobile responsive UI | ✅ Live | |
 | **Compact single-screen dashboard (no scroll)** | ✅ Live | All 9 sections fit in one viewport — `h-screen overflow-hidden` root layout; `flex-[N] min-h-0` proportional row heights; compact prop variants for all section components |
 | **Click-to-detail panel navigation** | ✅ Live | Every dashboard section and KPI card is clickable — opens a full second-screen detail with breadcrumb `← Executive Overview | [Section Name]`; back navigation returns to compact grid |
@@ -73,7 +80,7 @@
 | Feature | Phase | Priority |
 |---|---|---|
 | Twitter/X, Instagram, Facebook monitoring | Phase 3 | Critical — crisis channels |
-| Reddit monitoring | Phase 2.1 | High — free API, no approval required |
+| ~~Reddit monitoring~~ | ~~Phase 2.1~~ | ✅ Live — public JSON API, no approval required |
 | Real-time / near-real-time ingestion (< 15 min) | Phase 3 | High |
 | Export (PDF / PPT report) | Wave 4 | High |
 | Full-text search across all stored articles | Wave 4 | Medium |
@@ -97,7 +104,7 @@
 | Indian news portal monitoring (curated RSS) | ✅ **43 portals** | ⚠️ Basic | ⚠️ Basic | ✅ Large index but generic | ✅ Generic | ⚠️ Web crawl | ⚠️ Web crawl |
 | Social media (Twitter/X, Facebook, Instagram) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **YouTube video + comment monitoring** | ✅ **Live Phase 2.0** | ✅ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ |
-| Reddit monitoring | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Reddit monitoring | ✅ **Live Phase 2.1** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Print / TV / radio clipping | ❌ | ⚠️ | ❌ | ✅ | ⚠️ | ❌ | ❌ |
 | **Language & NLP** | | | | | | | |
 | English NLP sentiment | ✅ AI (Gemini) | ✅ | ✅ | ✅ | ✅ | ⚠️ Basic | ⚠️ Basic |

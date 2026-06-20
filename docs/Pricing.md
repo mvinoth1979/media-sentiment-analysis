@@ -1,6 +1,6 @@
 # MediaSense — Pricing
 
-> **Last updated:** 2026-06-20 (Phase 1 data quality: wire dedup, headline/body sentiment, regulatory flag; C1+C2 alerts)
+> **Last updated:** 2026-06-21 (Phase 2.1 Reddit live; Phase 3.2 analytics intelligence: structured issue taxonomy + YouTube creator vs audience split)
 > **Update this document** whenever a major feature ships (export, alerts, social media, billing, API access, etc.).
 > **See also:** `docs/competitive-analysis-and-pricing.md` for full competitor matrix and go-to-market strategy.
 
@@ -148,9 +148,21 @@ No pricing change — these are data quality improvements included in all tiers.
 
 ---
 
-### Phase 2.1 — Reddit (planned, next)
+### Phase 2.1 — Reddit (complete ✅ — 2026-06-20)
 
-Reddit's API is free and requires no approval. Adds a meaningful public-forum dimension (especially for tech and finance brands). No plan to increase pricing — Reddit will be included in all existing tiers as an additional source channel, just like YouTube.
+Reddit public JSON API (no OAuth, no app registration required). Keyword search across monitored subreddits, top comments collected per post. `source_type = reddit_post / reddit_comment`. Per-brand toggle + subreddit list in Channel Settings (also available in brand wizard Step 4). r/ badge in Mention Explorer, source filter extended to include reddit_post / reddit_comment. Included in all tiers at no additional charge.
+
+---
+
+### Phase 3.2 — Analytics intelligence (complete ✅ — 2026-06-21)
+
+Two framework gap items implemented:
+
+**Structured issue taxonomy:** Every article/comment is classified into one of 12 predefined issue categories (Financial Performance, Regulatory & Compliance, Product Quality, Leadership & Governance, Crisis & Controversy, Awards & Recognition, CSR & Sustainability, Policy & Government, Competitive Landscape, Customer Experience, Brand Advocacy, Market Opportunity). Runs inside the same Gemini/Groq call — zero additional API cost. `issue_category` field on articles table. TopIssuesTable widget now has a "Categories" tab alongside "Clusters" with colored accents per category severity. Filter planned for Mention Explorer (next iteration).
+
+**YouTube Creator vs Audience sentiment split:** Creator sentiment (video content) and Audience sentiment (comments) are now displayed separately in the Overview YouTube detail panel. Divergent videos (creator positive but audience negative, or vice versa) are surfaced automatically by matching `portal_id` across video and comment rows.
+
+No pricing change — these are analytics intelligence improvements included in all tiers.
 
 ---
 
@@ -229,3 +241,5 @@ At full parity with Locobuzz/Konnect mid-tier, standard pricing increases 20–3
 | 2026-06-20 | Phase 3 — full dashboard redesign + compact single-screen layout | Dark navy sidebar; 5 KPI cards; sentiment trend area chart (indigo/amber/red gradient fills, F08 annotations); mentions donut; top headlines 3-tab; review sites summary; top issues table; sentiment by source table; competitor SoV donut; alerts & risks; compact no-scroll layout (all 9 sections in one viewport); click-to-detail panel for every section with breadcrumb; Mention Explorer light theme + 10/page numbered pagination; Feature Scope table updated with Dashboard column |
 | 2026-06-20 | NLP quality improvements | Confidence gate (articles below 0.3 confidence excluded from KPI counts); YouTube comment filter (low-signal comments skipped pre-NLP, saves quota); recency decay + engagement rate multiplier in Brand Risk Score; Review Sites widget now shows real data from `/review-summary` API |
 | 2026-06-20 | Phase 1 data quality + C1/C2 alerts | Wire-service syndication dedup (story_hash, syndication_count); separate headline/body sentiment scores (headline_sentiment_score, body_sentiment_score, sentiment_divergence flag); editorial tone tag (factual/positive_frame/negative_frame/critical); author extraction from RSS; regulatory source flag (gov.in + keyword list); C1 syndication spike alert + C2 journalist beat alert — 2 new alert types (total 5); migration 013+014; alerts.py rewritten |
+| 2026-06-20 | Phase 1 UI + Tier 1 analytics + Reddit Phase 2.1 + Channel Settings | Phase 1 UI signals in Mention Explorer (editorial tone filter, ⚠ Divergent badge, 🛡 Gov/Reg badge, author byline, r/ badge); B4 issue clustering in TopIssuesTable (union-find co-occurrence, rising trend arrows); Tier 1: Journalist Coverage page, Editorial Tone donut, Divergent Headlines panel in detail view; Reddit: public JSON API collector, reddit_post/reddit_comment source types, r/ badge, per-brand subreddit config, migration 015; Channel Settings: BrandConfig edit page for existing brands |
+| 2026-06-21 | Phase 3.2 analytics intelligence | Structured issue taxonomy: 12 categories in NLP prompts, issue_category column (migration 016), /issue-categories endpoint, TopIssuesTable Categories tab; YouTube Creator vs Audience split: /youtube-sentiment-split endpoint, YouTubeSentimentSplit component showing creator/audience bars + divergent videos; Feature Scope table updated |
