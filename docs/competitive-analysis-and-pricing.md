@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-17 (Wave 3 admin + map fix)
+> **Last updated:** 2026-06-18 (Phase 2.0 YouTube integration shipped)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -10,32 +10,42 @@
 
 | Feature | Status | Notes |
 |---|---|---|
-| News portal ingestion — English | ✅ Live | 12 portals (The Hindu, TOI, NDTV, India Today, ET, Indian Express, Deccan Chronicle, Hindustan Times, Mint, Deccan Herald, The Quint, News18) |
-| News portal ingestion — Tamil | ✅ Live | 11 portals (Hindu Tamil, Vikatan, Samayam, Polimer, Maalaimalar, Daily Thanthi, Tamil Murasu, Oneindia Tamil, News Tamil, Puthiyathalaimurai, Sathiyam TV) |
-| News portal ingestion — Hindi | ✅ Live | 8 portals (Navbharat Times, Amar Ujala, Jagran, NDTV India, Hindustan, Dainik Bhaskar, Prabhat Khabar, Hari Bhoomi) |
-| News portal ingestion — Bengali | ✅ Live | 3 portals (Ei Samay, Ananda Bazar, Sangbad Pratidin) |
-| News portal ingestion — Kannada | ✅ Live | 6 portals (Prajavani, Vijaya Karnataka, Udayavani, Kannada Prabha, TV9 Kannada, Public TV) |
-| News portal ingestion — Gujarati | ✅ Live | 3 portals (Divya Bhaskar, Gujarat Samachar, Chitralekha) |
+| News portal ingestion — English | ✅ Live | 17 portals (The Hindu, TOI, NDTV, India Today, ET, Indian Express, Deccan Chronicle, Hindustan Times, Mint, Deccan Herald, The Quint, News18, The Wire, Scroll, Firstpost, LiveMint, Business Standard) |
+| News portal ingestion — Tamil | ✅ Live | 12 portals (Hindu Tamil, Vikatan, Samayam, Polimer, Maalaimalar, Daily Thanthi, Tamil Murasu, Oneindia Tamil, News Tamil, Puthiyathalaimurai, Sathiyam TV, Dinamalar) |
+| News portal ingestion — Hindi | ✅ Live | 11 portals (Navbharat Times, Amar Ujala, Jagran, NDTV India, Hindustan, Dainik Bhaskar, Prabhat Khabar, Hari Bhoomi, Jansatta, Patrika, Zee News Hindi) |
+| News portal ingestion — Bengali | ✅ Live | 4 portals (Ei Samay, Ananda Bazar, Sangbad Pratidin, ABP Ananda) |
+| News portal ingestion — Kannada | ✅ Live | 9 portals (Prajavani, Vijaya Karnataka, Udayavani, Kannada Prabha, TV9 Kannada, Public TV, Suvarna News, Vartha Bharati, Vijayavani) |
+| News portal ingestion — Gujarati | ✅ Live | 4 portals (Divya Bhaskar, Gujarat Samachar, Chitralekha, Sandesh) |
+| **YouTube video monitoring** | ✅ Live | Keyword search (YouTube Data API v3, 100 units/search) + brand channel RSS (free, no quota). Skips Shorts (≤61s). Up to 10 videos per brand per run |
+| **YouTube channel RSS (brand-owned channels)** | ✅ Live | Free — no API quota used. Up to 15 latest uploads per channel per run. Configured per brand via `youtube_channel_ids` |
+| **YouTube comment monitoring** | ✅ Live | Top comments by relevance, up to 50 per brand per run. Each comment is a separate NLP-scored article with `source_type=youtube_comment` |
+| **YouTube credibility scoring** | ✅ Live | Tiered: verified brand channel 0.90 · >1M subs 0.75 · 100K–1M subs 0.65 · <100K subs 0.50 · comments 0.45 |
+| **YouTube reach metadata** | ✅ Live | View count, like count, comment count, subscriber count, duration stored in `reach_metadata` JSONB. Shown as "1.5M views" / "42 likes" in Mention Explorer |
+| **YouTube-aware NLP** | ✅ Live | Separate LLM prompt path for `youtube_comment` (emoji signals, slang, code-switching) vs `youtube_video` (description > clickbait title) vs `news` (journalistic framing) |
+| **YouTube quota manager** | ✅ Live | 10,000 units/day budget; circuit breaker on 403 quota exhausted; resets midnight Pacific |
 | AI sentiment analysis (Gemini primary, Groq fallback) | ✅ Live | 3-class: positive/negative/neutral with confidence score |
 | Entity extraction (brand, person, org, location) | ✅ Live | Per-article, returned in API and dashboard |
 | Topic extraction | ✅ Live | Per-article, used in Topics View |
 | Keyword extraction | ✅ Live | Aggregated in overview |
 | Credibility-weighted Perception Score (0–100) | ✅ Live | Weighted by source credibility × reach; not raw mention count |
 | Sentiment trend chart (7-day / 30-day) | ✅ Live | InfluxDB time-series, hourly granularity |
-| Mention Explorer with 6 filters | ✅ Live | Sentiment, language, portal, topic, date range, free-text search |
-| Source Breakdown page | ✅ Live | Per-portal mention count + sentiment split |
+| Mention Explorer with 8 filters | ✅ Live | Sentiment, language, **source type** (news/YT video/YT comment), portal, topic, state, date range, free-text search |
+| Source Breakdown page | ✅ Live | Per-portal mention count + sentiment split; YouTube icon on youtube_ portals |
 | Topics View page | ✅ Live | Per-topic count + sentiment split, sortable |
 | State-level mention tagging | ✅ Live | NLP extracts Indian states from article content |
 | State filter in Mention Explorer | ✅ Live | URL-synced, click-to-drill |
 | State breakdown on Overview | ✅ Live | Top states by mention volume + sentiment |
-| India state sentiment grid | ✅ Live | Chip grid per state, color-coded by sentiment ratio; hover tooltip; click-to-drill to filtered mentions; sorted by mention count (replaced choropleth — remote TopoJSON source was 404) |
-| CSV export (Mention Explorer) | ✅ Live | Respects all active filters; streams up to 2,000 rows |
+| India state sentiment grid | ✅ Live | Chip grid per state, color-coded by sentiment ratio; hover tooltip; click-to-drill to filtered mentions |
+| CSV export (Mention Explorer) | ✅ Live | Respects all active filters including source_type; streams up to 2,000 rows; includes source_type column |
 | Email alert system | ✅ Live | 3 alert types: perception_score_below, negative_pct_above, mention_spike; per-brand; 4h rate-limit |
-| Self-serve brand onboarding | ✅ Live | 3-step wizard (name → keywords → languages); agency_admin / master_admin only |
+| Self-serve brand onboarding | ✅ Live | **4-step wizard** (name → keywords → languages → YouTube toggle + channel ID); agency_admin / master_admin only |
+| **YouTube config in brand wizard** | ✅ Live | Step 4: toggle switch + channel ID tag input. `youtube_enabled` and `youtube_channel_ids` stored in `brand_configs`. Editable via `PUT /brands/{id}/config` |
 | User invite & management | ✅ Live | Magic-link invite via Supabase; role assignment at brand or agency scope |
 | Delete brand | ✅ Live | master_admin only; inline confirm; cascades all articles, configs, user_roles, dedupe hashes |
-| Remove user role | ✅ Live | agency_admin+ can remove brand-scoped user access; inline confirm per row |
-| Language filter (Mention Explorer) | ✅ Live | Dropdown with 6 options: EN, TA, HI, GU, BN, KN; URL-synced |
+| Remove user role | ✅ Live | agency_admin+ can remove brand-scoped user access |
+| Language filter (Mention Explorer) | ✅ Live | Dropdown: EN, TA, HI, GU, BN, KN; URL-synced |
+| **Source type filter (Mention Explorer)** | ✅ Live | Dropdown: All / News / YT Videos / YT Comments; URL-synced; respected by CSV export |
+| **YouTube Mentions KPI card** | ✅ Live | Red card on Overview; shows count of youtube_video + youtube_comment articles; conditional (hidden when 0) |
 | Multi-brand support | ✅ Live | 12 brands in current deployment |
 | RBAC (5 roles: master_admin / agency_admin / agency_analyst / brand_admin / brand_viewer) | ✅ Live | 3-tier hierarchy: platform / agency / brand |
 | Multi-tenant isolation | ✅ Live | Agency-scoped and brand-scoped access; no cross-brand data leakage |
@@ -53,8 +63,9 @@
 
 | Feature | Phase | Priority |
 |---|---|---|
-| Social media (Twitter/X, Instagram, Facebook, YouTube, Reddit) | Phase 2 | Critical competitive gap |
-| Real-time / near-real-time ingestion (< 15 min) | Phase 2 | High |
+| Twitter/X, Instagram, Facebook monitoring | Phase 3 | Critical — crisis channels |
+| Reddit monitoring | Phase 2.1 | High — free API, no approval required |
+| Real-time / near-real-time ingestion (< 15 min) | Phase 3 | High |
 | Export (PDF / PPT report) | Wave 4 | High |
 | Full-text search across all stored articles | Wave 4 | Medium |
 | Competitive benchmarking / share of voice | Phase 3 | Medium |
@@ -74,9 +85,9 @@
 | Feature | **MediaSense** | **Locobuzz** | **Konnect Insights** | **Meltwater** | **Brandwatch / Cision** | **Mention** | **Brand24** |
 |---|---|---|---|---|---|---|---|
 | **Coverage** | | | | | | | |
-| Indian news portal monitoring (curated RSS) | ✅ 29 portals | ⚠️ Basic | ⚠️ Basic | ✅ Large index but generic | ✅ Generic | ⚠️ Web crawl | ⚠️ Web crawl |
+| Indian news portal monitoring (curated RSS) | ✅ **43 portals** | ⚠️ Basic | ⚠️ Basic | ✅ Large index but generic | ✅ Generic | ⚠️ Web crawl | ⚠️ Web crawl |
 | Social media (Twitter/X, Facebook, Instagram) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| YouTube comment monitoring | ❌ | ✅ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ |
+| **YouTube video + comment monitoring** | ✅ **Live Phase 2.0** | ✅ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ |
 | Reddit monitoring | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Print / TV / radio clipping | ❌ | ⚠️ | ❌ | ✅ | ⚠️ | ❌ | ❌ |
 | **Language & NLP** | | | | | | | |
@@ -84,13 +95,15 @@
 | Tamil NLP sentiment (news prose) | ✅ AI (Gemini) | ⚠️ Social-only | ⚠️ Claims only | ❌ | ❌ | ❌ | ❌ |
 | Hindi NLP sentiment | ✅ AI (Gemini) | ⚠️ Social-only | ⚠️ Keyword-based | ❌ | ❌ | ❌ | ❌ |
 | Bengali / Gujarati / Kannada NLP | ✅ AI (Gemini) | ⚠️ Social only | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Hinglish / Tanglish detection | ⚠️ Partial (langdetect) | ✅ ContextualPulse™ | ⚠️ | ❌ | ❌ | ❌ | ❌ |
+| Hinglish / Tanglish detection | ⚠️ Partial (langdetect; social-text NLP for YouTube) | ✅ ContextualPulse™ | ⚠️ | ❌ | ❌ | ❌ | ❌ |
+| Source-type aware NLP (news vs. social text) | ✅ Live | ⚠️ | ⚠️ | ❌ | ⚠️ | ❌ | ❌ |
 | **Analytics** | | | | | | | |
 | Credibility-weighted perception score | ✅ | ❌ | ❌ | ⚠️ | ✅ | ❌ | ❌ |
 | State / region-level filtering | ✅ (NLP-extracted) | ⚠️ Marketing claim, unverified | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Topic extraction + sentiment per topic | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
 | Entity extraction (people, orgs, locations) | ✅ | ✅ | ⚠️ | ✅ | ✅ | ⚠️ | ❌ |
 | Sentiment trend (time-series) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **YouTube reach analytics** (views, likes, subscribers) | ✅ Live | ✅ | ⚠️ | ✅ | ✅ | ❌ | ❌ |
 | Share of voice / competitive benchmarking | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Influencer / journalist identification | ❌ | ✅ | ⚠️ | ✅ | ✅ | ⚠️ | ✅ |
 | Image / visual brand recognition | ❌ | ❌ | ❌ | ❌ | ⚠️ Iris AI | ✅ | ❌ |
@@ -118,7 +131,7 @@
 ### Where MediaSense Genuinely Leads
 
 **1. Curated Indian news portal depth (unique)**
-No competitor maintains a hand-verified list of 43 Indian regional RSS feeds with credibility scores, per-portal keyword filtering, and skip_keyword_filter logic for non-English scripts. Meltwater has a larger news index globally, but India-specific regional portals (Vikatan, Prajavani, Divya Bhaskar, Prabhat Khabar, Sathiyam TV) are not well-indexed. This is a real and structural advantage — it takes months to build and verify this portal list.
+No competitor maintains a hand-verified list of 43 Indian regional RSS feeds with credibility scores, per-portal keyword filtering, and skip_keyword_filter logic for non-English scripts. Meltwater has a larger news index globally, but India-specific regional portals (Vikatan, Prajavani, Divya Bhaskar, Prabhat Khabar, Sathiyam TV, Dinamalar) are not well-indexed. This is a real and structural advantage — it takes months to build and verify this portal list.
 
 **2. State-level mention tagging via NLP (first mover)**
 Locobuzz markets "region-level insight" but there is no verifiable feature behind it. MediaSense uses Gemini to extract Indian states from article prose and filters by state in the Mention Explorer — this is live code, not a marketing claim. No competitor has shipped this verifiably.
@@ -135,46 +148,55 @@ The 5-role, 3-tier hierarchy (platform / agency / brand) matches exactly how Ind
 **6. Rejection learning**
 Deleted articles are remembered. Future pipeline runs automatically skip similar content. No competitor in the mid-market segment has this.
 
+**7. YouTube monitoring at zero marginal cost**
+YouTube Data API v3 gives 10,000 units/day free — enough to monitor 12 brands for videos and comments at no cost. MediaSense uses the hybrid approach: free channel RSS for brand-owned channels (no quota cost) + keyword search for competitor mentions. YouTube credibility is tiered by subscriber count and flows into the same perception score formula as news. Competitors charge premium tier prices for YouTube coverage; MediaSense includes it at all price tiers.
+
+**8. Source-type-aware NLP pipeline (news + social in one system)**
+YouTube comments require different NLP than news prose — emoji carry sentiment weight, slang is intentional, mixed scripts (Hinglish, Tanglish) are the norm. MediaSense uses separate LLM prompt paths per `source_type`, with a short-text guard for <4-word comments (default neutral, avoids noise). This is the same inference pipeline — no separate social NLP stack, no separate data schema — which keeps the architecture simple and the cost low.
+
 ### Where MediaSense Trails Critically
 
-**1. Social media — single biggest gap**
-Every competitor has Twitter/X, Instagram, Facebook. MediaSense has zero social coverage. In a brand crisis, 60–70% of the initial spread happens on social. Without social, MediaSense cannot be a brand's primary monitoring tool — it is a supplement. This must be addressed in Phase 2 before serious commercial traction is possible.
+**1. Twitter/X, Instagram, Facebook — crisis channels still missing**
+YouTube has shipped (Phase 2.0), but Twitter/X, Instagram, and Facebook remain absent. In a brand crisis, the first 30 minutes of spread happen on Twitter. MediaSense captures the YouTube dimension of public opinion (long-form video reactions, comment threads) but misses the fastest-moving signal. This is the most important remaining gap. Phase 3 priority.
 
-**2. ~~No alerts — the tool is retrospective, not proactive~~ ✅ Fixed (Wave 3)**
-Email alerts shipped: perception_score_below, negative_pct_above, mention_spike — per-brand, 4h rate-limit via Resend. Gap remains vs. competitors: alerts are email-only (no Slack/WhatsApp) and fire after hourly batch, not in near-real-time. Upgrading to webhooks + real-time alerts is Wave 4.
+*Note: This is a smaller gap now. YouTube comments represent a meaningful share of Indian brand sentiment — especially for sectors like banking, FMCG, telecom — where YouTube is the primary platform for consumer video reviews.*
 
-**3. ~~No export — agencies cannot deliver client reports~~ ✅ Fixed (Wave 3)**
-CSV export live in Mention Explorer — respects all active filters (sentiment, language, portal, topic, state, date range, free-text), streams up to 2,000 rows. Gap remains: PDF/PPT branded reports not yet available.
-
-**4. Hourly batch vs near-real-time**
+**2. Hourly batch vs near-real-time**
 The fastest competitor delivers alerts in 5–15 minutes. MediaSense delivers data up to 60 minutes stale. For a PR crisis, the difference between 15 minutes and 60 minutes is significant.
 
-**5. ~~No self-serve onboarding~~ ✅ Fixed (Wave 3)**
-Brand wizard (3-step: name → keywords → languages), user invite (magic-link via Supabase), UserManagement page, delete brand, and remove user role all shipped. No SQL required for any tenant operation. Remaining gap: billing/payment flow — cannot charge without Razorpay/Stripe integration (Wave 4).
+**3. ~~No alerts~~ ✅ Fixed (Wave 3)**
+Email alerts: perception_score_below, negative_pct_above, mention_spike — per-brand, 4h rate-limit via Resend. Remaining gap: alerts are email-only (no Slack/WhatsApp) and fire after hourly batch, not near-real-time.
+
+**4. ~~No export~~ ✅ Fixed (Wave 3)**
+CSV export live — respects all active filters including source_type, up to 2,000 rows. Remaining gap: PDF/PPT branded reports not yet available.
+
+**5. ~~No self-serve onboarding~~ ✅ Fixed (Wave 3 + Phase 2.0)**
+4-step wizard (name → keywords → languages → YouTube config), user invite, UserManagement, delete brand, remove user role. Remaining gap: billing/payment flow — cannot charge without Razorpay/Stripe (Wave 4).
 
 **6. Hinglish / Tanglish mixed-script detection**
-Locobuzz's ContextualPulse™ specifically markets Hinglish/Tanglish social text handling. MediaSense uses fasttext langdetect which misclassifies code-mixed text (a Tamil sentence with English brand names). This matters more for social (Phase 2) than for news portals.
+Locobuzz's ContextualPulse™ specifically markets Hinglish/Tanglish social text handling. MediaSense's YouTube NLP path handles it better than the news path (social-text prompt is emoji and slang-aware), but fasttext langdetect still misclassifies some code-mixed text. Lower priority now that YouTube NLP is handling it gracefully in practice.
 
 ---
 
 ## 4. Defensible Positioning Statement
 
-> *MediaSense is the only news monitoring platform built specifically for Indian regional media — tracking brands across English, Tamil, Hindi, Bengali, Gujarati, and Kannada news portals, with state-level sentiment filtering and credibility-weighted perception scoring, at mid-market pricing.*
+> *MediaSense is the only monitoring platform built specifically for Indian regional media — tracking brands across 43 English, Tamil, Hindi, Bengali, Gujarati, and Kannada news portals and YouTube, with state-level sentiment filtering and credibility-weighted perception scoring, at mid-market pricing.*
 
 **What to avoid claiming:**
 - "The only vernacular sentiment tool" — Locobuzz and Konnect now claim this (for social)
 - "Real-time monitoring" — hourly batch is not real-time
-- "Complete brand monitoring solution" — social is missing
+- "Complete brand monitoring solution" — Twitter/X, Instagram, Facebook still missing
 
 **What to lean into:**
-- News-specific intelligence (not social noise)
-- Regional India depth (29 curated portals, not generic web crawl)
-- State-level granularity (live feature, no competitor has it)
+- News + YouTube intelligence in one unified dashboard (news NLP + social NLP, same pipeline)
+- Regional India depth (43 curated portals, not generic web crawl)
+- State-level granularity (live feature, no competitor has it verifiably)
+- YouTube reach analytics (view/like counts visible alongside sentiment)
 - Agency-grade multi-brand architecture at mid-market price
 
-**Best-fit buyer:** PR and communications teams in brands with significant regional/South India presence; digital agencies wanting to win vernacular monitoring mandates.
+**Best-fit buyer:** PR and communications teams in brands with significant regional/South India presence; digital agencies wanting to win vernacular monitoring mandates; brands in telecom, banking, FMCG sectors where YouTube reviews are a meaningful signal.
 
-**Weakest-fit buyer:** Brand teams looking for a single tool replacing their current social listening setup.
+**Weakest-fit buyer:** Brand teams looking for a single tool replacing their current social listening setup (Twitter/Instagram-heavy).
 
 ---
 
@@ -199,11 +221,12 @@ Target: Single-brand in-house PR teams, MSME brands, regional businesses
 - 1 brand
 - English + 1 regional language (customer's choice)
 - All portals for chosen languages
+- **YouTube monitoring included** (keyword search + comments)
 - 5 dashboard users
 - 90-day article history
-- No export (dashboard only)
+- Dashboard only (no CSV export)
 
-*Justification:* Undercuts manual clipping services (₹5,000–15,000) while delivering AI-grade analysis and a live dashboard. Accessible entry point for first-time buyers.
+*Justification:* Undercuts manual clipping services (₹5,000–15,000) while delivering AI-grade analysis, a live dashboard, and YouTube monitoring. Accessible entry point for first-time buyers.
 
 ---
 
@@ -211,29 +234,32 @@ Target: Single-brand in-house PR teams, MSME brands, regional businesses
 Target: Mid-market brands with pan-India or multi-state presence; PR managers
 - 1 brand
 - All 6 languages (EN/TA/HI/GU/BN/KN)
-- All 29 portals
+- All 43 portals
+- **YouTube monitoring included** (search + channel RSS + comments)
 - State-level filtering
 - 10 dashboard users
 - 12-month article history
-- CSV export ✅ (live)
+- CSV export ✅
+- Email alerts (3 types) ✅
 - Monthly PDF summary report (Wave 4 — not yet available)
 
-*Justification:* Positioned squarely against the Konnect/Locobuzz entry tier (₹15,000–20,000/month) but news-focused with far superior language depth. Brands currently paying Meltwater ₹40,000+/month for English-only will find this compelling.
+*Justification:* Positioned against Konnect/Locobuzz entry tier (₹15,000–20,000/month) but with far superior language depth and YouTube coverage included at no premium. Brands currently paying Meltwater ₹40,000+/month for English-only news will find this compelling.
 
 ---
 
 #### Tier 3 — Agency *(₹45,000/month for up to 5 brands)*
 Target: Digital agencies managing multiple brand accounts
 - Up to 5 brands (= ₹9,000/brand/month — agency margin opportunity vs Tier 2)
-- All 6 languages, all portals
+- All 6 languages, all 43 portals
+- **YouTube monitoring included per brand** (with per-brand channel ID configuration)
 - State filtering
 - 25 users (agency staff + client read-only logins)
-- White-label PDF reports (agency logo/branding)
+- White-label PDF reports (Wave 4)
 - CSV bulk export
 - Priority pipeline (brands run before standard tier)
 - Dedicated account manager
 
-*Justification:* Agency economics: buy at ₹9,000/brand, resell at ₹15,000–25,000/brand = 67–178% margin. Locobuzz agency plans start at ₹40,000–60,000/month for comparable brand counts. This is price-competitive while offering better vernacular depth.
+*Justification:* Agency economics: buy at ₹9,000/brand, resell at ₹15,000–25,000/brand = 67–178% margin. Locobuzz agency plans start at ₹40,000–60,000/month for comparable brand counts with basic YouTube. MediaSense is price-competitive with better vernacular depth and YouTube analytics at all tiers.
 
 ---
 
@@ -251,65 +277,65 @@ Target: Large brands with national campaigns, PR firms with 20+ clients
 
 ### Pricing Phasing Recommendations
 
-#### Now — Wave 3 complete ✅ (news monitoring fully featured)
-Export, alerts, self-serve onboarding, and RBAC management are all live. MediaSense is now feature-complete for news monitoring. **Move to full pricing.** The Founder Pricing window (pre-export/pre-alerts) has passed.
+#### Now — Phase 2.0 complete ✅ (news + YouTube monitoring fully featured)
+Export, alerts, self-serve onboarding, RBAC management, and YouTube monitoring are all live. MediaSense is now feature-complete for news + YouTube monitoring. **Move to full pricing.** The Founder Pricing window has passed.
 
 **Current recommended pricing:**
 
 | Tier | Price | Ready to sell? |
 |---|---|---|
-| News Essentials | ₹6,500/month | ✅ Yes — pending billing integration |
-| News Professional | ₹14,000/month | ✅ Yes — pending billing integration |
-| Agency (5 brands) | ₹45,000/month | ✅ Yes — pending billing integration |
+| News + YouTube Essentials | ₹6,500/month | ✅ Yes — pending billing integration |
+| News + YouTube Professional | ₹14,000/month | ✅ Yes — pending billing integration |
+| Agency (5 brands, news + YouTube) | ₹45,000/month | ✅ Yes — pending billing integration |
 
 **Only blocker before first invoice:** Razorpay / Stripe billing integration (Wave 4). Can currently be handled manually (bank transfer / invoice) for the first 2–3 customers.
 
-#### After Wave 4 (billing + PDF reports)
-Fully automated self-serve. Remove manual billing workaround. Launch PDF/PPT export for agency tier.
+#### After Phase 2.1 (Reddit added)
+Add Reddit to existing tiers at no price increase. Update positioning to "news + YouTube + Reddit" — the three free-API social channels. This completes the picture for brand discovery and public opinion tracking.
 
-#### After Phase 2 (social media added)
-Reprice significantly upward. Add a **Social + News** tier at ₹25,000–40,000/month per brand — this directly competes with Locobuzz/Konnect's core offering at a comparable price but with better language depth.
+#### After Phase 3 (Twitter/X, Instagram, Facebook added)
+Reprice significantly upward. Add a **Full Social + News** tier at ₹30,000–45,000/month per brand — this directly competes with Locobuzz/Konnect's core offering at a comparable price but with better language depth.
 
-| Tier | Price (post-social) |
+| Tier | Price (post-Twitter/Instagram/Facebook) |
 |---|---|
-| News Professional | ₹16,000/month |
-| Social + News Standard | ₹30,000/month |
-| Social + News Pro (6 languages) | ₹45,000/month |
-| Agency (5 brands, all channels) | ₹1,20,000/month |
+| News + YouTube Professional | ₹16,000/month |
+| Full Social + News Standard (1 brand) | ₹35,000/month |
+| Full Social + News Pro (6 languages) | ₹50,000/month |
+| Agency (5 brands, all channels) | ₹1,40,000/month |
 
 ---
 
 ## 6. Revenue Projections
 
-### Conservative (news-only, founder pricing)
+### Conservative (news + YouTube, full pricing)
 
 | Customers | Mix | MRR |
 |---|---|---|
-| 5 News Pro brands | ₹10,000 × 5 | ₹50,000 |
-| 2 Agency (5 brands each) | ₹32,000 × 2 | ₹64,000 |
-| 5 News Essentials | ₹4,500 × 5 | ₹22,500 |
-| **Total MRR** | | **₹1,36,500** |
-| **ARR** | | **₹16,38,000** |
+| 5 News Pro brands | ₹14,000 × 5 | ₹70,000 |
+| 2 Agency (5 brands each) | ₹45,000 × 2 | ₹90,000 |
+| 5 News Essentials | ₹6,500 × 5 | ₹32,500 |
+| **Total MRR** | | **₹1,92,500** |
+| **ARR** | | **₹23,10,000** |
 
-### Target for Phase 2 gate (per PRD — ₹2L MRR)
-
-| Customers | Mix | MRR |
-|---|---|---|
-| 8 News Pro brands | ₹10,000 × 8 | ₹80,000 |
-| 4 Agency (5 brands each) | ₹32,000 × 4 | ₹1,28,000 |
-| **Total MRR** | | **₹2,08,000** |
-
-*At this MRR, Phase 2 (social media) development is self-funded.*
-
-### Post-social (full platform)
+### Target for Phase 3 gate (Twitter/X, Instagram) — ₹3L MRR
 
 | Customers | Mix | MRR |
 |---|---|---|
-| 20 Social + News Standard | ₹30,000 × 20 | ₹6,00,000 |
-| 10 Agency (5 brands each, all channels) | ₹1,20,000 × 10 | ₹12,00,000 |
-| 5 Enterprise | ₹1,50,000 avg × 5 | ₹7,50,000 |
-| **Total MRR** | | **₹25,50,000** |
-| **ARR** | | **~₹3.06 crore** |
+| 10 News + YouTube Pro | ₹14,000 × 10 | ₹1,40,000 |
+| 4 Agency (5 brands each) | ₹45,000 × 4 | ₹1,80,000 |
+| **Total MRR** | | **₹3,20,000** |
+
+*At this MRR, Phase 3 (Twitter/Instagram) development is self-funded.*
+
+### Post-full-social (complete platform)
+
+| Customers | Mix | MRR |
+|---|---|---|
+| 20 Full Social + News Standard | ₹35,000 × 20 | ₹7,00,000 |
+| 10 Agency (5 brands each, all channels) | ₹1,40,000 × 10 | ₹14,00,000 |
+| 5 Enterprise | ₹1,75,000 avg × 5 | ₹8,75,000 |
+| **Total MRR** | | **₹29,75,000** |
+| **ARR** | | **~₹3.57 crore** |
 
 At this scale, MediaSense is genuinely competing with Locobuzz for mid-market agency mandates.
 
@@ -317,17 +343,17 @@ At this scale, MediaSense is genuinely competing with Locobuzz for mid-market ag
 
 ## 7. Go-to-Market Priorities Before First Sale
 
-These blockers must be resolved before the first paying customer can be acquired:
-
 | Blocker | Status | Why it matters |
 |---|---|---|
-| ~~Self-serve brand + user onboarding~~ | ✅ Done | Brand wizard, user invite, delete brand, remove user role — all shipped Wave 3 |
-| ~~Export (CSV minimum)~~ | ✅ Done | CSV export live in Mention Explorer; filter-respecting, up to 2,000 rows |
+| ~~Self-serve brand + user onboarding~~ | ✅ Done | 4-step wizard, user invite, delete brand, remove user role — all shipped |
+| ~~Export (CSV minimum)~~ | ✅ Done | CSV export live; filter-respecting, source_type aware, up to 2,000 rows |
 | ~~Alert / email notification~~ | ✅ Done | 3 alert types, 4h rate-limit, Resend email delivery |
-| ~~Auth on `/pipeline/trigger`~~ | ✅ Done | Now requires master_admin JWT; unauth requests return 403 |
+| ~~Auth on `/pipeline/trigger`~~ | ✅ Done | Requires master_admin JWT; unauth requests return 403 |
+| ~~YouTube monitoring~~ | ✅ Done | Phase 2.0 complete — video search, channel RSS, comments, NLP, dashboard UI |
 | **Billing integration (Razorpay / Stripe India)** | ❌ Not started | **Critical — cannot charge customers without payment flow** |
+| **Stable Vercel production URL** | ⚠️ In progress | Add canonical domain alias in Vercel dashboard — current URL changes on each deploy |
 | Terms of service + privacy policy | ❌ Not started | Required for any paid SaaS |
-| Supabase row limits | ⚠️ Monitor | Free tier caps at 50,000 rows; ~12 brands × 20 articles/run × hourly = risk in 2–3 months |
+| Supabase row limits | ⚠️ Monitor | Free tier caps at 50,000 rows; YouTube + news at 12 brands accelerates this |
 
 ---
 
@@ -336,6 +362,7 @@ These blockers must be resolved before the first paying customer can be acquired
 | Date | Update | Features added / changed |
 |---|---|---|
 | 2026-06-17 | Initial document | News monitoring, 6 languages, 29 portals, 12 brands, RBAC, state filtering, pipeline visibility, DLQ, circuit breaker, rejection learning |
-| 2026-06-17 | Wave 3 shipped | CSV export, email alerts (3 types, 4h rate-limit), self-serve brand wizard, user invite/management, India state choropleth map; competitor matrix updated (CSV ✅, self-serve ✅, email alerts ⚠️) |
-| 2026-06-17 | Wave 3 admin + map fix | Delete brand (master_admin, cascade), remove user role (agency_admin+); state choropleth replaced with chip grid (dead external TopoJSON removed); language filter expanded to 6-option dropdown; `/pipeline/trigger` auth fixed; Go-to-Market blockers table updated (4 of 7 resolved); pricing phasing updated — Wave 3 complete, move to full pricing; Railway backend fully deployed with all Wave 3/4 routes |
-| 2026-06-17 | Portal expansion | 29 → 43 portals: +5 EN, +3 HI, +1 TA, +1 BN, +3 KN, +1 GU; all URLs verified live RSS before adding; 21 candidates documented as excluded with reasons; competitor matrix "Indian news portal depth" updated from 29 to 43 |
+| 2026-06-17 | Wave 3 shipped | CSV export, email alerts (3 types, 4h rate-limit), self-serve brand wizard, user invite/management, India state chip grid; competitor matrix updated |
+| 2026-06-17 | Wave 3 admin + map fix | Delete brand, remove user role, language filter expanded, pipeline trigger auth fixed; Go-to-Market blockers updated (4 of 7 resolved) |
+| 2026-06-17 | Portal expansion | 29 → 43 portals (+5 EN, +3 HI, +1 TA, +1 BN, +3 KN, +1 GU); competitor matrix portal count updated |
+| 2026-06-18 | Phase 2.0 YouTube integration | YouTube video search, channel RSS, comment monitoring, YouTube-aware NLP, quota manager, reach metadata, source_type filter, YouTube KPI card, YouTube badges in Mention Explorer, SourceBreakdown YouTube icons, 4-step brand wizard with YouTube config; competitor matrix YouTube row updated ❌→✅; "Where We Lead" item 7+8 added; social media gap updated (YouTube now live, Twitter/Instagram/Facebook remaining); positioning statement updated; portal count 43 everywhere; pricing updated to "News + YouTube" branding; revenue projections updated to full pricing; Go-to-Market table updated |
