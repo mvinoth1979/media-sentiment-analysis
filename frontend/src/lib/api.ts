@@ -165,4 +165,9 @@ export const discoverCompetitors = (brandId: string) =>
     )
     .then(r => r.data);
 
+export const fetchIssueClusters = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").IssueClustersData>(`/dashboard/issue-clusters/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export default api;
