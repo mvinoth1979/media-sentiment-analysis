@@ -49,6 +49,16 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   perception_score_below: "Perception score below",
   negative_pct_above:     "Negative % above",
   mention_spike:          "Mention spike above",
+  syndication_spike:      "Syndication spike (portals) ≥",
+  journalist_beat:        "Journalist beat (neg. articles) ≥",
+};
+
+const ALERT_THRESHOLD_HINTS: Record<string, string> = {
+  perception_score_below: "e.g. 40",
+  negative_pct_above:     "e.g. 30",
+  mention_spike:          "e.g. 200",
+  syndication_spike:      "e.g. 10",
+  journalist_beat:        "e.g. 2",
 };
 
 function formatLastProcessed(iso: string | null): string {
@@ -101,7 +111,7 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
           type="number"
           value={threshold}
           onChange={e => setThreshold(e.target.value)}
-          placeholder="e.g. 40"
+          placeholder={ALERT_THRESHOLD_HINTS[alertType] ?? "threshold"}
           className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
         />
         <input
@@ -147,22 +157,30 @@ function AlertsRiskCards({
     perception_score_below: "border-l-red-500",
     negative_pct_above:     "border-l-amber-500",
     mention_spike:          "border-l-orange-400",
+    syndication_spike:      "border-l-purple-500",
+    journalist_beat:        "border-l-rose-500",
   };
   const RISK_BG: Record<string, string> = {
     perception_score_below: "bg-red-50",
     negative_pct_above:     "bg-amber-50",
     mention_spike:          "bg-orange-50",
+    syndication_spike:      "bg-purple-50",
+    journalist_beat:        "bg-rose-50",
   };
   const RISK_BADGE: Record<string, { label: string; color: string }> = {
-    perception_score_below: { label: "High Risk",   color: "text-red-600 bg-red-100"    },
-    negative_pct_above:     { label: "Medium Risk", color: "text-amber-600 bg-amber-100" },
-    mention_spike:          { label: "Medium Risk", color: "text-orange-600 bg-orange-100" },
+    perception_score_below: { label: "High Risk",       color: "text-red-600 bg-red-100"       },
+    negative_pct_above:     { label: "Medium Risk",     color: "text-amber-600 bg-amber-100"   },
+    mention_spike:          { label: "Medium Risk",     color: "text-orange-600 bg-orange-100" },
+    syndication_spike:      { label: "Amplification",   color: "text-purple-600 bg-purple-100" },
+    journalist_beat:        { label: "Coverage Risk",   color: "text-rose-600 bg-rose-100"     },
   };
 
   const ALERT_CATEGORIES = [
     { type: "perception_score_below", label: "Reputation Score",  icon: "📊", hint: "Alert when score drops below threshold" },
     { type: "negative_pct_above",     label: "Negative %",        icon: "📉", hint: "Alert when negative % exceeds threshold" },
     { type: "mention_spike",          label: "Mention Spike",     icon: "🔔", hint: "Alert on sudden volume increase" },
+    { type: "syndication_spike",      label: "Syndication Spike", icon: "📡", hint: "Alert when a story spreads to N+ portals in 24h" },
+    { type: "journalist_beat",        label: "Journalist Beat",   icon: "✍️",  hint: "Alert when journalist publishes N+ negative articles in 30d" },
   ];
 
   const inner = alerts.length === 0 ? (

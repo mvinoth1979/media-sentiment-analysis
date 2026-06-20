@@ -87,7 +87,7 @@ export interface PipelineStats {
 export interface AlertConfig {
   id: string;
   brand_id: string;
-  alert_type: "perception_score_below" | "negative_pct_above" | "mention_spike";
+  alert_type: "perception_score_below" | "negative_pct_above" | "mention_spike" | "syndication_spike" | "journalist_beat";
   threshold: number;
   notify_email: string;
   enabled: boolean;
