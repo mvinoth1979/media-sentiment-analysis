@@ -7,6 +7,7 @@ import { BrandSearch } from "./pages/BrandSearch";
 import { SourceBreakdown } from "./pages/SourceBreakdown";
 import { TopicsView } from "./pages/TopicsView";
 import { UserManagement } from "./pages/UserManagement";
+import { JournalistCoverage } from "./pages/JournalistCoverage";
 import { Sidebar } from "./components/Sidebar";
 import type { Tab } from "./components/Sidebar";
 
@@ -96,9 +97,10 @@ function App() {
               onLastUpdated={setLastUpdated}
             />
           )}
-          {tab === "sources" && <SourceBreakdown brandId={brand.id} />}
-          {tab === "topics"  && <TopicsView brandId={brand.id} />}
-          {tab === "users"   && isAdmin && (
+          {tab === "sources"     && <SourceBreakdown brandId={brand.id} />}
+          {tab === "topics"      && <TopicsView brandId={brand.id} />}
+          {tab === "journalists" && <JournalistCoverage brandId={brand.id} brandName={brand.name} />}
+          {tab === "users"       && isAdmin && (
             <UserManagement brandId={brand.id} brandName={brand.name} />
           )}
         </div>

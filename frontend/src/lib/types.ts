@@ -244,3 +244,64 @@ export interface IssueClustersData {
   period_days: number;
   brand_id: string;
 }
+
+// ── Journalist Coverage ────────────────────────────────────────────────────────
+
+export interface JournalistArticleItem {
+  title: string;
+  url: string;
+  published_at: string;
+  sentiment_label: "positive" | "negative" | "neutral";
+}
+
+export interface JournalistProfile {
+  author: string;
+  total_articles: number;
+  negative_count: number;
+  positive_count: number;
+  neutral_count: number;
+  negative_pct: number;
+  last_article_at: string;
+  recent_articles: JournalistArticleItem[];
+}
+
+export interface JournalistCoverageData {
+  journalists: JournalistProfile[];
+  period_days: number;
+  brand_id: string;
+}
+
+// ── Editorial Tone Breakdown (Phase 1) ────────────────────────────────────────
+
+export interface ToneWeek {
+  week: string;
+  factual: number;
+  positive_frame: number;
+  negative_frame: number;
+  critical: number;
+}
+
+export interface ToneBreakdownData {
+  total: { factual: number; positive_frame: number; negative_frame: number; critical: number };
+  weekly_trend: ToneWeek[];
+  period_days: number;
+  brand_id: string;
+}
+
+// ── Divergence Summary (Phase 1) ──────────────────────────────────────────────
+
+export interface DivergentArticleItem {
+  title: string;
+  url: string;
+  published_at: string | null;
+  headline_sentiment_score: number;
+  body_sentiment_score: number;
+  sentiment_label: "positive" | "negative" | "neutral";
+}
+
+export interface DivergenceSummaryData {
+  total_divergent_count: number;
+  divergent_pct: number;
+  articles: DivergentArticleItem[];
+  period_days: number;
+}

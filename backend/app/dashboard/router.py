@@ -27,6 +27,9 @@ from app.dashboard.schemas import (
     ReviewSummaryResponse, ReviewStarBucket, TopicTheme,
     SoVEntry, CompetitorSoVResponse, CompetitorDiscoveryResponse,
     ClusterArticle, IssueCluster, IssueClustersResponse,
+    ToneWeek, ToneBreakdownResponse,
+    DivergentArticle, DivergenceSummaryResponse,
+    JournalistArticle, JournalistProfile, JournalistCoverageResponse,
 )
 
 router = APIRouter()
@@ -894,6 +897,162 @@ def get_issue_clusters(
             trend=c["trend"],
             top_articles=[ClusterArticle(**a) for a in c["top_articles"]],
         ) for c in raw],
+        period_days=days,
+        brand_id=brand_id,
+    )
+
+
+# ── Editorial Tone Breakdown (Phase 1) ────────────────────────────────────────
+
+@router.get("/tone-breakdown/{brand_id}", response_model=ToneBreakdownResponse)
+def get_tone_breakdown(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    articles = get_articles(brand_id, limit=2000, date_from=cutoff)
+
+    tone_keys = ("factual", "positive_frame", "negative_frame", "critical")
+    total: dict[str, int] = {k: 0 for k in tone_keys}
+    week_counts: dict[str, dict[str, int]] = {}
+
+    for a in articles:
+        tone = (a.get("editorial_tone") or "").strip()
+        if tone not in tone_keys:
+            continue
+        total[tone] += 1
+        collected = a.get("collected_at") or a.get("published_at") or ""
+        try:
+            dt = datetime.fromisoformat(collected.replace("Z", "+00:00"))
+            week_label = f"{dt.isocalendar().year}-W{dt.isocalendar().week:02d}"
+        except Exception:
+            continue
+        bucket = week_counts.setdefault(week_label, {k: 0 for k in tone_keys})
+        bucket[tone] += 1
+
+    # Return last 8 weeks, sorted chronologically
+    sorted_weeks = sorted(week_counts.keys())[-8:]
+    weekly_trend = [
+        ToneWeek(
+            week=w,
+            factual=week_counts[w]["factual"],
+            positive_frame=week_counts[w]["positive_frame"],
+            negative_frame=week_counts[w]["negative_frame"],
+            critical=week_counts[w]["critical"],
+        )
+        for w in sorted_weeks
+    ]
+
+    return ToneBreakdownResponse(
+        total=total,
+        weekly_trend=weekly_trend,
+        period_days=days,
+        brand_id=brand_id,
+    )
+
+
+# ── Sentiment Divergence Summary (Phase 1) ────────────────────────────────────
+
+@router.get("/divergence-summary/{brand_id}", response_model=DivergenceSummaryResponse)
+def get_divergence_summary(
+    brand_id: str,
+    days: int = Query(14, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    all_articles = get_articles(brand_id, limit=2000, date_from=cutoff)
+    total = len(all_articles)
+
+    divergent = [
+        a for a in all_articles
+        if a.get("sentiment_divergence")
+        and a.get("headline_sentiment_score") is not None
+        and a.get("body_sentiment_score") is not None
+    ]
+
+    # Sort by abs diff descending
+    divergent.sort(
+        key=lambda a: abs((a.get("headline_sentiment_score") or 0) - (a.get("body_sentiment_score") or 0)),
+        reverse=True,
+    )
+
+    divergent_pct = round(len(divergent) / total * 100, 1) if total else 0.0
+
+    return DivergenceSummaryResponse(
+        total_divergent_count=len(divergent),
+        divergent_pct=divergent_pct,
+        articles=[
+            DivergentArticle(
+                title=a.get("title") or "",
+                url=a.get("url") or "",
+                published_at=a.get("published_at"),
+                headline_sentiment_score=float(a.get("headline_sentiment_score") or 0),
+                body_sentiment_score=float(a.get("body_sentiment_score") or 0),
+                sentiment_label=a.get("sentiment_label") or "neutral",
+            )
+            for a in divergent[:10]
+        ],
+        period_days=days,
+    )
+
+
+# ── Journalist Coverage ────────────────────────────────────────────────────────
+
+@router.get("/journalist-coverage/{brand_id}", response_model=JournalistCoverageResponse)
+def get_journalist_coverage(
+    brand_id: str,
+    days: int = Query(90, ge=1, le=180),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    articles = get_articles(brand_id, limit=5000, date_from=cutoff)
+
+    # Group by author
+    author_map: dict[str, list[dict]] = {}
+    for a in articles:
+        author = (a.get("author") or "").strip()
+        if not author:
+            continue
+        author_map.setdefault(author, []).append(a)
+
+    profiles: list[JournalistProfile] = []
+    for author, arts in author_map.items():
+        total = len(arts)
+        neg = sum(1 for a in arts if a.get("sentiment_label") == "negative")
+        pos = sum(1 for a in arts if a.get("sentiment_label") == "positive")
+        neu = total - neg - pos
+        neg_pct = round(neg / total * 100, 1)
+        last_at = max((a.get("published_at") or a.get("collected_at") or "") for a in arts)
+
+        recent = sorted(
+            arts,
+            key=lambda a: a.get("published_at") or a.get("collected_at") or "",
+            reverse=True,
+        )[:3]
+
+        profiles.append(JournalistProfile(
+            author=author,
+            total_articles=total,
+            negative_count=neg,
+            positive_count=pos,
+            neutral_count=neu,
+            negative_pct=neg_pct,
+            last_article_at=last_at,
+            recent_articles=[
+                JournalistArticle(
+                    title=a.get("title") or "",
+                    url=a.get("url") or "",
+                    published_at=a.get("published_at") or a.get("collected_at") or "",
+                    sentiment_label=a.get("sentiment_label") or "neutral",
+                )
+                for a in recent
+            ],
+        ))
+
+    profiles.sort(key=lambda p: p.negative_count, reverse=True)
+    return JournalistCoverageResponse(
+        journalists=profiles[:20],
         period_days=days,
         brand_id=brand_id,
     )

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOverview, fetchAlerts, createAlert, deleteAlert } from "../lib/api";
-import type { AlertConfig } from "../lib/types";
+import { fetchOverview, fetchAlerts, createAlert, deleteAlert, fetchDivergenceSummary } from "../lib/api";
+import type { AlertConfig, DivergenceSummaryData } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { MentionsBySourceDonut } from "../components/charts/MentionsBySourceDonut";
@@ -11,6 +11,7 @@ import { SentimentBySourceTable } from "../components/SentimentBySourceTable";
 import { TopIssuesTable } from "../components/TopIssuesTable";
 import { ReviewSitesSummary } from "../components/ReviewSitesSummary";
 import { CompetitorShareOfVoice } from "../components/CompetitorShareOfVoice";
+import { EditorialToneChart } from "../components/EditorialToneChart";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { formatCount } from "../lib/utils";
 
@@ -245,6 +246,8 @@ function AlertsRiskCards({
 
 export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated }: Props) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [divergenceData, setDivergenceData] = useState<DivergenceSummaryData | null>(null);
+  const [divOpen, setDivOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -262,6 +265,13 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
 
   // Reset panel when brand changes
   useEffect(() => { setActivePanel(null); }, [brandId]);
+
+  // Load divergence data when sentiment-trend detail opens
+  useEffect(() => {
+    if (activePanel === "sentiment-trend" && !divergenceData) {
+      fetchDivergenceSummary(brandId, 14).then(setDivergenceData).catch(() => {});
+    }
+  }, [activePanel, brandId, divergenceData]);
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-full text-gray-400 text-sm">Loading…</div>
@@ -313,7 +323,60 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             </div>
           )}
           {activePanel === "sentiment-trend" && (
-            <SentimentTrendChart brandId={brandId} />
+            <div className="space-y-4 max-w-3xl">
+              <SentimentTrendChart brandId={brandId} />
+              <EditorialToneChart brandId={brandId} />
+              {/* Divergent Headlines */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <button
+                  className="flex items-center justify-between w-full text-sm font-semibold text-gray-800"
+                  onClick={() => setDivOpen(o => !o)}
+                >
+                  <span>Divergent Headlines</span>
+                  <span className="text-gray-400 text-xs">{divOpen ? "▲ hide" : "▼ show"}</span>
+                </button>
+                {divergenceData && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {divergenceData.total_divergent_count} articles ({divergenceData.divergent_pct}%) had divergent headline/body sentiment in the last {divergenceData.period_days} days.
+                  </p>
+                )}
+                {divOpen && (
+                  <div className="mt-3 space-y-2">
+                    {!divergenceData && <p className="text-xs text-gray-400">Loading…</p>}
+                    {divergenceData && divergenceData.articles.length === 0 && (
+                      <p className="text-xs text-gray-400">No divergent articles detected.</p>
+                    )}
+                    {divergenceData?.articles.map((a, i) => {
+                      const hScore = a.headline_sentiment_score;
+                      const bScore = a.body_sentiment_score;
+                      const scoreChip = (v: number) => (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${v >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                          {v >= 0 ? "+" : ""}{v.toFixed(2)}
+                        </span>
+                      );
+                      return (
+                        <div key={i} className="flex items-start gap-2 py-1 border-b border-gray-50 last:border-0">
+                          <a
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-xs text-blue-600 hover:underline truncate"
+                            title={a.title}
+                          >
+                            {a.title.slice(0, 80)}{a.title.length > 80 ? "…" : ""}
+                          </a>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[9px] text-gray-400">H</span>{scoreChip(hScore)}
+                            <span className="text-[9px] text-gray-400">B</span>{scoreChip(bScore)}
+                            <span className="text-[9px] font-medium text-amber-600 bg-amber-50 px-1 py-0.5 rounded">↕</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
           {activePanel === "mentions-donut" && (
             <div className="max-w-lg">

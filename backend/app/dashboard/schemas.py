@@ -251,3 +251,64 @@ class IssueClustersResponse(BaseModel):
     clusters: list[IssueCluster]
     period_days: int
     brand_id: str
+
+
+# ── Journalist Coverage ────────────────────────────────────────────────────────
+
+class JournalistArticle(BaseModel):
+    title: str
+    url: str
+    published_at: str
+    sentiment_label: str
+
+
+class JournalistProfile(BaseModel):
+    author: str
+    total_articles: int
+    negative_count: int
+    positive_count: int
+    neutral_count: int
+    negative_pct: float
+    last_article_at: str
+    recent_articles: list[JournalistArticle]
+
+
+class JournalistCoverageResponse(BaseModel):
+    journalists: list[JournalistProfile]
+    period_days: int
+    brand_id: str
+
+
+# ── Editorial Tone Breakdown (Phase 1) ────────────────────────────────────────
+
+class ToneWeek(BaseModel):
+    week: str           # "2026-W24"
+    factual: int
+    positive_frame: int
+    negative_frame: int
+    critical: int
+
+
+class ToneBreakdownResponse(BaseModel):
+    total: dict         # {"factual": 42, "positive_frame": 18, ...}
+    weekly_trend: list[ToneWeek]
+    period_days: int
+    brand_id: str
+
+
+# ── Sentiment Divergence Summary (Phase 1) ────────────────────────────────────
+
+class DivergentArticle(BaseModel):
+    title: str
+    url: str
+    published_at: str | None
+    headline_sentiment_score: float
+    body_sentiment_score: float
+    sentiment_label: str
+
+
+class DivergenceSummaryResponse(BaseModel):
+    total_divergent_count: int
+    divergent_pct: float
+    articles: list[DivergentArticle]
+    period_days: int

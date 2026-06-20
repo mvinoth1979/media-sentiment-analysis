@@ -170,4 +170,19 @@ export const fetchIssueClusters = (brandId: string, days = 30) =>
     .get<import("./types").IssueClustersData>(`/dashboard/issue-clusters/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export const fetchJournalistCoverage = (brandId: string, days = 90) =>
+  api
+    .get<import("./types").JournalistCoverageData>(`/dashboard/journalist-coverage/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
+export const fetchToneBreakdown = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").ToneBreakdownData>(`/dashboard/tone-breakdown/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
+export const fetchDivergenceSummary = (brandId: string, days = 14) =>
+  api
+    .get<import("./types").DivergenceSummaryData>(`/dashboard/divergence-summary/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export default api;
