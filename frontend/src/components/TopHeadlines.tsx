@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchHeadlines } from "../lib/api";
 import type { HeadlineItem } from "../lib/types";
@@ -35,14 +35,14 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
   const isYouTube = item.portal_category === "youtube";
 
   return (
-    <div className="flex gap-2.5 py-2.5 border-b border-gray-800/60 last:border-0">
+    <div className="flex gap-2.5 py-2.5 border-b border-gray-100 last:border-0">
       {/* Avatar */}
       <div className={`w-7 h-7 rounded shrink-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ${
-        isYouTube ? "bg-red-900/40" : "bg-indigo-900/30"
+        isYouTube ? "bg-red-100" : "bg-blue-100"
       }`}>
         {isYouTube
           ? <YouTubeIcon className="w-4 h-4" />
-          : <span className="text-indigo-300">{item.portal_name.charAt(0).toUpperCase()}</span>
+          : <span className="text-blue-600">{item.portal_name.charAt(0).toUpperCase()}</span>
         }
       </div>
 
@@ -52,7 +52,7 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-gray-200 hover:text-indigo-300 line-clamp-2 leading-tight transition-colors"
+          className="text-xs text-gray-700 hover:text-blue-600 line-clamp-2 leading-tight transition-colors"
         >
           {item.title}
         </a>
@@ -75,7 +75,7 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
           {item.repeat_author && (
             <span
               title={`${item.author_name ?? "This author"} has multiple negative articles about this brand`}
-              className="text-[9px] text-orange-400 border border-orange-800/50 px-1 rounded"
+              className="text-[9px] text-orange-500 border border-orange-200 px-1 rounded"
             >
               ⚠ Repeat critic
             </span>
@@ -83,10 +83,10 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
         </div>
 
         {/* Meta row */}
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+        <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
           <span className="truncate max-w-[100px]">{item.portal_name}</span>
           {item.language !== "en" && (
-            <span className="uppercase font-mono text-gray-600">{item.language}</span>
+            <span className="uppercase font-mono text-gray-400">{item.language}</span>
           )}
           <span>·</span>
           <span>{timeAgo(item.collected_at ?? item.published_at)}</span>
@@ -98,16 +98,16 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
 
 function SkeletonCard() {
   return (
-    <div className="flex gap-2.5 py-2.5 border-b border-gray-800/60 last:border-0 animate-pulse">
-      <div className="w-7 h-7 rounded bg-gray-800 shrink-0 mt-0.5" />
+    <div className="flex gap-2.5 py-2.5 border-b border-gray-100 last:border-0 animate-pulse">
+      <div className="w-7 h-7 rounded bg-gray-100 shrink-0 mt-0.5" />
       <div className="flex-1 space-y-1.5">
-        <div className="h-3 bg-gray-800 rounded w-full" />
-        <div className="h-3 bg-gray-800 rounded w-4/5" />
+        <div className="h-3 bg-gray-100 rounded w-full" />
+        <div className="h-3 bg-gray-100 rounded w-4/5" />
         <div className="flex gap-1">
-          <div className="h-3 w-16 bg-gray-800 rounded" />
-          <div className="h-3 w-10 bg-gray-800 rounded" />
+          <div className="h-3 w-16 bg-gray-100 rounded" />
+          <div className="h-3 w-10 bg-gray-100 rounded" />
         </div>
-        <div className="h-2.5 bg-gray-800 rounded w-24" />
+        <div className="h-2.5 bg-gray-100 rounded w-24" />
       </div>
     </div>
   );
@@ -133,30 +133,30 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll }: Props) {
     activeTab === "trending" && (videoItems.length > 0 || commentItems.length > 0);
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-semibold text-gray-200">Top Headlines</div>
+        <div className="text-sm font-semibold text-gray-800">Top Headlines <span className="text-gray-400 font-normal text-xs">(News)</span></div>
         {onViewAll && (
           <button
             onClick={() => onViewAll(activeTab)}
-            className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >
-            View all →
+            View All
           </button>
         )}
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-0 border border-gray-700/60 rounded-lg p-0.5 mb-3">
+      <div className="flex gap-0 border border-gray-200 rounded-lg p-0.5 mb-3">
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
             className={`flex-1 text-[10px] py-1 rounded-md transition-colors ${
               activeTab === t.key
-                ? "bg-gray-700 text-gray-100"
-                : "text-gray-500 hover:text-gray-300"
+                ? "bg-white text-gray-800 shadow-sm border border-gray-200"
+                : "text-gray-400 hover:text-gray-600"
             }`}
           >
             {t.label}
@@ -169,7 +169,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll }: Props) {
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
         ) : items.length === 0 ? (
-          <div className="py-8 text-center text-gray-600 text-xs">
+          <div className="py-8 text-center text-gray-400 text-xs">
             No {activeTab} headlines found.
           </div>
         ) : hasYouTubeGroups ? (
@@ -177,7 +177,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll }: Props) {
             {newsItems.length > 0 && newsItems.map(item => <HeadlineCard key={item.id} item={item} />)}
             {videoItems.length > 0 && (
               <>
-                <div className="text-[10px] text-gray-600 uppercase tracking-wider mt-2 mb-1">
+                <div className="text-[10px] text-gray-400 uppercase tracking-wider mt-2 mb-1">
                   Creator (Videos)
                 </div>
                 {videoItems.map(item => <HeadlineCard key={item.id} item={item} />)}
@@ -185,7 +185,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll }: Props) {
             )}
             {commentItems.length > 0 && (
               <>
-                <div className="text-[10px] text-gray-600 uppercase tracking-wider mt-2 mb-1">
+                <div className="text-[10px] text-gray-400 uppercase tracking-wider mt-2 mb-1">
                   Audience (Comments)
                 </div>
                 {commentItems.map(item => <HeadlineCard key={item.id} item={item} />)}

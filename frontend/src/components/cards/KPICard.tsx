@@ -1,19 +1,62 @@
-interface Props {
+﻿interface Props {
   label: string;
   value: string | number;
+  pct?: number;
+  delta?: number | null;
+  deltaUnit?: string;
   sub?: string;
-  color?: "green" | "red" | "yellow" | "blue" | "purple";
+  icon?: string;
+  accentColor?: "green" | "red" | "gray" | "blue" | "purple";
+  /** @deprecated use accentColor */
+  color?: string;
 }
-const colors = {
-  green: "text-green-400", red: "text-red-400",
-  yellow: "text-yellow-400", blue: "text-blue-400", purple: "text-purple-400",
+
+const ACCENT: Record<string, { icon: string }> = {
+  green:  { icon: "bg-green-100 text-green-600"   },
+  red:    { icon: "bg-red-100 text-red-500"        },
+  gray:   { icon: "bg-gray-100 text-gray-500"      },
+  blue:   { icon: "bg-blue-100 text-blue-600"      },
+  purple: { icon: "bg-purple-100 text-purple-600"  },
 };
-export function KPICard({ label, value, sub, color = "blue" }: Props) {
+
+export function KPICard({ label, value, pct, delta, deltaUnit = "%", sub, icon, accentColor = "blue" }: Props) {
+  const accent = ACCENT[accentColor] ?? ACCENT.blue;
+  const isPos = delta != null && delta > 0;
+  const isNeg = delta != null && delta < 0;
+
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-      <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">{label}</div>
-      <div className={`text-3xl font-bold ${colors[color]}`}>{value}</div>
-      {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
+    <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-2 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-xs text-gray-500 font-medium leading-tight">{label}</div>
+        {icon && (
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 ${accent.icon}`}>
+            {icon}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-baseline gap-1.5 flex-wrap">
+        <span className="text-2xl font-bold text-gray-900">{value}</span>
+        {pct != null && (
+          <span className="text-sm text-gray-500 font-medium">({pct.toFixed(1)}%)</span>
+        )}
+      </div>
+
+      {delta != null && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+            isPos ? "bg-green-50 text-green-600" :
+            isNeg ? "bg-red-50 text-red-500" :
+            "bg-gray-100 text-gray-500"
+          }`}>
+            {isPos ? "▲" : isNeg ? "▼" : "—"}{" "}{Math.abs(delta).toFixed(1)}{deltaUnit}
+          </span>
+          {sub && <span className="text-[10px] text-gray-400">{sub}</span>}
+        </div>
+      )}
+      {delta == null && sub && (
+        <div className="text-[11px] text-gray-400">{sub}</div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, Legend,
+  AreaChart, Area, XAxis, YAxis, Tooltip, Legend,
   ReferenceLine, Label, ResponsiveContainer,
 } from "recharts";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +27,7 @@ interface ChartPoint {
 
 function formatChartData(
   points: SentimentTrendPoint[],
-  window: "1d" | "1h",
+  window_: "1d" | "1h",
   tier1Points?: SentimentTrendPoint[],
 ): ChartPoint[] {
   const t1Map = new Map((tier1Points ?? []).map(p => [p.time.slice(0, 10), p]));
@@ -36,7 +36,7 @@ function formatChartData(
     const t1 = t1Map.get(iso);
     return {
       date:
-        window === "1d"
+        window_ === "1d"
           ? new Date(p.time).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
           : new Date(p.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
       _iso: iso,
@@ -68,12 +68,12 @@ function SentimentTooltip({ active, payload, label }: CustomTooltipProps) {
   const { text } = sentimentIntensity(dominant, domScore);
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs shadow-xl">
-      <div className="text-gray-400 mb-1">{label}</div>
-      <div className="text-indigo-300 text-[10px] mb-1.5 font-medium">{text}</div>
-      <div className="text-green-400">+{pos} positive</div>
-      <div className="text-red-400">−{neg} negative</div>
-      <div className="text-yellow-400">~{neu} neutral</div>
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-md">
+      <div className="text-gray-500 mb-1">{label}</div>
+      <div className="text-blue-600 text-[10px] mb-1.5 font-medium">{text}</div>
+      <div className="text-green-600">+{pos} positive</div>
+      <div className="text-red-500">−{neg} negative</div>
+      <div className="text-gray-500">~{neu} neutral</div>
     </div>
   );
 }
@@ -124,34 +124,34 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
   // ── Skeleton ──────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-        <div className="h-5 w-48 bg-gray-800 rounded animate-pulse mb-4" />
-        <div className="h-[220px] bg-gray-800/50 rounded-lg animate-pulse" />
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="h-5 w-48 bg-gray-100 rounded animate-pulse mb-4" />
+        <div className="h-[220px] bg-gray-50 rounded-lg animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-semibold text-gray-200">Sentiment Trend — Last 30 Days</div>
+        <div className="text-sm font-semibold text-gray-800">Sentiment Trend</div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowTier1(s => !s)}
-            title="Overlay dashed lines showing only Tier 1+2 national/major-regional sources"
+            title="Overlay showing only Tier 1+2 national/major-regional sources"
             className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
               showTier1
-                ? "bg-violet-900/40 border-violet-600 text-violet-300"
-                : "border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-400"
+                ? "bg-violet-50 border-violet-300 text-violet-600"
+                : "border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600"
             }`}
           >
             Tier 1+2 only
           </button>
           <button
             onClick={() => setShowForm(s => !s)}
-            className="text-xs text-indigo-400 hover:text-indigo-300"
+            className="text-xs text-blue-600 hover:text-blue-700"
           >
             {showForm ? "Cancel" : "+ Annotate"}
           </button>
@@ -169,7 +169,7 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
             value={draftDate}
             onChange={e => setDraftDate(e.target.value)}
             required
-            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 px-2 py-1.5 focus:outline-none focus:border-indigo-500"
+            className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-1.5 focus:outline-none focus:border-blue-500"
           />
           <input
             type="text"
@@ -177,12 +177,12 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
             onChange={e => setDraftLabel(e.target.value)}
             placeholder="What happened on this date?"
             required
-            className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2.5 py-1.5 placeholder:text-gray-500 focus:outline-none focus:border-indigo-500 flex-1 min-w-[160px]"
+            className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2.5 py-1.5 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 flex-1 min-w-[160px]"
           />
           <button
             type="submit"
             disabled={addAnnotation.isPending}
-            className="text-xs px-3 py-1.5 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="text-xs px-3 py-1.5 bg-blue-600 rounded-lg text-white hover:bg-blue-500 disabled:opacity-50"
           >
             Save
           </button>
@@ -190,31 +190,42 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
       )}
 
       {chartData.length === 0 ? (
-        <div className="h-[220px] flex items-center justify-center text-gray-600 text-sm">
+        <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">
           No trend data yet — the pipeline runs hourly.
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={chartData} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
-            <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 11 }} />
-            <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} allowDecimals={false} />
+          <AreaChart data={chartData} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradNeu" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+            <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} allowDecimals={false} />
             <Tooltip content={<SentimentTooltip />} />
-            <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+            <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8, color: "#6b7280" }} />
 
-            {/* Solid lines — all sources */}
-            <Line type="monotone" dataKey="positive" stroke="#22c55e" strokeWidth={2} dot={false} name="Positive" />
-            <Line type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={2} dot={false} name="Negative" />
-            <Line type="monotone" dataKey="neutral"  stroke="#eab308" strokeWidth={2} dot={false} name="Neutral"  />
+            {/* Area fills — all sources */}
+            <Area type="monotone" dataKey="positive" stroke="#22c55e" strokeWidth={2} fill="url(#gradPos)" dot={false} name="Positive" />
+            <Area type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={2} fill="url(#gradNeg)" dot={false} name="Negative" />
+            <Area type="monotone" dataKey="neutral"  stroke="#94a3b8" strokeWidth={2} fill="url(#gradNeu)" dot={false} name="Neutral"  />
 
             {/* Dashed Tier 1+2 overlay — merged into main dataset, no separate x-axis */}
             {showTier1 && (
               <>
-                <Line type="monotone" dataKey="t1_positive" stroke="#22c55e"
-                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" connectNulls />
-                <Line type="monotone" dataKey="t1_negative" stroke="#ef4444"
-                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" connectNulls />
-                <Line type="monotone" dataKey="t1_neutral"  stroke="#eab308"
-                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" connectNulls />
+                <Area type="monotone" dataKey="t1_positive" stroke="#22c55e" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
+                <Area type="monotone" dataKey="t1_negative" stroke="#ef4444" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
+                <Area type="monotone" dataKey="t1_neutral"  stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
               </>
             )}
 
@@ -223,10 +234,10 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
               .filter(a => chartDates.has(a.date))
               .map(a => (
                 <ReferenceLine key={a.id} x={formattedDateOf(a.date)} stroke="#f59e0b" strokeDasharray="3 3">
-                  <Label value={a.label} position="insideTopLeft" fill="#f59e0b" fontSize={10} />
+                  <Label value={a.label} position="insideTopLeft" fill="#d97706" fontSize={10} />
                 </ReferenceLine>
               ))}
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       )}
 
@@ -236,7 +247,7 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
           {annotations.map(a => (
             <span
               key={a.id}
-              className="text-[10px] text-amber-400 bg-amber-900/20 border border-amber-800/40 rounded-full px-2 py-0.5"
+              className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5"
             >
               {new Date(a.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · {a.label}
             </span>

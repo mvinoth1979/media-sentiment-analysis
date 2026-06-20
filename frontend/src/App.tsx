@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { Overview } from "./pages/Overview";
@@ -7,18 +7,19 @@ import { BrandSearch } from "./pages/BrandSearch";
 import { SourceBreakdown } from "./pages/SourceBreakdown";
 import { TopicsView } from "./pages/TopicsView";
 import { UserManagement } from "./pages/UserManagement";
-
-type Tab = "overview" | "sources" | "topics" | "users";
+import { Sidebar } from "./components/Sidebar";
+import type { Tab } from "./components/Sidebar";
 
 const ADMIN_ROLES = new Set(["master_admin", "agency_admin"]);
 
 function App() {
-  const [session, setSession]   = useState<Session | null | undefined>(undefined);
-  const [brand, setBrand]       = useState<{ id: string; name: string } | null>(null);
-  const [tab, setTab]           = useState<Tab>("overview");
+  const [session, setSession]         = useState<Session | null | undefined>(undefined);
+  const [brand, setBrand]             = useState<{ id: string; name: string } | null>(null);
+  const [tab, setTab]                 = useState<Tab>("overview");
   const [isAdmin, setIsAdmin]         = useState(false);
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
+  const [userEmail, setUserEmail]     = useState("");
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -61,77 +62,46 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <h1 className="text-base sm:text-lg font-bold text-indigo-400 shrink-0">MediaSense</h1>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar
+        brand={brand}
+        activeTab={tab}
+        onTabChange={setTab}
+        onBrandChange={() => setBrand(null)}
+        isAdmin={isAdmin}
+        lastUpdated={lastUpdated}
+      />
+
+      <main className="flex-1 min-w-0 overflow-auto">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="text-xs text-gray-500">
+            Signed in as <span className="font-medium text-gray-700">{userEmail}</span>
+          </div>
           <button
-            onClick={() => setBrand(null)}
-            className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 truncate"
+            onClick={() => supabase.auth.signOut()}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="truncate">{brand.name}</span>
+            Sign out
           </button>
-          <nav className="flex items-center gap-1 ml-2 sm:ml-4 shrink-0">
-            <button
-              onClick={() => setTab("overview")}
-              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-                tab === "overview" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setTab("sources")}
-              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-                tab === "sources" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              Sources
-            </button>
-            <button
-              onClick={() => setTab("topics")}
-              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-                tab === "topics" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              Topics
-            </button>
-            {isAdmin && (
-              <button
-                onClick={() => setTab("users")}
-                className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-                  tab === "users" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                Users
-              </button>
-            )}
-          </nav>
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors shrink-0"
-        >
-          Sign out
-        </button>
-      </header>
-      <main className="max-w-screen-2xl mx-auto">
-        {tab === "overview" && (
-          <Overview
-            brandId={brand.id}
-            brandName={brand.name}
-            isAdmin={isAdmin}
-            userEmail={userEmail}
-          />
-        )}
-        {tab === "sources" && <SourceBreakdown brandId={brand.id} />}
-        {tab === "topics"  && <TopicsView brandId={brand.id} />}
-        {tab === "users"   && isAdmin && (
-          <UserManagement brandId={brand.id} brandName={brand.name} />
-        )}
+
+        <div className="max-w-screen-2xl mx-auto">
+          {tab === "overview" && (
+            <Overview
+              brandId={brand.id}
+              brandName={brand.name}
+              isAdmin={isAdmin}
+              userEmail={userEmail}
+              onLastUpdated={setLastUpdated}
+            />
+          )}
+          {tab === "sources" && <SourceBreakdown brandId={brand.id} />}
+          {tab === "topics"  && <TopicsView brandId={brand.id} />}
+          {tab === "users"   && isAdmin && (
+            <UserManagement brandId={brand.id} brandName={brand.name} />
+          )}
+        </div>
       </main>
     </div>
   );

@@ -1,27 +1,32 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchOverview, fetchAlerts, createAlert, deleteAlert } from "../lib/api";
 import type { AlertConfig } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { MentionsBySourceDonut } from "../components/charts/MentionsBySourceDonut";
-import { SentimentPieChart } from "../components/charts/SentimentPieChart";
-import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { MentionsList } from "../components/mentions/MentionsList";
 import { TopHeadlines } from "../components/TopHeadlines";
+import { SentimentBySourceTable } from "../components/SentimentBySourceTable";
+import { TopIssuesTable } from "../components/TopIssuesTable";
+import { ReviewSitesSummary } from "../components/ReviewSitesSummary";
+import { CompetitorShareOfVoice } from "../components/CompetitorShareOfVoice";
+import { IndiaStateMap } from "../components/charts/IndiaStateMap";
+import { formatCount } from "../lib/utils";
 
 interface Props {
   brandId: string;
   brandName?: string;
   isAdmin?: boolean;
   userEmail?: string;
+  onLastUpdated?: (iso: string | null) => void;
 }
 
-function formatDelta(value: number | null, unit: string): string | undefined {
-  if (value == null) return undefined;
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value}${unit} vs last week`;
-}
+const ALERT_TYPE_LABELS: Record<string, string> = {
+  perception_score_below: "Perception score below",
+  negative_pct_above:     "Negative % above",
+  mention_spike:          "Mention spike above",
+};
 
 function formatLastProcessed(iso: string | null): string {
   if (!iso) return "—";
@@ -33,25 +38,12 @@ function formatLastProcessed(iso: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-const ALERT_TYPE_LABELS: Record<string, string> = {
-  perception_score_below: "Perception score below",
-  negative_pct_above:     "Negative % above",
-  mention_spike:          "Mention spike above",
-};
-
 function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: string }) {
-  const [alertType, setAlertType]   = useState("perception_score_below");
-  const [threshold, setThreshold]   = useState("");
+  const [alertType, setAlertType]     = useState("perception_score_below");
+  const [threshold, setThreshold]     = useState("");
   const [notifyEmail, setNotifyEmail] = useState(userEmail ?? "");
-  const [formError, setFormError]   = useState("");
-
+  const [formError, setFormError]     = useState("");
   const queryClient = useQueryClient();
-
-  const { data: alerts = [] } = useQuery<AlertConfig[]>({
-    queryKey: ["alerts", brandId],
-    queryFn: () => fetchAlerts(brandId),
-    staleTime: 60_000,
-  });
 
   const createMutation = useMutation({
     mutationFn: () => createAlert(brandId, {
@@ -67,53 +59,16 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
     onError: (e: Error) => setFormError(e.message),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (alertId: string) => deleteAlert(brandId, alertId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts", brandId] }),
-  });
-
   const canSubmit = threshold !== "" && !isNaN(parseFloat(threshold)) && notifyEmail.includes("@");
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-      <div className="text-sm font-semibold text-gray-200">Email Alerts</div>
-
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          {alerts.map((a: AlertConfig) => (
-            <div key={a.id}
-              className="flex items-center justify-between bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-xs">
-              <div className="space-y-0.5">
-                <div className="text-gray-300">
-                  {ALERT_TYPE_LABELS[a.alert_type] ?? a.alert_type}{" "}
-                  <span className="font-semibold text-indigo-300">{a.threshold}</span>
-                </div>
-                <div className="text-gray-500">{a.notify_email}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {a.last_triggered_at && (
-                  <span className="text-gray-600">last fired {new Date(a.last_triggered_at).toLocaleDateString()}</span>
-                )}
-                <button
-                  onClick={() => deleteMutation.mutate(a.id)}
-                  disabled={deleteMutation.isPending}
-                  className="text-gray-600 hover:text-red-400 transition-colors"
-                  title="Delete alert"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Create-alert form */}
+    <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+      <div className="text-xs font-semibold text-gray-600">Configure New Alert</div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <select
           value={alertType}
           onChange={e => setAlertType(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-2 focus:outline-none focus:border-indigo-500"
+          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500"
         >
           {Object.entries(ALERT_TYPE_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
@@ -124,32 +79,111 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
           value={threshold}
           onChange={e => setThreshold(e.target.value)}
           placeholder={alertType === "perception_score_below" ? "e.g. 40" : alertType === "negative_pct_above" ? "e.g. 50" : "e.g. 30"}
-          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-2 focus:outline-none focus:border-indigo-500 placeholder:text-gray-600"
+          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
         />
         <input
           type="email"
           value={notifyEmail}
           onChange={e => setNotifyEmail(e.target.value)}
           placeholder="notify@email.com"
-          className="bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-200 px-2 py-2 focus:outline-none focus:border-indigo-500 placeholder:text-gray-600"
+          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
         />
       </div>
-      {formError && <p className="text-xs text-red-400">{formError}</p>}
+      {formError && <p className="text-xs text-red-500">{formError}</p>}
       <button
         onClick={() => createMutation.mutate()}
         disabled={!canSubmit || createMutation.isPending}
-        className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-40 transition-colors"
+        className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-40 transition-colors"
       >
         {createMutation.isPending ? "Adding…" : "+ Add Alert"}
       </button>
-      <p className="text-xs text-gray-600">
-        Alerts fire once per 4 hours via Resend email. Requires RESEND_API_KEY to be set in Railway.
+      <p className="text-[10px] text-gray-400">
+        Alerts fire once per 4 hours via Resend email. Requires RESEND_API_KEY in Railway.
       </p>
     </div>
   );
 }
 
-export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
+function AlertsRiskCards({ brandId, isAdmin, userEmail }: { brandId: string; isAdmin: boolean; userEmail?: string }) {
+  const queryClient = useQueryClient();
+
+  const { data: alerts = [] } = useQuery<AlertConfig[]>({
+    queryKey: ["alerts", brandId],
+    queryFn: () => fetchAlerts(brandId),
+    staleTime: 60_000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (alertId: string) => deleteAlert(brandId, alertId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts", brandId] }),
+  });
+
+  const RISK_BORDER: Record<string, string> = {
+    perception_score_below: "border-l-red-500",
+    negative_pct_above:     "border-l-amber-500",
+    mention_spike:          "border-l-orange-400",
+  };
+  const RISK_BG: Record<string, string> = {
+    perception_score_below: "bg-red-50",
+    negative_pct_above:     "bg-amber-50",
+    mention_spike:          "bg-orange-50",
+  };
+  const RISK_BADGE: Record<string, { label: string; color: string }> = {
+    perception_score_below: { label: "High Risk",    color: "text-red-600 bg-red-100"    },
+    negative_pct_above:     { label: "Medium Risk",  color: "text-amber-600 bg-amber-100" },
+    mention_spike:          { label: "Medium Risk",  color: "text-orange-600 bg-orange-100" },
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-semibold text-gray-800">Alerts & Risks</div>
+        <button className="text-[11px] text-blue-600 hover:text-blue-700 font-medium">View All</button>
+      </div>
+
+      {alerts.length === 0 ? (
+        <div className="py-4 text-xs text-gray-400 text-center">
+          No active alerts configured.{isAdmin ? "" : " Ask an admin to add alerts."}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {alerts.map(a => {
+            const badge = RISK_BADGE[a.alert_type] ?? { label: "Alert", color: "text-gray-600 bg-gray-100" };
+            return (
+              <div
+                key={a.id}
+                className={`relative border border-l-4 border-gray-100 rounded-lg px-3 py-2.5 ${RISK_BORDER[a.alert_type] ?? "border-l-gray-400"} ${RISK_BG[a.alert_type] ?? "bg-gray-50"}`}
+              >
+                <button
+                  onClick={() => deleteMutation.mutate(a.id)}
+                  disabled={deleteMutation.isPending}
+                  className="absolute top-2 right-2 text-gray-300 hover:text-red-400 text-sm leading-none"
+                  title="Remove alert"
+                >×</button>
+                <span className={`inline-block text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mb-1.5 ${badge.color}`}>
+                  {badge.label}
+                </span>
+                <div className="text-xs text-gray-700">
+                  {ALERT_TYPE_LABELS[a.alert_type]} threshold: <span className="font-semibold">{a.threshold}</span>
+                </div>
+                <div className="text-[10px] text-gray-400 mt-0.5">{a.notify_email}</div>
+                {a.last_triggered_at && (
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Last fired: {new Date(a.last_triggered_at).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isAdmin && <AlertsSection brandId={brandId} userEmail={userEmail} />}
+    </div>
+  );
+}
+
+export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated }: Props) {
   const [mentionsSentimentFilter, setMentionsSentimentFilter] = useState("");
   const mentionsRef = useRef<HTMLDivElement>(null);
 
@@ -160,136 +194,124 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
       query.state.data?.pipeline_status === "running" ? 10_000 : 60_000,
   });
 
-  if (isLoading) return <div className="text-gray-400 p-8">Loading...</div>;
+  useEffect(() => {
+    if (data?.last_processed_at !== undefined) {
+      onLastUpdated?.(data.last_processed_at);
+    }
+  }, [data?.last_processed_at, onLastUpdated]);
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading…</div>
+  );
   if (error || !data || !data.kpi) return (
-    <div className="text-red-400 p-8">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>
+    <div className="text-red-500 p-8 text-sm">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>
   );
 
   const { kpi } = data;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-5 space-y-4 bg-gray-50 min-h-screen">
 
-      {/* Brand header */}
-      {brandName && (
+      {/* Page header */}
+      <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold text-gray-100">{brandName}</h2>
+          <h1 className="text-xl font-bold text-gray-900">Executive Overview</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Media sentiment report · last 7 days · Last updated {formatLastProcessed(data.last_processed_at)}
+            Real-time overview of brand sentiment across digital and news ecosystem
+            {data.last_processed_at && ` · Last updated ${formatLastProcessed(data.last_processed_at)}`}
           </p>
         </div>
-      )}
-
-      {/* Pipeline status banner */}
-      {data.pipeline_status === "running" && (
-        <div className="flex items-center gap-3 bg-indigo-950/60 border border-indigo-800/60 rounded-lg px-4 py-2.5 text-sm">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500" />
+        {data.pipeline_status === "running" && (
+          <span className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 shrink-0">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+            </span>
+            Pipeline running
           </span>
-          <span className="text-indigo-300 font-medium">Pipeline running</span>
-          <span className="text-indigo-500">— collecting and analysing new articles…</span>
-        </div>
-      )}
-      {data.pipeline_status === "idle" && data.pipeline_last_stats?.processed > 0 && (
-        <div className="flex items-center gap-3 bg-gray-900/40 border border-gray-800 rounded-lg px-4 py-2 text-xs text-gray-500">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-          Last run: collected {data.pipeline_last_stats.collected}, processed {data.pipeline_last_stats.processed}
-          {data.pipeline_last_stats.errors > 0 && (
-            <span className="text-amber-500">, {data.pipeline_last_stats.errors} errors</span>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* KPI row + Pie chart */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="flex flex-row sm:flex-col gap-4">
-          <div className="flex-1">
-            <KPICard
-              label="Perception Score"
-              value={kpi.perception_score.toFixed(1)}
-              color="purple"
-              sub={formatDelta(kpi.perception_score_delta, " pts")}
-            />
-          </div>
-          <div className="flex-1">
-            <KPICard
-              label="Total Mentions"
-              value={kpi.total}
-              color="blue"
-              sub={formatDelta(kpi.mentions_delta_pct, "%")}
-            />
-          </div>
-          {(kpi.youtube_mention_count ?? 0) > 0 && (
-            <div className="flex-1">
-              <KPICard
-                label="YouTube Mentions"
-                value={kpi.youtube_mention_count!}
-                color="red"
-              />
-            </div>
-          )}
+      {/* ── Row 1: 5 KPI Cards ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <KPICard
+          label="Total Mentions"
+          value={formatCount(kpi.total)}
+          delta={kpi.mentions_delta_pct}
+          deltaUnit="%"
+          sub="vs last period"
+          icon="📰"
+          accentColor="blue"
+        />
+        <KPICard
+          label="Positive Mentions"
+          value={formatCount(kpi.positive)}
+          pct={kpi.positive_pct}
+          icon="😊"
+          accentColor="green"
+        />
+        <KPICard
+          label="Neutral Mentions"
+          value={formatCount(kpi.neutral)}
+          pct={kpi.neutral_pct}
+          icon="😐"
+          accentColor="gray"
+        />
+        <KPICard
+          label="Negative Mentions"
+          value={formatCount(kpi.negative)}
+          pct={kpi.negative_pct}
+          icon="😟"
+          accentColor="red"
+        />
+        <KPICard
+          label="Reputation Index"
+          value={`${kpi.perception_score.toFixed(0)} / 100`}
+          delta={kpi.perception_score_delta}
+          deltaUnit=" pts"
+          icon="📊"
+          accentColor="purple"
+        />
+      </div>
+
+      {/* ── Row 2: Sentiment Trend | Mentions Donut | Top Headlines ──────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-5">
+          <SentimentTrendChart brandId={brandId} />
         </div>
-        <div className="sm:col-span-2">
-          <SentimentPieChart
-            positive={kpi.positive}
-            negative={kpi.negative}
-            neutral={kpi.neutral}
-            total={kpi.total}
+        <div className="xl:col-span-3">
+          <MentionsBySourceDonut brandId={brandId} />
+        </div>
+        <div className="xl:col-span-4">
+          <TopHeadlines
+            brandId={brandId}
+            onViewAll={(tab) => {
+              mentionsRef.current?.scrollIntoView({ behavior: "smooth" });
+              setMentionsSentimentFilter(tab === "trending" ? "" : tab);
+            }}
           />
         </div>
       </div>
 
-      {/* Phase 3: Charts row — Trend + Donut | Headlines */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2 flex flex-col gap-4">
-          <SentimentTrendChart brandId={brandId} />
-          <MentionsBySourceDonut brandId={brandId} />
-        </div>
-        <TopHeadlines
-          brandId={brandId}
-          onViewAll={(tab) => {
-            mentionsRef.current?.scrollIntoView({ behavior: "smooth" });
-            setMentionsSentimentFilter(tab === "trending" ? "" : tab);
-          }}
-        />
+      {/* ── Row 3: Review Sites | Top Issues | Sentiment by Source ────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <ReviewSitesSummary brandId={brandId} />
+        <TopIssuesTable brandId={brandId} />
+        <SentimentBySourceTable brandId={brandId} />
       </div>
 
-      {/* Top Sources */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-        <div className="text-sm font-semibold text-gray-200 mb-3">Top Sources</div>
-        <div className="space-y-2">
-          {data.top_sources.map(s => (
-            <div key={s.portal_id}>
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span className="truncate max-w-[140px]">{s.portal_id.replace(/_/g, " ")}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[10px] font-mono px-1 rounded ${
-                    s.avg_credibility >= 0.85
-                      ? "bg-green-900/40 text-green-400"
-                      : s.avg_credibility >= 0.75
-                      ? "bg-yellow-900/40 text-yellow-400"
-                      : "bg-gray-800 text-gray-500"
-                  }`}>
-                    {s.avg_credibility.toFixed(2)}
-                  </span>
-                  <span>{s.count}</span>
-                </div>
-              </div>
-              <div className="bg-gray-800 rounded h-1.5">
-                <div className="bg-indigo-500 h-full rounded"
-                     style={{ width: `${Math.min(100, (s.count / (kpi.total || 1)) * 100)}%` }} />
-              </div>
-            </div>
-          ))}
+      {/* ── Row 4: Competitor SoV | Alerts & Risks ────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <CompetitorShareOfVoice brandName={brandName} />
+        <div className="lg:col-span-2">
+          <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} />
         </div>
       </div>
 
-      {/* India state choropleth */}
+      {/* ── India state map ────────────────────────────────────────────────── */}
       <IndiaStateMap
         data={data.state_breakdown}
         onStateClick={(state) => {
-          // scroll to mentions and pre-filter by state — achieved via URL param
           const url = new URL(window.location.href);
           url.searchParams.set("state", state);
           window.history.pushState({}, "", url.toString());
@@ -297,7 +319,59 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
         }}
       />
 
-      {/* Mentions table — ref for "View All" scroll target */}
+      {/* ── Top Sources ────────────────────────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="text-sm font-semibold text-gray-800 mb-3">Top Sources</div>
+        <div className="space-y-2">
+          {data.top_sources.map(s => (
+            <div key={s.portal_id}>
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span className="truncate max-w-[140px]">{s.portal_id.replace(/_/g, " ")}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[10px] font-mono px-1 rounded ${
+                    s.avg_credibility >= 0.85 ? "bg-green-50 text-green-600" :
+                    s.avg_credibility >= 0.75 ? "bg-yellow-50 text-yellow-600" :
+                    "bg-gray-100 text-gray-500"
+                  }`}>
+                    {s.avg_credibility.toFixed(2)}
+                  </span>
+                  <span>{s.count}</span>
+                </div>
+              </div>
+              <div className="bg-gray-100 rounded h-1.5">
+                <div className="bg-blue-500 h-full rounded"
+                     style={{ width: `${Math.min(100, (s.count / (kpi.total || 1)) * 100)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Topics + Keywords ──────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <div className="text-sm font-semibold text-gray-800 mb-3">Topics</div>
+          <div className="flex flex-wrap gap-2">
+            {data.top_topics.map(t => (
+              <span key={t} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full border border-blue-100">
+                {t.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          <div className="text-sm font-semibold text-gray-800 mb-3">Keywords</div>
+          <div className="flex flex-wrap gap-2">
+            {data.top_keywords.map(k => (
+              <span key={k} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                {k}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mentions table ─────────────────────────────────────────────────── */}
       <div ref={mentionsRef}>
         <MentionsList
           brandId={brandId}
@@ -310,33 +384,6 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
           syncUrl
         />
       </div>
-
-      {/* Topics + Keywords */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <div className="text-sm font-semibold text-gray-200 mb-3">Topics</div>
-          <div className="flex flex-wrap gap-2">
-            {data.top_topics.map(t => (
-              <span key={t} className="bg-blue-900/30 text-blue-300 text-xs px-2 py-1 rounded-full border border-blue-800">
-                {t.replace(/_/g, " ")}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <div className="text-sm font-semibold text-gray-200 mb-3">Keywords</div>
-          <div className="flex flex-wrap gap-2">
-            {data.top_keywords.map(k => (
-              <span key={k} className="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded-full">
-                {k}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Alerts — only shown to admins */}
-      {isAdmin && <AlertsSection brandId={brandId} userEmail={userEmail} />}
 
     </div>
   );
