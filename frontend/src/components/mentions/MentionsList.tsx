@@ -112,16 +112,6 @@ export function MentionsList({
     return () => clearTimeout(id);
   }, [qDraft]);
 
-  // Track how many pages we know exist (grows as user navigates forward)
-  useEffect(() => {
-    if (isLoading) return;
-    if (articles.length === PAGE_SIZE) {
-      setMaxKnownPage(p => Math.max(p, page + 1));
-    } else {
-      setMaxKnownPage(p => Math.max(p, page));
-    }
-  }, [articles, isLoading, page]);
-
   // Reset discovered page range when filters change
   useEffect(() => {
     setMaxKnownPage(0);
@@ -154,6 +144,17 @@ export function MentionsList({
   });
 
   const hasFilters = !!(sentiment || language || sourceType || portalId || topic || state || dateFrom || dateTo || q);
+
+  // Track how many pages we know exist (grows as user navigates forward)
+  // Must be after useQuery so articles/isLoading are in scope
+  useEffect(() => {
+    if (isLoading) return;
+    if (articles.length === PAGE_SIZE) {
+      setMaxKnownPage(p => Math.max(p, page + 1));
+    } else {
+      setMaxKnownPage(p => Math.max(p, page));
+    }
+  }, [articles, isLoading, page]);
 
   function toggleSelect(id: string) {
     setSelected(prev => {
