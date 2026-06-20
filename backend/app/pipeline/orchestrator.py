@@ -2,7 +2,7 @@ import logging
 from app.ingestion.portals import get_portals_for_languages
 from app.ingestion.gnews import get_gnews_portals
 from app.ingestion.rss_collector import collect_portal
-from app.ingestion.deduplication import filter_new_articles, mark_article_seen
+from app.ingestion.deduplication import filter_new_articles, mark_article_seen, filter_syndicated
 from app.ingestion.youtube_collector import collect_youtube_for_brand
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
@@ -47,6 +47,12 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         # This is the learning loop: user deletions feed article_rejections table and
         # new pipeline runs respect that knowledge before spending NLP quota.
         _new = [a for a in _new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+        # A1: Story-level syndication dedup — wire-service articles republished
+        # across N portals are collapsed to one before NLP runs. The others get
+        # their syndication_count incremented in the DB instead.
+        _new, syndicated_count = filter_syndicated(_new, brand_id)
+        if syndicated_count:
+            log.info("Brand %s: %d syndicated stories collapsed", brand_id[:8], syndicated_count)
         # Cap 20 articles per language to stay within Gemini/Groq free-tier daily
         # quotas. Only process languages the brand is configured for.
         per_lang: dict[str, list] = {}

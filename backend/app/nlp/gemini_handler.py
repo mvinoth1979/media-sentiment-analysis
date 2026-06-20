@@ -7,6 +7,7 @@ from app.nlp.schemas import NLPResult
 
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
+_VALID_TONES  = {"factual", "positive_frame", "negative_frame", "critical"}
 
 _INDIAN_STATES = (
     "Andhra Pradesh, Arunachal Pradesh, Assam, Bihar, Chhattisgarh, Goa, Gujarat, "
@@ -33,6 +34,20 @@ def _parse_label(label: str) -> str:
     return normalized if normalized in _VALID_LABELS else "neutral"
 
 
+def _parse_tone(tone: str) -> str:
+    normalized = tone.lower().strip().replace(" ", "_")
+    return normalized if normalized in _VALID_TONES else "factual"
+
+
+def _clip(v) -> float | None:
+    if v is None:
+        return None
+    try:
+        return max(-1.0, min(1.0, float(v)))
+    except (TypeError, ValueError):
+        return None
+
+
 _SOURCE_CONTEXT = {
     "news": (
         "This is a news article. Use journalistic framing to assess brand sentiment. "
@@ -50,7 +65,33 @@ _SOURCE_CONTEXT = {
     ),
 }
 
-_PROMPT = """Analyse the sentiment of the following text for the brand/product mentions it contains.
+# Used when title and body are available separately (news articles — A2)
+_PROMPT_NEWS = """Analyse sentiment of this news content for brand/product mentions.
+
+Source context: {source_context}
+
+HEADLINE: {title}
+
+BODY: {body}
+
+Return ONLY valid JSON with this exact schema:
+{{
+  "sentiment_score": <float -1.0 to +1.0, overall body-weighted score>,
+  "headline_sentiment_score": <float -1.0 to +1.0, headline only>,
+  "body_sentiment_score": <float -1.0 to +1.0, body/summary only>,
+  "sentiment_label": <"positive" | "negative" | "neutral">,
+  "editorial_tone": <"factual" | "positive_frame" | "negative_frame" | "critical">,
+  "entities": [<named entities: brands, people, locations, products>],
+  "topics": [<from: product_quality, pricing, customer_service, leadership, campaign, legal, expansion, financial, other>],
+  "keywords": [<up to 8 significant keywords>],
+  "states_mentioned": [<Indian states/UTs from: {states}. Empty list if none.>],
+  "confidence": <float 0.0 to 1.0>
+}}
+
+Language: {language}"""
+
+# Used for YouTube and any source where headline/body are not separated
+_PROMPT_COMBINED = """Analyse the sentiment of the following text for the brand/product mentions it contains.
 
 Source context: {source_context}
 
@@ -114,18 +155,40 @@ def discover_competitors(brand_name: str, keywords: list[str], entities: list[st
     return []
 
 
-def analyse_with_gemini(text: str, language: str,
-                        source_type: str = "news") -> tuple[NLPResult | None, bool]:
-    """Returns (result, was_rate_limited). was_rate_limited is True only if every
-    attempt failed due to a 429/rate-limit response, so callers can distinguish
-    quota exhaustion from genuine parsing/content failures."""
+def analyse_with_gemini(
+    text: str,
+    language: str,
+    source_type: str = "news",
+    *,
+    title: str = "",
+    body: str = "",
+) -> tuple[NLPResult | None, bool]:
+    """Returns (result, was_rate_limited).
+
+    When `title` and `body` are both supplied (news articles), uses the
+    structured HEADLINE/BODY prompt that returns separate sentiment scores
+    and editorial tone (A2 + B1). Falls back to combined-text prompt for
+    YouTube and any source where body is not available separately.
+    """
     context = _SOURCE_CONTEXT.get(source_type, _SOURCE_CONTEXT["news"])
-    prompt = _PROMPT.format(
-        source_context=context,
-        states=_INDIAN_STATES,
-        language=language,
-        text=text[:3000],
-    )
+    use_structured = bool(title and body and source_type == "news")
+
+    if use_structured:
+        prompt = _PROMPT_NEWS.format(
+            source_context=context,
+            title=title[:400],
+            body=body[:2600],
+            states=_INDIAN_STATES,
+            language=language,
+        )
+    else:
+        prompt = _PROMPT_COMBINED.format(
+            source_context=context,
+            states=_INDIAN_STATES,
+            language=language,
+            text=text[:3000],
+        )
+
     rate_limited = False
     for attempt in range(3):
         try:
@@ -135,6 +198,10 @@ def analyse_with_gemini(text: str, language: str,
             )
             raw = _strip_fences(response.text.strip())
             data = json.loads(raw)
+
+            hs = _clip(data.get("headline_sentiment_score")) if use_structured else None
+            bs = _clip(data.get("body_sentiment_score")) if use_structured else None
+
             return NLPResult(
                 sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
                 sentiment_label=_parse_label(data["sentiment_label"]),
@@ -144,6 +211,9 @@ def analyse_with_gemini(text: str, language: str,
                 states_mentioned=data.get("states_mentioned", []),
                 model_used="gemini-2.0-flash",
                 confidence=float(data.get("confidence", 0.0)),
+                headline_sentiment_score=hs,
+                body_sentiment_score=bs,
+                editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
             ), False
         except Exception as e:
             if "429" in str(e) or "rate" in str(e).lower():

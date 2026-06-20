@@ -16,8 +16,11 @@ def analyse_article(article: dict) -> NLPResult | None:
         return None
 
     acquire_nlp_slot()
-    text = f"{article.get('title', '')} {article.get('body', '')}".strip()
-    source_type = article.get("source_type") or "news"
+
+    title = article.get("title", "") or ""
+    body  = article.get("body",  "") or ""
+    text  = f"{title} {body}".strip()
+    source_type   = article.get("source_type") or "news"
     declared_lang = article.get("language", "")
 
     # Very short comments with ambiguous content default to neutral rather than
@@ -37,12 +40,18 @@ def analyse_article(article: dict) -> NLPResult | None:
     if language not in SUPPORTED_LANGUAGES:
         language = "en"
 
-    result, gemini_limited = analyse_with_gemini(text, language, source_type)
+    # Pass title and body separately for news so both handlers can return
+    # headline_sentiment_score, body_sentiment_score, and editorial_tone (A2 + B1).
+    result, gemini_limited = analyse_with_gemini(
+        text, language, source_type, title=title, body=body
+    )
     if result is not None:
         result.source_type = source_type
         return result
 
-    result, groq_limited = analyse_with_groq(text, language, source_type)
+    result, groq_limited = analyse_with_groq(
+        text, language, source_type, title=title, body=body
+    )
     if result is None and gemini_limited and groq_limited:
         log.warning("Both Gemini and Groq rate-limited — opening NLP circuit breaker for %ds",
                      COOLDOWN_SECONDS)
