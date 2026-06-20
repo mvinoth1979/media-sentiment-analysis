@@ -26,6 +26,8 @@ export function BrandSetup({ onSuccess, onClose }: Props) {
   const [youtubeEnabled, setYoutubeEnabled] = useState(false);
   const [channelInput, setChannelInput]     = useState("");
   const [channelIds, setChannelIds]         = useState<string[]>([]);
+  const [redditEnabled, setRedditEnabled]   = useState(false);
+  const [subredditsText, setSubredditsText] = useState("");
   const [error, setError]             = useState("");
 
   const queryClient = useQueryClient();
@@ -37,6 +39,11 @@ export function BrandSetup({ onSuccess, onClose }: Props) {
       languages,
       youtube_enabled: youtubeEnabled,
       youtube_channel_ids: channelIds,
+      reddit_enabled: redditEnabled,
+      reddit_subreddits: subredditsText
+        .split("\n")
+        .map(s => s.trim().replace(/^r\//, ""))
+        .filter(Boolean),
     }),
     onSuccess: (brand) => {
       queryClient.invalidateQueries({ queryKey: ["brands"] });
@@ -67,7 +74,7 @@ export function BrandSetup({ onSuccess, onClose }: Props) {
     1: "Brand name",
     2: "Keywords",
     3: "Languages",
-    4: "YouTube",
+    4: "External Channels",
   };
 
   return (
@@ -265,6 +272,56 @@ export function BrandSetup({ onSuccess, onClose }: Props) {
                 </p>
               </div>
             )}
+
+            {/* Divider */}
+            <div className="border-t border-gray-700 pt-3">
+              {/* Reddit toggle */}
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-700 hover:border-gray-600 cursor-pointer transition-colors">
+                <div className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
+                  redditEnabled ? "bg-orange-600" : "bg-gray-700"
+                }`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    redditEnabled ? "translate-x-5" : "translate-x-0.5"
+                  }`} />
+                  <input
+                    type="checkbox"
+                    checked={redditEnabled}
+                    onChange={e => setRedditEnabled(e.target.checked)}
+                    className="sr-only"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 text-sm text-gray-200">
+                    <span className="text-[11px] px-1.5 py-0.5 bg-orange-600 text-white rounded font-bold">r/</span>
+                    Monitor Reddit
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Collect posts and comments from subreddits mentioning this brand
+                  </p>
+                </div>
+              </label>
+
+              {/* Subreddits — only shown when Reddit is enabled */}
+              {redditEnabled && (
+                <div className="space-y-2 pl-1 mt-3">
+                  <label className="block text-xs text-gray-400">
+                    Subreddits to monitor{" "}
+                    <span className="text-gray-600 font-normal">(one per line, without r/)</span>
+                  </label>
+                  <textarea
+                    autoFocus
+                    rows={4}
+                    value={subredditsText}
+                    onChange={e => setSubredditsText(e.target.value)}
+                    placeholder={"india\nIndianStockMarket\nindiabusiness"}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 px-3 py-2 focus:outline-none focus:border-orange-500 placeholder:text-gray-600 font-mono text-xs resize-none"
+                  />
+                  <p className="text-[10px] text-gray-600">
+                    Add subreddits where your audience discusses brands in your category
+                  </p>
+                </div>
+              )}
+            </div>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
 

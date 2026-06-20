@@ -44,6 +44,8 @@ const SOURCE_TYPE_FILTERS = [
   { label: "News", value: "news" },
   { label: "YT Videos", value: "youtube_video" },
   { label: "YT Comments", value: "youtube_comment" },
+  { label: "Reddit Posts", value: "reddit_post" },
+  { label: "Reddit Comments", value: "reddit_comment" },
 ];
 
 const TONE_FILTERS = [
@@ -458,10 +460,13 @@ export function MentionsList({
                     )}
                   </td>
 
-                  {/* Source — YouTube icon prefix for youtube_ portal_ids */}
+                  {/* Source — platform icon/badge prefix */}
                   <td className="py-2 pr-3 text-gray-400 truncate max-w-[80px] sm:max-w-[96px]">
                     {a.source_type?.startsWith("youtube_") && (
                       <YouTubeIcon className="inline w-3 h-3 mr-0.5 mb-0.5" />
+                    )}
+                    {a.source_type?.startsWith("reddit_") && (
+                      <span className="inline-block text-[9px] px-1 py-0.5 bg-orange-50 text-orange-600 border border-orange-200 rounded mr-1 leading-none align-middle">r/</span>
                     )}
                     {a.portal_id.replace(/_/g, " ")}
                   </td>

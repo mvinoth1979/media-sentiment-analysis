@@ -23,9 +23,9 @@ def analyse_article(article: dict) -> NLPResult | None:
     source_type   = article.get("source_type") or "news"
     declared_lang = article.get("language", "")
 
-    # Very short comments with ambiguous content default to neutral rather than
+    # Very short comments (YouTube or Reddit) default to neutral rather than
     # burning an NLP call that will return a low-confidence guess anyway.
-    if source_type == "youtube_comment" and len(text.split()) < 4:
+    if source_type in ("youtube_comment", "reddit_comment") and len(text.split()) < 4:
         return NLPResult(
             sentiment_score=0.0,
             sentiment_label="neutral",

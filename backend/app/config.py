@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     youtube_api_key: str = ""
 
+    reddit_client_id: str = ""
+    reddit_client_secret: str = ""
+    reddit_user_agent: str = "MediaSense:v1.0"
+
     secret_key: str = ""
     environment: str = "development"
     disable_scheduler: bool = False

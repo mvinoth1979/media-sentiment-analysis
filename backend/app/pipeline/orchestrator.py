@@ -4,6 +4,7 @@ from app.ingestion.gnews import get_gnews_portals
 from app.ingestion.rss_collector import collect_portal
 from app.ingestion.deduplication import filter_new_articles, mark_article_seen, filter_syndicated
 from app.ingestion.youtube_collector import collect_youtube_for_brand
+from app.ingestion.reddit_collector import collect_reddit_for_brand
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article, update_pipeline_status, decrement_bootstrap_runs
@@ -78,6 +79,20 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
                 stats["collected"] += len(yt_raw)
             except Exception as e:
                 log.error("YouTube collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+
+        # Reddit collection — sub-cap (10 posts + 50 comments) so it cannot crowd out news.
+        # Only runs when brand_config.reddit_enabled = True and credentials are set.
+        if config.get("reddit_enabled", False):
+            try:
+                reddit_raw = collect_reddit_for_brand(brand, config)
+                reddit_new = filter_new_articles(reddit_raw, brand_id)
+                reddit_new = [a for a in reddit_new
+                              if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(reddit_new)
+                stats["collected"] += len(reddit_raw)
+            except Exception as e:
+                log.error("Reddit collection failed for brand %s: %s", brand_id[:8], e)
                 stats["errors"] += 1
 
         if not new_articles:

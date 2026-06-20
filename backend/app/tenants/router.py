@@ -15,6 +15,8 @@ class BrandConfigUpdate(BaseModel):
     portal_ids: list[str] | None = None
     youtube_enabled: bool | None = None
     youtube_channel_ids: list[str] | None = None
+    reddit_enabled: bool | None = None
+    reddit_subreddits: list[str] | None = None
 
 
 @router.get("/me")
@@ -57,6 +59,8 @@ class BrandCreate(BaseModel):
     languages: list[str] = ["en"]
     youtube_enabled: bool = False
     youtube_channel_ids: list[str] = []
+    reddit_enabled: bool = False
+    reddit_subreddits: list[str] = []
 
 
 @router.post("/brands", status_code=201)
@@ -79,8 +83,10 @@ def create_brand(
         "brand_id":           brand["id"],
         "keywords":           payload.keywords,
         "languages":          payload.languages,
-        "youtube_enabled":    payload.youtube_enabled,
+        "youtube_enabled":     payload.youtube_enabled,
         "youtube_channel_ids": payload.youtube_channel_ids,
+        "reddit_enabled":      payload.reddit_enabled,
+        "reddit_subreddits":   payload.reddit_subreddits,
     }).execute()
     return brand
 

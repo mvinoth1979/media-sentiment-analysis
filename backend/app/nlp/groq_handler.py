@@ -60,6 +60,14 @@ _SOURCE_CONTEXT = {
         "Short YouTube comment — emojis signal sentiment (😤😡=negative, 😊❤️=positive), "
         "slang/Hinglish is intentional, states_mentioned usually empty."
     ),
+    "reddit_post": (
+        "Reddit post from an Indian subreddit — upvotes signal community agreement; "
+        "extract brand sentiment from community reaction, not just post author."
+    ),
+    "reddit_comment": (
+        "Short Reddit comment — sarcasm/irony common; Hinglish intentional; "
+        "states_mentioned usually empty; weight tone heavily."
+    ),
 }
 
 _SYSTEM = (

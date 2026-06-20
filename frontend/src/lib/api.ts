@@ -94,11 +94,15 @@ export const createBrand = (payload: {
   languages: string[];
   youtube_enabled?: boolean;
   youtube_channel_ids?: string[];
+  reddit_enabled?: boolean;
+  reddit_subreddits?: string[];
 }) => api.post<{ id: string; name: string }>("/tenants/brands", payload).then(r => r.data);
 
 export const updateBrandConfig = (brandId: string, payload: {
   youtube_enabled?: boolean;
   youtube_channel_ids?: string[];
+  reddit_enabled?: boolean;
+  reddit_subreddits?: string[];
   keywords?: string[];
   languages?: string[];
 }) => api.put(`/tenants/brands/${brandId}/config`, payload).then(r => r.data);

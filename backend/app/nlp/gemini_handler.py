@@ -63,6 +63,16 @@ _SOURCE_CONTEXT = {
         "Slang and mixed languages (Hinglish, Tanglish) are intentional — focus on emotional tone. "
         "states_mentioned will almost always be empty. Confidence should reflect text brevity."
     ),
+    "reddit_post": (
+        "This is a Reddit post from an Indian subreddit. Upvotes signal community agreement. "
+        "Extract brand sentiment from the community reaction, not just the post author's framing. "
+        "Posts can be long-form discussions — weigh the overall narrative."
+    ),
+    "reddit_comment": (
+        "This is a short Reddit comment. Sarcasm and irony are common on Reddit — read carefully. "
+        "Emojis and Hinglish are intentional; states_mentioned is usually empty. "
+        "Confidence should reflect text brevity."
+    ),
 }
 
 # Used when title and body are available separately (news articles — A2)

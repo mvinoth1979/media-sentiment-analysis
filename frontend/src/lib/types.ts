@@ -8,6 +8,7 @@ export interface KPISummary {
   negative_pct: number;
   neutral_pct: number;
   youtube_mention_count?: number;
+  reddit_mention_count?: number;
   perception_score_delta: number | null;
   mentions_delta_pct: number | null;
 }
