@@ -71,9 +71,9 @@ function SentimentTooltip({ active, payload, label }: CustomTooltipProps) {
     <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-md">
       <div className="text-gray-500 mb-1">{label}</div>
       <div className="text-blue-600 text-[10px] mb-1.5 font-medium">{text}</div>
-      <div className="text-green-600">+{pos} positive</div>
+      <div className="text-indigo-600">+{pos} positive</div>
       <div className="text-red-500">−{neg} negative</div>
-      <div className="text-gray-500">~{neu} neutral</div>
+      <div className="text-amber-500">~{neu} neutral</div>
     </div>
   );
 }
@@ -198,16 +198,16 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
           <AreaChart data={chartData} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.45} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0.05} />
               </linearGradient>
               <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
               </linearGradient>
               <linearGradient id="gradNeu" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
               </linearGradient>
             </defs>
             <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} />
@@ -215,17 +215,17 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
             <Tooltip content={<SentimentTooltip />} />
             <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8, color: "#6b7280" }} />
 
-            {/* Area fills — all sources */}
-            <Area type="monotone" dataKey="positive" stroke="#22c55e" strokeWidth={2} fill="url(#gradPos)" dot={false} name="Positive" />
+            {/* Area fills — all sources (indigo=positive, amber=neutral, red=negative) */}
+            <Area type="monotone" dataKey="positive" stroke="#6366f1" strokeWidth={2} fill="url(#gradPos)" dot={false} name="Positive" />
+            <Area type="monotone" dataKey="neutral"  stroke="#f59e0b" strokeWidth={2} fill="url(#gradNeu)" dot={false} name="Neutral"  />
             <Area type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={2} fill="url(#gradNeg)" dot={false} name="Negative" />
-            <Area type="monotone" dataKey="neutral"  stroke="#94a3b8" strokeWidth={2} fill="url(#gradNeu)" dot={false} name="Neutral"  />
 
-            {/* Dashed Tier 1+2 overlay — merged into main dataset, no separate x-axis */}
+            {/* Dashed Tier 1+2 overlay */}
             {showTier1 && (
               <>
-                <Area type="monotone" dataKey="t1_positive" stroke="#22c55e" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
+                <Area type="monotone" dataKey="t1_positive" stroke="#6366f1" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
+                <Area type="monotone" dataKey="t1_neutral"  stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
                 <Area type="monotone" dataKey="t1_negative" stroke="#ef4444" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
-                <Area type="monotone" dataKey="t1_neutral"  stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} legendType="none" connectNulls />
               </>
             )}
 
