@@ -306,3 +306,30 @@ export interface DivergenceSummaryData {
   articles: DivergentArticleItem[];
   period_days: number;
 }
+
+// ── YouTube Creator vs Audience Sentiment Split ───────────────────────────────
+
+export interface YTSentimentBucket {
+  positive: number;
+  neutral: number;
+  negative: number;
+  total: number;
+  avg_score: number;
+}
+
+export interface YTDivergentVideo {
+  title: string;
+  url: string;
+  portal_name: string;
+  creator_label: string;
+  audience_label: string;
+  comment_count: number;
+}
+
+export interface YTSentimentSplitData {
+  creator: YTSentimentBucket;
+  audience: YTSentimentBucket;
+  divergent_videos: YTDivergentVideo[];
+  period_days: number;
+  brand_id: string;
+}

@@ -12,6 +12,7 @@ import { TopIssuesTable } from "../components/TopIssuesTable";
 import { ReviewSitesSummary } from "../components/ReviewSitesSummary";
 import { CompetitorShareOfVoice } from "../components/CompetitorShareOfVoice";
 import { EditorialToneChart } from "../components/EditorialToneChart";
+import { YouTubeSentimentSplit } from "../components/YouTubeSentimentSplit";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { formatCount } from "../lib/utils";
 
@@ -326,6 +327,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <div className="space-y-4 max-w-3xl">
               <SentimentTrendChart brandId={brandId} />
               <EditorialToneChart brandId={brandId} />
+              <YouTubeSentimentSplit brandId={brandId} />
               {/* Divergent Headlines */}
               <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                 <button

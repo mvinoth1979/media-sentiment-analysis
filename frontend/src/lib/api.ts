@@ -192,4 +192,9 @@ export const fetchDivergenceSummary = (brandId: string, days = 14) =>
     .get<import("./types").DivergenceSummaryData>(`/dashboard/divergence-summary/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export const fetchYTSentimentSplit = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").YTSentimentSplitData>(`/dashboard/youtube-sentiment-split/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export default api;

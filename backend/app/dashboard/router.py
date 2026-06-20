@@ -30,6 +30,7 @@ from app.dashboard.schemas import (
     ToneWeek, ToneBreakdownResponse,
     DivergentArticle, DivergenceSummaryResponse,
     JournalistArticle, JournalistProfile, JournalistCoverageResponse,
+    YTSentimentBucket, YTDivergentVideo, YTSentimentSplitResponse,
 )
 
 router = APIRouter()
@@ -1053,6 +1054,79 @@ def get_journalist_coverage(
     profiles.sort(key=lambda p: p.negative_count, reverse=True)
     return JournalistCoverageResponse(
         journalists=profiles[:20],
+        period_days=days,
+        brand_id=brand_id,
+    )
+
+
+# ── YouTube Creator vs Audience Sentiment Split ───────────────────────────────
+
+@router.get("/youtube-sentiment-split/{brand_id}", response_model=YTSentimentSplitResponse)
+def get_youtube_sentiment_split(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    db = get_db()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    rows = (
+        db.table("articles")
+        .select("title, url, portal_id, portal_name, sentiment_label, sentiment_score, source_type")
+        .eq("brand_id", brand_id)
+        .in_("source_type", ["youtube_video", "youtube_comment"])
+        .gte("collected_at", cutoff)
+        .execute()
+        .data
+    ) or []
+
+    videos   = [r for r in rows if r.get("source_type") == "youtube_video"]
+    comments = [r for r in rows if r.get("source_type") == "youtube_comment"]
+
+    def _bucket(items: list[dict]) -> YTSentimentBucket:
+        pos = sum(1 for r in items if r.get("sentiment_label") == "positive")
+        neg = sum(1 for r in items if r.get("sentiment_label") == "negative")
+        neu = sum(1 for r in items if r.get("sentiment_label") == "neutral")
+        total = len(items) or 1
+        avg = sum(float(r.get("sentiment_score") or 0) for r in items) / total
+        return YTSentimentBucket(positive=pos, neutral=neu, negative=neg,
+                                  total=len(items), avg_score=round(avg, 3))
+
+    creator_bucket  = _bucket(videos)
+    audience_bucket = _bucket(comments)
+
+    # Group comments by portal_id to find divergent videos
+    from collections import defaultdict
+    comments_by_portal: dict[str, list[str]] = defaultdict(list)
+    for c in comments:
+        pid = c.get("portal_id") or ""
+        if pid:
+            comments_by_portal[pid].append(c.get("sentiment_label", "neutral"))
+
+    divergent: list[YTDivergentVideo] = []
+    for v in videos:
+        pid = v.get("portal_id") or ""
+        comment_labels = comments_by_portal.get(pid, [])
+        if not comment_labels:
+            continue
+        audience_majority = Counter(comment_labels).most_common(1)[0][0]
+        creator_label = v.get("sentiment_label", "neutral")
+        if creator_label != audience_majority:
+            divergent.append(YTDivergentVideo(
+                title=v.get("title", "")[:120],
+                url=v.get("url", ""),
+                portal_name=v.get("portal_name", ""),
+                creator_label=creator_label,
+                audience_label=audience_majority,
+                comment_count=len(comment_labels),
+            ))
+
+    divergent.sort(key=lambda d: d.comment_count, reverse=True)
+
+    return YTSentimentSplitResponse(
+        creator=creator_bucket,
+        audience=audience_bucket,
+        divergent_videos=divergent[:5],
         period_days=days,
         brand_id=brand_id,
     )

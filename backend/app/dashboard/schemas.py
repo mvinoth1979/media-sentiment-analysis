@@ -312,3 +312,30 @@ class DivergenceSummaryResponse(BaseModel):
     divergent_pct: float
     articles: list[DivergentArticle]
     period_days: int
+
+
+# ── YouTube Creator vs Audience Sentiment Split ───────────────────────────────
+
+class YTSentimentBucket(BaseModel):
+    positive: int
+    neutral: int
+    negative: int
+    total: int
+    avg_score: float
+
+
+class YTDivergentVideo(BaseModel):
+    title: str
+    url: str
+    portal_name: str
+    creator_label: str
+    audience_label: str
+    comment_count: int
+
+
+class YTSentimentSplitResponse(BaseModel):
+    creator: YTSentimentBucket
+    audience: YTSentimentBucket
+    divergent_videos: list[YTDivergentVideo]
+    period_days: int
+    brand_id: str
