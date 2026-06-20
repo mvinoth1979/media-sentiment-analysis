@@ -20,19 +20,32 @@ interface ChartPoint {
   positive: number;
   negative: number;
   neutral: number;
+  t1_positive?: number;
+  t1_negative?: number;
+  t1_neutral?: number;
 }
 
-function formatChartData(points: SentimentTrendPoint[], window: "1d" | "1h"): ChartPoint[] {
-  return points.map(p => ({
-    date:
-      window === "1d"
-        ? new Date(p.time).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-        : new Date(p.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-    _iso: p.time.slice(0, 10),
-    positive: p.positive,
-    negative: p.negative,
-    neutral:  p.neutral,
-  }));
+function formatChartData(
+  points: SentimentTrendPoint[],
+  window: "1d" | "1h",
+  tier1Points?: SentimentTrendPoint[],
+): ChartPoint[] {
+  const t1Map = new Map((tier1Points ?? []).map(p => [p.time.slice(0, 10), p]));
+  return points.map(p => {
+    const iso = p.time.slice(0, 10);
+    const t1 = t1Map.get(iso);
+    return {
+      date:
+        window === "1d"
+          ? new Date(p.time).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+          : new Date(p.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      _iso: iso,
+      positive: p.positive,
+      negative: p.negative,
+      neutral:  p.neutral,
+      ...(t1 ? { t1_positive: t1.positive, t1_negative: t1.negative, t1_neutral: t1.neutral } : {}),
+    };
+  });
 }
 
 interface TooltipEntry { dataKey: string; value: number; }
@@ -98,9 +111,8 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
 
   // ── Chart data ────────────────────────────────────────────────────────────
   const window_ = trendData?.window ?? "1d";
-  const chartData: ChartPoint[] = trendData ? formatChartData(trendData.points, window_) : [];
-  const tier1Data: ChartPoint[] = trendData?.points_tier1?.length
-    ? formatChartData(trendData.points_tier1, window_)
+  const chartData: ChartPoint[] = trendData
+    ? formatChartData(trendData.points, window_, trendData.points_tier1)
     : [];
   const chartDates = new Set(chartData.map(p => p._iso));
 
@@ -194,15 +206,15 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
             <Line type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={2} dot={false} name="Negative" />
             <Line type="monotone" dataKey="neutral"  stroke="#eab308" strokeWidth={2} dot={false} name="Neutral"  />
 
-            {/* Dashed Tier 1+2 overlay — only when toggle is on */}
-            {showTier1 && tier1Data.length > 0 && (
+            {/* Dashed Tier 1+2 overlay — merged into main dataset, no separate x-axis */}
+            {showTier1 && (
               <>
-                <Line type="monotone" data={tier1Data} dataKey="positive" stroke="#22c55e"
-                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" />
-                <Line type="monotone" data={tier1Data} dataKey="negative" stroke="#ef4444"
-                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" />
-                <Line type="monotone" data={tier1Data} dataKey="neutral"  stroke="#eab308"
-                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" />
+                <Line type="monotone" dataKey="t1_positive" stroke="#22c55e"
+                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" connectNulls />
+                <Line type="monotone" dataKey="t1_negative" stroke="#ef4444"
+                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" connectNulls />
+                <Line type="monotone" dataKey="t1_neutral"  stroke="#eab308"
+                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" connectNulls />
               </>
             )}
 
