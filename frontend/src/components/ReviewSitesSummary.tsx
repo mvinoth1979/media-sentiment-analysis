@@ -1,5 +1,7 @@
 interface Props {
   brandId: string;
+  compact?: boolean;
+  onClick?: () => void;
 }
 
 function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
@@ -42,9 +44,39 @@ const NEG_THEMES = [
   { label: "Administrative Issues", pct: 10 },
 ];
 
-export function ReviewSitesSummary({ brandId: _ }: Props) {
+export function ReviewSitesSummary({ brandId: _, compact, onClick }: Props) {
+  const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
+
+  if (compact) {
+    return (
+      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
+        <div className="flex items-center justify-between mb-1 flex-none">
+          <span className="text-[11px] font-semibold text-gray-800">Review Sites</span>
+          <div className="flex items-center gap-1">
+            <span className="text-base font-bold text-gray-900">4.1</span>
+            <span className="text-[10px] text-gray-400">/5</span>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 space-y-0.5 overflow-hidden">
+          {DISTRIBUTION.map(d => (
+            <div key={d.stars} className="flex items-center gap-1">
+              <span className="text-[8px] text-gray-400 w-2 shrink-0">{d.stars}</span>
+              <div className="flex-1 h-1 bg-gray-100 rounded-full">
+                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${d.pct}%` }} />
+              </div>
+              <span className="text-[8px] text-gray-400 w-5 text-right">{d.pct}%</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-1 flex-none">
+          <StarRating rating={4.1} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm font-semibold text-gray-800">Review Sites Summary</div>
         <button className="text-[11px] text-blue-600 hover:text-blue-700 font-medium">View All</button>

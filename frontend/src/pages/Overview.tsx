@@ -1,4 +1,4 @@
-﻿import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchOverview, fetchAlerts, createAlert, deleteAlert } from "../lib/api";
 import type { AlertConfig } from "../lib/types";
@@ -13,6 +13,29 @@ import { ReviewSitesSummary } from "../components/ReviewSitesSummary";
 import { CompetitorShareOfVoice } from "../components/CompetitorShareOfVoice";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { formatCount } from "../lib/utils";
+
+type ActivePanel =
+  | null
+  | "mentions" | "mentions-positive" | "mentions-negative" | "mentions-neutral"
+  | "sentiment-trend" | "mentions-donut" | "top-headlines"
+  | "review-sites" | "top-issues" | "sentiment-by-source"
+  | "competitor-sov" | "alerts" | "state-map";
+
+const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
+  "mentions":           "All Mentions",
+  "mentions-positive":  "Positive Mentions",
+  "mentions-negative":  "Negative Mentions",
+  "mentions-neutral":   "Neutral Mentions",
+  "sentiment-trend":    "Sentiment Trend",
+  "mentions-donut":     "Mentions by Source",
+  "top-headlines":      "Top Headlines",
+  "review-sites":       "Review Sites Summary",
+  "top-issues":         "Top Issues",
+  "sentiment-by-source":"Sentiment by Source",
+  "competitor-sov":     "Competitor Share of Voice",
+  "alerts":             "Alerts & Risks",
+  "state-map":          "State-level Sentiment",
+};
 
 interface Props {
   brandId: string;
@@ -78,7 +101,7 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
           type="number"
           value={threshold}
           onChange={e => setThreshold(e.target.value)}
-          placeholder={alertType === "perception_score_below" ? "e.g. 40" : alertType === "negative_pct_above" ? "e.g. 50" : "e.g. 30"}
+          placeholder="e.g. 40"
           className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
         />
         <input
@@ -104,15 +127,17 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
   );
 }
 
-function AlertsRiskCards({ brandId, isAdmin, userEmail }: { brandId: string; isAdmin: boolean; userEmail?: string }) {
+function AlertsRiskCards({
+  brandId, isAdmin, userEmail, compact,
+}: {
+  brandId: string; isAdmin: boolean; userEmail?: string; compact?: boolean;
+}) {
   const queryClient = useQueryClient();
-
   const { data: alerts = [] } = useQuery<AlertConfig[]>({
     queryKey: ["alerts", brandId],
     queryFn: () => fetchAlerts(brandId),
     staleTime: 60_000,
   });
-
   const deleteMutation = useMutation({
     mutationFn: (alertId: string) => deleteAlert(brandId, alertId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts", brandId] }),
@@ -129,62 +154,62 @@ function AlertsRiskCards({ brandId, isAdmin, userEmail }: { brandId: string; isA
     mention_spike:          "bg-orange-50",
   };
   const RISK_BADGE: Record<string, { label: string; color: string }> = {
-    perception_score_below: { label: "High Risk",    color: "text-red-600 bg-red-100"    },
-    negative_pct_above:     { label: "Medium Risk",  color: "text-amber-600 bg-amber-100" },
-    mention_spike:          { label: "Medium Risk",  color: "text-orange-600 bg-orange-100" },
+    perception_score_below: { label: "High Risk",   color: "text-red-600 bg-red-100"    },
+    negative_pct_above:     { label: "Medium Risk", color: "text-amber-600 bg-amber-100" },
+    mention_spike:          { label: "Medium Risk", color: "text-orange-600 bg-orange-100" },
   };
+
+  const inner = alerts.length === 0 ? (
+    <div className="text-[10px] text-gray-400 text-center py-2">
+      No active alerts.{isAdmin ? "" : " Ask an admin."}
+    </div>
+  ) : (
+    <div className={`grid ${compact ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-2`}>
+      {alerts.map(a => {
+        const badge = RISK_BADGE[a.alert_type] ?? { label: "Alert", color: "text-gray-600 bg-gray-100" };
+        return (
+          <div
+            key={a.id}
+            className={`relative border border-l-4 border-gray-100 rounded-lg px-2 py-2 ${RISK_BORDER[a.alert_type] ?? "border-l-gray-400"} ${RISK_BG[a.alert_type] ?? "bg-gray-50"}`}
+          >
+            <button
+              onClick={e => { e.stopPropagation(); deleteMutation.mutate(a.id); }}
+              className="absolute top-1 right-1.5 text-gray-300 hover:text-red-400 text-sm leading-none"
+            >×</button>
+            <span className={`inline-block text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mb-1 ${badge.color}`}>
+              {badge.label}
+            </span>
+            <div className="text-[10px] text-gray-700">
+              {ALERT_TYPE_LABELS[a.alert_type]}: <span className="font-semibold">{a.threshold}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden">
+        <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Alerts & Risks</div>
+        <div className="flex-1 min-h-0 overflow-hidden">{inner}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm font-semibold text-gray-800">Alerts & Risks</div>
-        <button className="text-[11px] text-blue-600 hover:text-blue-700 font-medium">View All</button>
       </div>
-
-      {alerts.length === 0 ? (
-        <div className="py-4 text-xs text-gray-400 text-center">
-          No active alerts configured.{isAdmin ? "" : " Ask an admin to add alerts."}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {alerts.map(a => {
-            const badge = RISK_BADGE[a.alert_type] ?? { label: "Alert", color: "text-gray-600 bg-gray-100" };
-            return (
-              <div
-                key={a.id}
-                className={`relative border border-l-4 border-gray-100 rounded-lg px-3 py-2.5 ${RISK_BORDER[a.alert_type] ?? "border-l-gray-400"} ${RISK_BG[a.alert_type] ?? "bg-gray-50"}`}
-              >
-                <button
-                  onClick={() => deleteMutation.mutate(a.id)}
-                  disabled={deleteMutation.isPending}
-                  className="absolute top-2 right-2 text-gray-300 hover:text-red-400 text-sm leading-none"
-                  title="Remove alert"
-                >×</button>
-                <span className={`inline-block text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mb-1.5 ${badge.color}`}>
-                  {badge.label}
-                </span>
-                <div className="text-xs text-gray-700">
-                  {ALERT_TYPE_LABELS[a.alert_type]} threshold: <span className="font-semibold">{a.threshold}</span>
-                </div>
-                <div className="text-[10px] text-gray-400 mt-0.5">{a.notify_email}</div>
-                {a.last_triggered_at && (
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    Last fired: {new Date(a.last_triggered_at).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
+      {inner}
       {isAdmin && <AlertsSection brandId={brandId} userEmail={userEmail} />}
     </div>
   );
 }
 
 export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated }: Props) {
-  const [mentionsSentimentFilter, setMentionsSentimentFilter] = useState("");
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const mentionsRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -200,8 +225,11 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
     }
   }, [data?.last_processed_at, onLastUpdated]);
 
+  // Reset panel when brand changes
+  useEffect(() => { setActivePanel(null); }, [brandId]);
+
   if (isLoading) return (
-    <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading…</div>
+    <div className="flex items-center justify-center h-full text-gray-400 text-sm">Loading…</div>
   );
   if (error || !data || !data.kpi) return (
     <div className="text-red-500 p-8 text-sm">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>
@@ -209,180 +237,182 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
 
   const { kpi } = data;
 
-  return (
-    <div className="p-5 space-y-4 bg-gray-50 min-h-screen">
+  // ── Detail panel view ───────────────────────────────────────────────────────
+  if (activePanel !== null) {
+    const sentimentFilter =
+      activePanel === "mentions-positive" ? "positive" :
+      activePanel === "mentions-negative" ? "negative" :
+      activePanel === "mentions-neutral"  ? "neutral"  : "";
 
-      {/* Page header */}
-      <div className="flex items-start justify-between">
+    return (
+      <div className="h-full flex flex-col overflow-hidden bg-gray-50">
+        {/* Back bar */}
+        <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 flex-none">
+          <button
+            onClick={() => setActivePanel(null)}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors font-medium"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Executive Overview
+          </button>
+          <span className="text-gray-200">|</span>
+          <h2 className="text-xs font-semibold text-gray-800">{PANEL_TITLE[activePanel]}</h2>
+        </div>
+
+        {/* Detail content */}
+        <div className="flex-1 min-h-0 overflow-auto p-4">
+          {(activePanel === "mentions" || activePanel === "mentions-positive" || activePanel === "mentions-negative" || activePanel === "mentions-neutral") && (
+            <div ref={mentionsRef}>
+              <MentionsList
+                brandId={brandId}
+                brandName={brandName}
+                portals={data.top_sources.map(s => s.portal_id)}
+                topics={data.top_topics}
+                states={data.state_breakdown.map(s => s.state)}
+                initialSentiment={sentimentFilter}
+                selectable
+                syncUrl
+              />
+            </div>
+          )}
+          {activePanel === "sentiment-trend" && (
+            <SentimentTrendChart brandId={brandId} />
+          )}
+          {activePanel === "mentions-donut" && (
+            <div className="max-w-lg">
+              <MentionsBySourceDonut brandId={brandId} />
+            </div>
+          )}
+          {activePanel === "top-headlines" && (
+            <div className="max-w-2xl">
+              <TopHeadlines brandId={brandId} onViewAll={() => setActivePanel("mentions")} />
+            </div>
+          )}
+          {activePanel === "review-sites" && (
+            <div className="max-w-lg">
+              <ReviewSitesSummary brandId={brandId} />
+            </div>
+          )}
+          {activePanel === "top-issues" && (
+            <div className="max-w-lg">
+              <TopIssuesTable brandId={brandId} />
+            </div>
+          )}
+          {activePanel === "sentiment-by-source" && (
+            <div className="max-w-lg">
+              <SentimentBySourceTable brandId={brandId} />
+            </div>
+          )}
+          {activePanel === "competitor-sov" && (
+            <div className="max-w-md">
+              <CompetitorShareOfVoice brandName={brandName} />
+            </div>
+          )}
+          {activePanel === "alerts" && (
+            <div className="max-w-2xl">
+              <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} />
+            </div>
+          )}
+          {activePanel === "state-map" && (
+            <IndiaStateMap
+              data={data.state_breakdown}
+              onStateClick={(state) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("state", state);
+                window.history.pushState({}, "", url.toString());
+                window.dispatchEvent(new PopStateEvent("popstate"));
+                setActivePanel("mentions");
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Compact single-screen overview ──────────────────────────────────────────
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-gray-50 p-2 gap-1.5">
+
+      {/* ── Page header ─────────────────────────────────────────── flex-none */}
+      <div className="flex items-center justify-between flex-none">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Executive Overview</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Real-time overview of brand sentiment across digital and news ecosystem
-            {data.last_processed_at && ` · Last updated ${formatLastProcessed(data.last_processed_at)}`}
+          <h1 className="text-sm font-bold text-gray-900 leading-tight">Executive Overview</h1>
+          <p className="text-[10px] text-gray-500">
+            Real-time brand sentiment across digital and news ecosystem
+            {data.last_processed_at && ` · Updated ${formatLastProcessed(data.last_processed_at)}`}
           </p>
         </div>
-        {data.pipeline_status === "running" && (
-          <span className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 shrink-0">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+        <div className="flex items-center gap-2">
+          {data.pipeline_status === "running" && (
+            <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
+              </span>
+              Pipeline running
             </span>
-            Pipeline running
-          </span>
-        )}
-      </div>
-
-      {/* ── Row 1: 5 KPI Cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <KPICard
-          label="Total Mentions"
-          value={formatCount(kpi.total)}
-          delta={kpi.mentions_delta_pct}
-          deltaUnit="%"
-          sub="vs last period"
-          icon="📰"
-          accentColor="blue"
-        />
-        <KPICard
-          label="Positive Mentions"
-          value={formatCount(kpi.positive)}
-          pct={kpi.positive_pct}
-          icon="😊"
-          accentColor="green"
-        />
-        <KPICard
-          label="Neutral Mentions"
-          value={formatCount(kpi.neutral)}
-          pct={kpi.neutral_pct}
-          icon="😐"
-          accentColor="gray"
-        />
-        <KPICard
-          label="Negative Mentions"
-          value={formatCount(kpi.negative)}
-          pct={kpi.negative_pct}
-          icon="😟"
-          accentColor="red"
-        />
-        <KPICard
-          label="Reputation Index"
-          value={`${kpi.perception_score.toFixed(0)} / 100`}
-          delta={kpi.perception_score_delta}
-          deltaUnit=" pts"
-          icon="📊"
-          accentColor="purple"
-        />
-      </div>
-
-      {/* ── Row 2: Sentiment Trend | Mentions Donut | Top Headlines ──────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-5">
-          <SentimentTrendChart brandId={brandId} />
-        </div>
-        <div className="xl:col-span-3">
-          <MentionsBySourceDonut brandId={brandId} />
-        </div>
-        <div className="xl:col-span-4">
-          <TopHeadlines
-            brandId={brandId}
-            onViewAll={(tab) => {
-              mentionsRef.current?.scrollIntoView({ behavior: "smooth" });
-              setMentionsSentimentFilter(tab === "trending" ? "" : tab);
-            }}
-          />
+          )}
+          <button
+            onClick={() => setActivePanel("state-map")}
+            className="text-[10px] text-gray-400 hover:text-gray-700 border border-gray-200 rounded px-2 py-0.5 hover:border-gray-300 transition-colors"
+          >
+            State Map
+          </button>
+          <button
+            onClick={() => setActivePanel("mentions")}
+            className="text-[10px] text-blue-600 hover:text-blue-700 border border-blue-200 rounded px-2 py-0.5 hover:border-blue-300 transition-colors"
+          >
+            All Mentions
+          </button>
         </div>
       </div>
 
-      {/* ── Row 3: Review Sites | Top Issues | Sentiment by Source ────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ReviewSitesSummary brandId={brandId} />
-        <TopIssuesTable brandId={brandId} />
-        <SentimentBySourceTable brandId={brandId} />
+      {/* ── Row 1: KPI cards ────────────────────────────────────── flex-none */}
+      <div className="grid grid-cols-5 gap-1.5 flex-none" style={{ height: "58px" }}>
+        <KPICard compact label="Total Mentions"    value={formatCount(kpi.total)}       delta={kpi.mentions_delta_pct}   deltaUnit="%" sub="vs last period" icon="📰" accentColor="blue"   onClick={() => setActivePanel("mentions")} />
+        <KPICard compact label="Positive Mentions" value={formatCount(kpi.positive)}    pct={kpi.positive_pct}                                                       icon="😊" accentColor="green"  onClick={() => setActivePanel("mentions-positive")} />
+        <KPICard compact label="Neutral Mentions"  value={formatCount(kpi.neutral)}     pct={kpi.neutral_pct}                                                        icon="😐" accentColor="gray"   onClick={() => setActivePanel("mentions-neutral")} />
+        <KPICard compact label="Negative Mentions" value={formatCount(kpi.negative)}    pct={kpi.negative_pct}                                                       icon="😟" accentColor="red"    onClick={() => setActivePanel("mentions-negative")} />
+        <KPICard compact label="Reputation Index"  value={`${kpi.perception_score.toFixed(0)} / 100`} delta={kpi.perception_score_delta} deltaUnit=" pts"          icon="📊" accentColor="purple" onClick={() => setActivePanel("alerts")} />
       </div>
 
-      {/* ── Row 4: Competitor SoV | Alerts & Risks ────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <CompetitorShareOfVoice brandName={brandName} />
-        <div className="lg:col-span-2">
-          <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} />
+      {/* ── Row 2: Sentiment Trend | Donut | Headlines ──────────── flex-[3] */}
+      <div className="grid grid-cols-12 gap-1.5 flex-[3] min-h-0">
+        <div className="col-span-5 min-h-0">
+          <SentimentTrendChart brandId={brandId} compact onClick={() => setActivePanel("sentiment-trend")} />
+        </div>
+        <div className="col-span-3 min-h-0">
+          <MentionsBySourceDonut brandId={brandId} compact onClick={() => setActivePanel("mentions-donut")} />
+        </div>
+        <div className="col-span-4 min-h-0">
+          <TopHeadlines brandId={brandId} compact onClick={() => setActivePanel("top-headlines")} />
         </div>
       </div>
 
-      {/* ── India state map ────────────────────────────────────────────────── */}
-      <IndiaStateMap
-        data={data.state_breakdown}
-        onStateClick={(state) => {
-          const url = new URL(window.location.href);
-          url.searchParams.set("state", state);
-          window.history.pushState({}, "", url.toString());
-          window.dispatchEvent(new PopStateEvent("popstate"));
-        }}
-      />
-
-      {/* ── Top Sources ────────────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-        <div className="text-sm font-semibold text-gray-800 mb-3">Top Sources</div>
-        <div className="space-y-2">
-          {data.top_sources.map(s => (
-            <div key={s.portal_id}>
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
-                <span className="truncate max-w-[140px]">{s.portal_id.replace(/_/g, " ")}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[10px] font-mono px-1 rounded ${
-                    s.avg_credibility >= 0.85 ? "bg-green-50 text-green-600" :
-                    s.avg_credibility >= 0.75 ? "bg-yellow-50 text-yellow-600" :
-                    "bg-gray-100 text-gray-500"
-                  }`}>
-                    {s.avg_credibility.toFixed(2)}
-                  </span>
-                  <span>{s.count}</span>
-                </div>
-              </div>
-              <div className="bg-gray-100 rounded h-1.5">
-                <div className="bg-blue-500 h-full rounded"
-                     style={{ width: `${Math.min(100, (s.count / (kpi.total || 1)) * 100)}%` }} />
-              </div>
-            </div>
-          ))}
+      {/* ── Row 3: Review Sites | Top Issues | Sentiment by Source ─ flex-[3] */}
+      <div className="grid grid-cols-3 gap-1.5 flex-[3] min-h-0">
+        <div className="min-h-0">
+          <ReviewSitesSummary brandId={brandId} compact onClick={() => setActivePanel("review-sites")} />
+        </div>
+        <div className="min-h-0">
+          <TopIssuesTable brandId={brandId} compact onClick={() => setActivePanel("top-issues")} />
+        </div>
+        <div className="min-h-0">
+          <SentimentBySourceTable brandId={brandId} compact onClick={() => setActivePanel("sentiment-by-source")} />
         </div>
       </div>
 
-      {/* ── Topics + Keywords ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <div className="text-sm font-semibold text-gray-800 mb-3">Topics</div>
-          <div className="flex flex-wrap gap-2">
-            {data.top_topics.map(t => (
-              <span key={t} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full border border-blue-100">
-                {t.replace(/_/g, " ")}
-              </span>
-            ))}
-          </div>
+      {/* ── Row 4: Competitor SoV | Alerts ──────────────────────── flex-[2] */}
+      <div className="grid grid-cols-3 gap-1.5 flex-[2] min-h-0">
+        <div className="min-h-0">
+          <CompetitorShareOfVoice brandName={brandName} compact onClick={() => setActivePanel("competitor-sov")} />
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <div className="text-sm font-semibold text-gray-800 mb-3">Keywords</div>
-          <div className="flex flex-wrap gap-2">
-            {data.top_keywords.map(k => (
-              <span key={k} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                {k}
-              </span>
-            ))}
-          </div>
+        <div className="col-span-2 min-h-0 cursor-pointer" onClick={() => setActivePanel("alerts")}>
+          <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} compact />
         </div>
-      </div>
-
-      {/* ── Mentions table ─────────────────────────────────────────────────── */}
-      <div ref={mentionsRef}>
-        <MentionsList
-          brandId={brandId}
-          brandName={brandName}
-          portals={data.top_sources.map(s => s.portal_id)}
-          topics={data.top_topics}
-          states={data.state_breakdown.map(s => s.state)}
-          initialSentiment={mentionsSentimentFilter}
-          selectable
-          syncUrl
-        />
       </div>
 
     </div>

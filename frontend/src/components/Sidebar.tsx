@@ -81,7 +81,7 @@ function formatLastUpdated(iso: string | null): string {
 
 export function Sidebar({ brand, activeTab, onTabChange, onBrandChange, isAdmin, lastUpdated }: Props) {
   return (
-    <aside className="w-56 shrink-0 flex flex-col bg-[#1a2744] min-h-screen">
+    <aside className="w-56 shrink-0 flex flex-col bg-[#1a2744] h-screen overflow-hidden">
       {/* Logo */}
       <div className="px-4 py-5 border-b border-white/10">
         <div className="flex items-center gap-2.5">

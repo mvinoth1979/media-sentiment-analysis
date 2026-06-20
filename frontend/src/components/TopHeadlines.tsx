@@ -12,6 +12,8 @@ interface Props {
   dateFrom?: string;
   dateTo?: string;
   onViewAll?: (tab: HeadlineTab) => void;
+  compact?: boolean;
+  onClick?: () => void;
 }
 
 const TABS: { key: HeadlineTab; label: string }[] = [
@@ -113,7 +115,7 @@ function SkeletonCard() {
   );
 }
 
-export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll }: Props) {
+export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, onClick }: Props) {
   const [activeTab, setActiveTab] = useState<HeadlineTab>("positive");
 
   const { data, isLoading } = useQuery({
@@ -132,8 +134,36 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll }: Props) {
   const hasYouTubeGroups =
     activeTab === "trending" && (videoItems.length > 0 || commentItems.length > 0);
 
+  const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
+
+  if (compact) {
+    const compactItems = items.slice(0, 5);
+    return (
+      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
+        <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Top Headlines</div>
+        <div className="flex-1 min-h-0 overflow-hidden space-y-1.5">
+          {isLoading ? (
+            [1,2,3,4].map(i => <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" />)
+          ) : compactItems.length === 0 ? (
+            <div className="text-[10px] text-gray-400 pt-2 text-center">No headlines</div>
+          ) : compactItems.map(item => {
+            const intensity = sentimentIntensity(item.sentiment_label, item.sentiment_score);
+            return (
+              <div key={item.id} className="flex items-start gap-1.5">
+                <span className={`shrink-0 text-[8px] px-1 py-0.5 rounded font-medium mt-0.5 ${intensity.bg} ${intensity.color}`}>
+                  {item.sentiment_label === "positive" ? "+" : item.sentiment_label === "negative" ? "−" : "~"}
+                </span>
+                <span className="text-[10px] text-gray-700 leading-tight line-clamp-2">{item.title}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col shadow-sm">
+    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 flex flex-col shadow-sm ${clickable}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm font-semibold text-gray-800">Top Headlines <span className="text-gray-400 font-normal text-xs">(News)</span></div>

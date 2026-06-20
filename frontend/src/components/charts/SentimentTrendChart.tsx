@@ -12,6 +12,8 @@ interface Props {
   brandId: string;
   dateFrom?: string;
   dateTo?: string;
+  compact?: boolean;
+  onClick?: () => void;
 }
 
 interface ChartPoint {
@@ -78,7 +80,7 @@ function SentimentTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
+export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClick }: Props) {
   const queryClient = useQueryClient();
   const [showForm,   setShowForm]   = useState(false);
   const [draftDate,  setDraftDate]  = useState("");
@@ -123,10 +125,60 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
 
   // ── Skeleton ──────────────────────────────────────────────────────────────
   if (isLoading) {
-    return (
+    return compact ? (
+      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col">
+        <div className="h-3 w-28 bg-gray-100 rounded animate-pulse mb-1" />
+        <div className="flex-1 min-h-0 bg-gray-50 rounded animate-pulse" />
+      </div>
+    ) : (
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
         <div className="h-5 w-48 bg-gray-100 rounded animate-pulse mb-4" />
         <div className="h-[220px] bg-gray-50 rounded-lg animate-pulse" />
+      </div>
+    );
+  }
+
+  if (compact) {
+    const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
+    return (
+      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
+        <div className="flex items-center justify-between flex-none mb-0.5">
+          <span className="text-[11px] font-semibold text-gray-800">Sentiment Trend</span>
+          <div className="flex gap-2 text-[9px] text-gray-400">
+            <span><span className="inline-block w-3 h-0.5 bg-indigo-500 mr-0.5 align-middle" />Pos</span>
+            <span><span className="inline-block w-3 h-0.5 bg-amber-400 mr-0.5 align-middle" />Neu</span>
+            <span><span className="inline-block w-3 h-0.5 bg-red-400 mr-0.5 align-middle" />Neg</span>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0">
+          {chartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-gray-300 text-xs">No data yet</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 2, right: 4, bottom: 0, left: -24 }}>
+                <defs>
+                  <linearGradient id="gradPosC" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="gradNeuC" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="gradNegC" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fill: "#d1d5db", fontSize: 7 }} interval="preserveStartEnd" />
+                <YAxis hide />
+                <Area type="monotone" dataKey="positive" stroke="#6366f1" strokeWidth={1.5} fill="url(#gradPosC)" dot={false} />
+                <Area type="monotone" dataKey="neutral"  stroke="#f59e0b" strokeWidth={1.5} fill="url(#gradNeuC)" dot={false} />
+                <Area type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={1.5} fill="url(#gradNegC)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
     );
   }

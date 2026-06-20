@@ -62,7 +62,7 @@ function App() {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar
         brand={brand}
         activeTab={tab}
@@ -72,9 +72,9 @@ function App() {
         lastUpdated={lastUpdated}
       />
 
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-gray-200 flex-none">
           <div className="text-xs text-gray-500">
             Signed in as <span className="font-medium text-gray-700">{userEmail}</span>
           </div>
@@ -86,7 +86,7 @@ function App() {
           </button>
         </div>
 
-        <div className="max-w-screen-2xl mx-auto">
+        <div className={`flex-1 min-h-0 ${tab === "overview" ? "overflow-hidden" : "overflow-auto"}`}>
           {tab === "overview" && (
             <Overview
               brandId={brand.id}

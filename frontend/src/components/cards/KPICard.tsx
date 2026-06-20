@@ -1,4 +1,4 @@
-﻿interface Props {
+interface Props {
   label: string;
   value: string | number;
   pct?: number;
@@ -8,6 +8,8 @@
   icon?: string;
   accentColor?: "green" | "red" | "gray" | "blue" | "purple";
   color?: string;
+  compact?: boolean;
+  onClick?: () => void;
 }
 
 const ACCENT: Record<string, { icon: string }> = {
@@ -18,13 +20,39 @@ const ACCENT: Record<string, { icon: string }> = {
   purple: { icon: "bg-purple-100 text-purple-600"  },
 };
 
-export function KPICard({ label, value, pct, delta, deltaUnit = "%", sub, icon, accentColor = "blue" }: Props) {
+export function KPICard({ label, value, pct, delta, deltaUnit = "%", sub, icon, accentColor = "blue", compact, onClick }: Props) {
   const accent = ACCENT[accentColor] ?? ACCENT.blue;
   const isPos = delta != null && delta > 0;
   const isNeg = delta != null && delta < 0;
+  const clickable = onClick ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all" : "";
+
+  if (compact) {
+    return (
+      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg px-2.5 py-2 flex items-center justify-between gap-2 shadow-sm h-full ${clickable}`}>
+        <div className="min-w-0">
+          <div className="text-[9px] text-gray-400 uppercase tracking-wide font-medium truncate">{label}</div>
+          <div className="text-base font-bold text-gray-900 leading-tight mt-0.5">
+            {value}
+            {pct != null && <span className="text-[10px] font-normal text-gray-400 ml-1">({pct.toFixed(0)}%)</span>}
+          </div>
+          {delta != null && (
+            <span className={`text-[9px] font-semibold ${isPos ? "text-green-600" : isNeg ? "text-red-500" : "text-gray-400"}`}>
+              {isPos ? "▲" : isNeg ? "▼" : "—"}{Math.abs(delta).toFixed(1)}{deltaUnit}
+            </span>
+          )}
+          {delta == null && sub && <span className="text-[9px] text-gray-400">{sub}</span>}
+        </div>
+        {icon && (
+          <div className={`w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0 ${accent.icon}`}>
+            {icon}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex flex-col gap-1 shadow-sm">
+    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex flex-col gap-1 shadow-sm ${clickable}`}>
       <div className="flex items-center justify-between gap-1">
         <div className="text-[11px] text-gray-500 font-medium leading-tight">{label}</div>
         {icon && (
