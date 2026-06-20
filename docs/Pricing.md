@@ -1,6 +1,6 @@
 # MediaSense — Pricing
 
-> **Last updated:** 2026-06-20 (Phase 3 — full dashboard redesign + compact single-screen layout)
+> **Last updated:** 2026-06-20 (Phase 1 data quality: wire dedup, headline/body sentiment, regulatory flag; C1+C2 alerts)
 > **Update this document** whenever a major feature ships (export, alerts, social media, billing, API access, etc.).
 > **See also:** `docs/competitive-analysis-and-pricing.md` for full competitor matrix and go-to-market strategy.
 
@@ -54,7 +54,7 @@
 | **Users** | 10 |
 | **History** | 12 months |
 | **CSV export** | ✅ Up to 2,000 rows · respects all active filters including source type |
-| **Email alerts** | ✅ 3 types: perception_score_below · negative_pct_above · mention_spike · 4h rate-limit |
+| **Email alerts** | ✅ 5 types: perception_score_below · negative_pct_above · mention_spike · syndication_spike (story spread) · journalist_beat (repeated negative coverage) · 4h rate-limit |
 | **Support** | Email + chat, 24h response |
 
 **Best for:** Mid-market brands with pan-India or multi-state presence; PR managers needing full vernacular coverage + YouTube intelligence.
@@ -78,7 +78,7 @@
 | **History** | 12 months |
 | **State-level filtering** | ✅ |
 | **CSV export** | ✅ Bulk, filter-respecting, source_type aware |
-| **Email alerts** | ✅ Per brand, 3 types |
+| **Email alerts** | ✅ Per brand, 5 types (incl. syndication spike + journalist beat) |
 | **White-label PDF reports** | Phase 4 (not yet available) |
 | **Pipeline priority** | Brands run before Essentials/Professional tier |
 | **Support** | Dedicated account manager, 8h response |
@@ -129,6 +129,22 @@ The pricing tiers are now renamed "News + YouTube" to reflect this. The founder 
 | News + YouTube Professional | ₹10,000/month | ₹14,000/month |
 | Agency (5 brands, news + YouTube) | ₹32,000/month | ₹45,000/month |
 | Enterprise | Custom | Custom |
+
+---
+
+### Phase 3.1 — NLP data quality (complete ✅ — 2026-06-20)
+
+Five data quality improvements that reduce noise, improve NLP signal fidelity, and add investigative alerting at no extra API cost:
+
+- **Wire-service syndication dedup:** PTI/ANI articles republished across multiple portals are detected via title-hash and collapsed to one; `syndication_count` field tracks spread. Eliminates mention inflation from wire redistribution.
+- **Separate headline/body sentiment scores:** Every news article now carries `headline_sentiment_score`, `body_sentiment_score`, and a `sentiment_divergence` flag (|diff| ≥ 0.4). Zero extra API cost — same Gemini call with structured HEADLINE:/BODY: prompt.
+- **Editorial tone classification:** Each article tagged as `factual | positive_frame | negative_frame | critical`. Added to the same Gemini call.
+- **Author/journalist name extraction:** RSS `<author>`, `dc:creator`, and `author_detail.name` fields extracted per article. Foundation for journalist-beat tracking.
+- **Regulatory/government source flag:** `is_regulatory_source` auto-set for `.gov.in` domains and titles matching 14 regulatory bodies (SEBI, RBI, IRDAI, Enforcement Directorate, Supreme Court, etc.). Critical for PSU/government client reporting.
+- **C1 — Syndication spike alert:** New alert type fires when a single story is picked up by ≥ N portals within 24 hours. Email names the article title and portal count.
+- **C2 — Journalist beat alert:** New alert type fires when the same journalist publishes ≥ N negative articles about the brand within 30 days. Email names the journalist.
+
+No pricing change — these are data quality improvements included in all tiers.
 
 ---
 
@@ -212,3 +228,4 @@ At full parity with Locobuzz/Konnect mid-tier, standard pricing increases 20–3
 | 2026-06-18 | Phase 2.0 YouTube integration | YouTube video search + channel RSS + comment monitoring live; source_type filter + YouTube reach metadata + YouTube KPI card in dashboard; per-brand YouTube config (wizard Step 4, `PUT /brands/{id}/config`); YouTube-aware NLP; tiers renamed "News + YouTube"; portal count 29→43 corrected throughout; Phase 2 pricing section restructured (2.0 done, 2.1 Reddit next, Phase 3 for Twitter/Instagram/Facebook); all resolved blockers marked ✅ |
 | 2026-06-20 | Phase 3 — full dashboard redesign + compact single-screen layout | Dark navy sidebar; 5 KPI cards; sentiment trend area chart (indigo/amber/red gradient fills, F08 annotations); mentions donut; top headlines 3-tab; review sites summary; top issues table; sentiment by source table; competitor SoV donut; alerts & risks; compact no-scroll layout (all 9 sections in one viewport); click-to-detail panel for every section with breadcrumb; Mention Explorer light theme + 10/page numbered pagination; Feature Scope table updated with Dashboard column |
 | 2026-06-20 | NLP quality improvements | Confidence gate (articles below 0.3 confidence excluded from KPI counts); YouTube comment filter (low-signal comments skipped pre-NLP, saves quota); recency decay + engagement rate multiplier in Brand Risk Score; Review Sites widget now shows real data from `/review-summary` API |
+| 2026-06-20 | Phase 1 data quality + C1/C2 alerts | Wire-service syndication dedup (story_hash, syndication_count); separate headline/body sentiment scores (headline_sentiment_score, body_sentiment_score, sentiment_divergence flag); editorial tone tag (factual/positive_frame/negative_frame/critical); author extraction from RSS; regulatory source flag (gov.in + keyword list); C1 syndication spike alert + C2 journalist beat alert — 2 new alert types (total 5); migration 013+014; alerts.py rewritten |

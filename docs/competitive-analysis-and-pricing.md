@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-20 (Phase 3 — full dashboard redesign + compact single-screen layout)
+> **Last updated:** 2026-06-20 (Phase 1 data quality — wire dedup, headline/body sentiment, regulatory flag)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -57,6 +57,11 @@
 | NLP circuit breaker | ✅ Live | Trips on rate-limit exhaustion; 60s cooldown |
 | Bootstrap priority for new brands | ✅ Live | 6-run fast-fill counter; new brands run first in scheduler |
 | Google News RSS (per-keyword, per-language) | ✅ Live | EN/TA/HI/GU/BN/KN with India-specific `hl`/`ceid` params |
+| **Wire-service syndication deduplication** | ✅ Live | PTI/ANI articles republished across N portals counted once via story-hash (first 8 significant title tokens); `syndication_count` tracks spread. Prevents mention inflation. |
+| **Headline vs. body sentiment (separate scores)** | ✅ Live | Every news article carries `headline_sentiment_score`, `body_sentiment_score`, and a `sentiment_divergence` flag (abs diff ≥ 0.4). Zero extra API cost — same Gemini call. |
+| **Editorial tone classification** | ✅ Live | Every news article tagged as `factual \| positive_frame \| negative_frame \| critical`. Added alongside headline/body scoring at no cost. |
+| **Author/journalist name extraction** | ✅ Live | RSS `<author>`, `dc:creator`, `author_detail.name` tried in priority order. Foundation for journalist-beat tracking. |
+| **Regulatory/government source flag** | ✅ Live | `is_regulatory_source` auto-set when article URL is `.gov.in` domain or title contains SEBI / RBI / Ministry of / Parliament / Supreme Court / Enforcement Directorate etc. (14 domains + keyword list). Critical for PSU/government client reporting. |
 | Mobile responsive UI | ✅ Live | |
 | **Compact single-screen dashboard (no scroll)** | ✅ Live | All 9 sections fit in one viewport — `h-screen overflow-hidden` root layout; `flex-[N] min-h-0` proportional row heights; compact prop variants for all section components |
 | **Click-to-detail panel navigation** | ✅ Live | Every dashboard section and KPI card is clickable — opens a full second-screen detail with breadcrumb `← Executive Overview | [Section Name]`; back navigation returns to compact grid |
