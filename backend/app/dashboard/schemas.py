@@ -212,3 +212,8 @@ class CompetitorSoVResponse(BaseModel):
     total_articles: int
     entries: list[SoVEntry]
     source: str  # "configured" | "entity_fallback"
+
+
+class CompetitorDiscoveryResponse(BaseModel):
+    competitors: list[str]
+    saved: bool

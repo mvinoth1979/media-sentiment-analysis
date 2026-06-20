@@ -158,4 +158,11 @@ export const fetchCompetitorSoV = (
     .get<import("./types").CompetitorSoVData>(`/dashboard/competitor-sov/${brandId}`, { params })
     .then(r => r.data);
 
+export const discoverCompetitors = (brandId: string) =>
+  api
+    .post<{ competitors: string[]; saved: boolean }>(
+      `/dashboard/competitor-sov/${brandId}/discover`
+    )
+    .then(r => r.data);
+
 export default api;

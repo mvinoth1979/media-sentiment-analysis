@@ -70,6 +70,50 @@ Text:
 {text}"""
 
 
+_COMPETITOR_PROMPT = """You are a competitive intelligence analyst for Indian markets.
+
+Brand: {brand_name}
+Brand keywords: {keywords}
+
+Entities frequently co-mentioned with this brand in Indian news and social media:
+{entity_list}
+
+Task: Identify the 3–5 closest DIRECT competitors to this brand.
+Rules:
+- Include only genuine competitors (same product/service category, competing for same customers)
+- Exclude: government bodies, regulatory authorities, news outlets, raw material suppliers, banks/lenders
+- Prefer names already in the entity list above (they are confirmed to appear in coverage)
+- Use your own knowledge of the Indian market to fill gaps when the entity list is sparse
+
+Return ONLY valid JSON, no explanation:
+{{"competitors": ["Name1", "Name2", "Name3"]}}"""
+
+
+def discover_competitors(brand_name: str, keywords: list[str], entities: list[str]) -> list[str]:
+    entity_list = ", ".join(entities[:20]) if entities else "No entities found in coverage yet."
+    prompt = _COMPETITOR_PROMPT.format(
+        brand_name=brand_name,
+        keywords=", ".join(keywords[:10]),
+        entity_list=entity_list,
+    )
+    for attempt in range(3):
+        try:
+            response = _get_client().models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
+            raw = _strip_fences(response.text.strip())
+            data = json.loads(raw)
+            competitors = [str(c).strip() for c in data.get("competitors", []) if c]
+            return competitors[:5]
+        except Exception as e:
+            if "429" in str(e) or "rate" in str(e).lower():
+                time.sleep(2 ** attempt * 5)
+                continue
+            break
+    return []
+
+
 def analyse_with_gemini(text: str, language: str,
                         source_type: str = "news") -> tuple[NLPResult | None, bool]:
     """Returns (result, was_rate_limited). was_rate_limited is True only if every

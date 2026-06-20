@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { fetchCompetitorSoV } from "../lib/api";
+import { fetchCompetitorSoV, discoverCompetitors } from "../lib/api";
 import type { CompetitorSoVData, SoVEntry } from "../lib/types";
 
 interface Props {
@@ -31,13 +31,30 @@ const FALLBACK_ENTRIES: SoVEntry[] = [
 
 export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
   const [data, setData] = useState<CompetitorSoVData | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discovered, setDiscovered] = useState<string[] | null>(null);
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
-  useEffect(() => {
-    fetchCompetitorSoV(brandId)
-      .then(setData)
-      .catch(() => {});
+  const load = useCallback(() => {
+    fetchCompetitorSoV(brandId).then(setData).catch(() => {});
   }, [brandId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDiscover = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDiscovering(true);
+    setDiscovered(null);
+    try {
+      const result = await discoverCompetitors(brandId);
+      setDiscovered(result.competitors);
+      load(); // refresh SoV with newly saved competitors
+    } catch {
+      setDiscovered([]);
+    } finally {
+      setDiscovering(false);
+    }
+  };
 
   const entries = data?.entries ?? FALLBACK_ENTRIES;
   const source = data?.source ?? "entity_fallback";
@@ -112,11 +129,30 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
         </div>
       </div>
 
-      <p className="text-[10px] text-gray-400 mt-3">
-        {source === "configured"
-          ? "Based on competitor mentions in brand coverage"
-          : "Based on top co-mentioned entities · Add competitors in brand settings for named tracking"}
-      </p>
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <p className="text-[10px] text-gray-400 leading-relaxed">
+          {source === "configured"
+            ? "Based on competitor mentions in brand coverage"
+            : "Showing top co-mentioned entities — no competitors configured yet"}
+        </p>
+        <div className="shrink-0 text-right">
+          {discovered !== null && discovered.length > 0 && (
+            <p className="text-[10px] text-green-600 mb-1">
+              Saved: {discovered.join(", ")}
+            </p>
+          )}
+          {discovered !== null && discovered.length === 0 && (
+            <p className="text-[10px] text-red-400 mb-1">Discovery failed — try again</p>
+          )}
+          <button
+            onClick={handleDiscover}
+            disabled={discovering}
+            className="text-[10px] font-medium px-2 py-1 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {discovering ? "Detecting…" : "✦ Auto-detect with AI"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

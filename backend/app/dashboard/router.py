@@ -25,7 +25,7 @@ from app.dashboard.schemas import (
     SourceCategoryPoint, SourceCategoriesResponse,
     HeadlineItem, HeadlinesResponse,
     ReviewSummaryResponse, ReviewStarBucket, TopicTheme,
-    SoVEntry, CompetitorSoVResponse,
+    SoVEntry, CompetitorSoVResponse, CompetitorDiscoveryResponse,
 )
 
 router = APIRouter()
@@ -688,3 +688,40 @@ def get_competitor_sov(
         ))
 
     return CompetitorSoVResponse(total_articles=total, entries=entries, source=source)
+
+
+@router.post("/competitor-sov/{brand_id}/discover", response_model=CompetitorDiscoveryResponse)
+def discover_and_save_competitors(
+    brand_id: str,
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    from app.nlp.gemini_handler import discover_competitors
+    db = get_db()
+
+    brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "Brand"
+
+    config_row = db.table("brand_configs").select("keywords").eq("brand_id", brand_id).execute().data
+    keywords: list[str] = (config_row[0].get("keywords") or []) if config_row else []
+
+    # Build candidate entity list from recent articles (top 20 by frequency)
+    articles = get_articles(brand_id, limit=1000)
+    entity_counter: Counter = Counter()
+    brand_lower = brand_name.lower()
+    for a in articles:
+        for e in (a.get("entities") or []):
+            if e and len(e) > 2 and brand_lower not in e.lower() and e.lower() not in brand_lower:
+                entity_counter[e] += 1
+    candidate_entities = [e for e, _ in entity_counter.most_common(20)]
+
+    competitors = discover_competitors(brand_name, keywords, candidate_entities)
+
+    saved = False
+    if competitors:
+        db.table("brand_configs") \
+          .update({"competitors": competitors}) \
+          .eq("brand_id", brand_id) \
+          .execute()
+        saved = True
+
+    return CompetitorDiscoveryResponse(competitors=competitors, saved=saved)
