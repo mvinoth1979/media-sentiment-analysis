@@ -164,6 +164,16 @@ def delete_user_role(
     db.table("user_roles").delete().eq("id", role_id).execute()
 
 
+@router.get("/brands/{brand_id}/config")
+def get_brand_config(
+    brand_id: str,
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    db = get_db()
+    rows = db.table("brand_configs").select("*").eq("brand_id", brand_id).execute().data
+    return rows[0] if rows else {}
+
+
 @router.put("/brands/{brand_id}/config")
 def update_brand_config(
     brand_id: str,
