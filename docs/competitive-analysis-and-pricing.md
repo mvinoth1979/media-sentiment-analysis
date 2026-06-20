@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-18 (Phase 2.0 YouTube integration shipped)
+> **Last updated:** 2026-06-20 (Phase 3 — full dashboard redesign + compact single-screen layout)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -58,6 +58,10 @@
 | Bootstrap priority for new brands | ✅ Live | 6-run fast-fill counter; new brands run first in scheduler |
 | Google News RSS (per-keyword, per-language) | ✅ Live | EN/TA/HI/GU/BN/KN with India-specific `hl`/`ceid` params |
 | Mobile responsive UI | ✅ Live | |
+| **Compact single-screen dashboard (no scroll)** | ✅ Live | All 9 sections fit in one viewport — `h-screen overflow-hidden` root layout; `flex-[N] min-h-0` proportional row heights; compact prop variants for all section components |
+| **Click-to-detail panel navigation** | ✅ Live | Every dashboard section and KPI card is clickable — opens a full second-screen detail with breadcrumb `← Executive Overview | [Section Name]`; back navigation returns to compact grid |
+| **Full dashboard redesign (Phase 3)** | ✅ Live | Dark navy sidebar (BrandPulse brand, nav, brand selector, last-updated timestamp); light main area with card-based layout; Sentiment Trend area chart (indigo/amber/red gradient fills); Mentions by Source donut; Top Headlines 3-tab panel (Top Positive / Top Negative / Trending); Review Sites Summary (star rating + distribution bars + themes); Top Issues Table (topic + bar + net sentiment %); Sentiment by Source Table (stacked bar + score); Competitor Share of Voice donut; Alerts & Risks cards |
+| **Mention Explorer — light theme + numbered pagination** | ✅ Live | `1–10 of 10+` counter; numbered paginator (← 1 2 →); 10 results per page |
 
 ### Not Yet Live (Planned)
 
@@ -366,3 +370,5 @@ At this scale, MediaSense is genuinely competing with Locobuzz for mid-market ag
 | 2026-06-17 | Wave 3 admin + map fix | Delete brand, remove user role, language filter expanded, pipeline trigger auth fixed; Go-to-Market blockers updated (4 of 7 resolved) |
 | 2026-06-17 | Portal expansion | 29 → 43 portals (+5 EN, +3 HI, +1 TA, +1 BN, +3 KN, +1 GU); competitor matrix portal count updated |
 | 2026-06-18 | Phase 2.0 YouTube integration | YouTube video search, channel RSS, comment monitoring, YouTube-aware NLP, quota manager, reach metadata, source_type filter, YouTube KPI card, YouTube badges in Mention Explorer, SourceBreakdown YouTube icons, 4-step brand wizard with YouTube config; competitor matrix YouTube row updated ❌→✅; "Where We Lead" item 7+8 added; social media gap updated (YouTube now live, Twitter/Instagram/Facebook remaining); positioning statement updated; portal count 43 everywhere; pricing updated to "News + YouTube" branding; revenue projections updated to full pricing; Go-to-Market table updated |
+| 2026-06-20 | Phase 3 — full dashboard redesign + compact single-screen layout | Compact no-scroll layout (all 9 sections in one viewport); click-to-detail panel for every section and KPI card; dark navy sidebar; 5 KPI cards; sentiment trend area chart (indigo/amber/red fills, F08 annotation); mentions donut; top headlines 3-tab panel; review sites summary; top issues table; sentiment by source table; competitor SoV donut; alerts & risks cards; Mention Explorer light theme + 10/page numbered pagination; "What Is Live" table updated with 4 new UI rows |
+| 2026-06-20 | NLP quality improvements (5 priorities) | Confidence gate (confidence < 0.3 excluded from KPI); YouTube low-signal filter (Nice/emoji comments skipped, saves API quota); recency decay in perception score; engagement rate multiplier in Brand Risk Score; Review Sites widget connected to real `/review-summary` API (star rating from sentiment, themes from NLP topics) |

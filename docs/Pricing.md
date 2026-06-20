@@ -1,6 +1,6 @@
 # MediaSense — Pricing
 
-> **Last updated:** 2026-06-18 (Phase 2.0 YouTube integration — news + YouTube tiers)
+> **Last updated:** 2026-06-20 (Phase 3 — full dashboard redesign + compact single-screen layout)
 > **Update this document** whenever a major feature ships (export, alerts, social media, billing, API access, etc.).
 > **See also:** `docs/competitive-analysis-and-pricing.md` for full competitor matrix and go-to-market strategy.
 
@@ -8,9 +8,9 @@
 
 ## Current Feature Scope (determines pricing floor)
 
-| Channel | Languages | Portals | Analytics | Workflow |
-|---|---|---|---|---|
-| News portals + YouTube (video + comments) | EN, TA, HI, GU, BN, KN | 43 curated Indian portals | Sentiment, topics, entities, states, credibility-weighted score, trend, YouTube reach metadata | Dashboard · CSV export ✅ · Email alerts ✅ · 4-step self-serve brand wizard ✅ |
+| Channel | Languages | Portals | Analytics | Workflow | Dashboard |
+|---|---|---|---|---|---|
+| News portals + YouTube (video + comments) | EN, TA, HI, GU, BN, KN | 43 curated Indian portals | Sentiment, topics, entities, states, credibility-weighted score, trend, YouTube reach metadata | CSV export ✅ · Email alerts ✅ · 4-step self-serve brand wizard ✅ | **Phase 3 redesign live**: compact no-scroll layout · click-to-detail for all 9 sections · area chart (filled) · donut/table/headlines · sidebar static |
 
 > YouTube monitoring (video search + channel RSS + comments) shipped Phase 2.0 and is **included in all tiers at no additional charge**.
 > Twitter/X, Instagram, and Facebook remain Phase 3. Pricing will increase materially when those channels ship.
@@ -210,3 +210,5 @@ At full parity with Locobuzz/Konnect mid-tier, standard pricing increases 20–3
 | 2026-06-17 | Wave 3 shipped | CSV export ✅, email alerts ✅ (3 types, Resend), self-serve 4-step wizard ✅, user invite ✅, delete brand ✅, pipeline trigger auth ✅; blockers table updated (4 of 7 resolved) |
 | 2026-06-17 | Portal expansion | 29 → 43 portals (+5 EN, +3 HI, +1 TA, +1 BN, +3 KN, +1 GU) |
 | 2026-06-18 | Phase 2.0 YouTube integration | YouTube video search + channel RSS + comment monitoring live; source_type filter + YouTube reach metadata + YouTube KPI card in dashboard; per-brand YouTube config (wizard Step 4, `PUT /brands/{id}/config`); YouTube-aware NLP; tiers renamed "News + YouTube"; portal count 29→43 corrected throughout; Phase 2 pricing section restructured (2.0 done, 2.1 Reddit next, Phase 3 for Twitter/Instagram/Facebook); all resolved blockers marked ✅ |
+| 2026-06-20 | Phase 3 — full dashboard redesign + compact single-screen layout | Dark navy sidebar; 5 KPI cards; sentiment trend area chart (indigo/amber/red gradient fills, F08 annotations); mentions donut; top headlines 3-tab; review sites summary; top issues table; sentiment by source table; competitor SoV donut; alerts & risks; compact no-scroll layout (all 9 sections in one viewport); click-to-detail panel for every section with breadcrumb; Mention Explorer light theme + 10/page numbered pagination; Feature Scope table updated with Dashboard column |
+| 2026-06-20 | NLP quality improvements | Confidence gate (articles below 0.3 confidence excluded from KPI counts); YouTube comment filter (low-signal comments skipped pre-NLP, saves quota); recency decay + engagement rate multiplier in Brand Risk Score; Review Sites widget now shows real data from `/review-summary` API |
