@@ -197,4 +197,9 @@ export const fetchYTSentimentSplit = (brandId: string, days = 30) =>
     .get<import("./types").YTSentimentSplitData>(`/dashboard/youtube-sentiment-split/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export const fetchIssueCategories = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").IssueCategoriesData>(`/dashboard/issue-categories/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export default api;

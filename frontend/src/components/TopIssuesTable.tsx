@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchTopics, fetchIssueClusters } from "../lib/api";
+import { fetchTopics, fetchIssueClusters, fetchIssueCategories } from "../lib/api";
 import { formatCount } from "../lib/utils";
-import type { IssueCluster } from "../lib/types";
+import type { IssueCluster, IssueCategoryItem } from "../lib/types";
 
 interface Props {
   brandId: string;
@@ -56,7 +57,68 @@ function ClusterRow({ c, maxCount, compact }: { c: IssueCluster; maxCount: numbe
   );
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  financial_performance:  "Financial Performance",
+  regulatory_compliance:  "Regulatory & Compliance",
+  product_quality:        "Product Quality",
+  leadership_governance:  "Leadership & Governance",
+  crisis_controversy:     "Crisis & Controversy",
+  awards_recognition:     "Awards & Recognition",
+  csr_sustainability:     "CSR & Sustainability",
+  policy_government:      "Policy & Government",
+  competitive_landscape:  "Competitive Landscape",
+  customer_experience:    "Customer Experience",
+  brand_advocacy:         "Brand Advocacy",
+  market_opportunity:     "Market Opportunity",
+  other:                  "Other",
+};
+
+const CATEGORY_ACCENTS: Record<string, string> = {
+  crisis_controversy:    "border-l-red-400",
+  regulatory_compliance: "border-l-red-400",
+  awards_recognition:    "border-l-green-400",
+  brand_advocacy:        "border-l-green-400",
+  financial_performance: "border-l-indigo-400",
+};
+
+function CategoryRow({ c, maxCount, compact }: { c: IssueCategoryItem; maxCount: number; compact: boolean }) {
+  const total = c.count || 1;
+  const posPct = Math.round((c.positive_count / total) * 100);
+  const negPct = Math.round((c.negative_count / total) * 100);
+  const barPct = Math.min(100, Math.round((c.count / maxCount) * 100));
+  const accent = CATEGORY_ACCENTS[c.category] ?? "border-l-gray-300";
+  const label = CATEGORY_LABELS[c.category] ?? c.category.replace(/_/g, " ");
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[8px] text-gray-600 truncate flex-1">{label}</span>
+        <span className="text-[7px] text-green-600 shrink-0">{posPct}%</span>
+        <span className="text-[7px] text-red-500 shrink-0">{negPct}%</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`pl-2 border-l-2 ${accent}`}>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-[12px] text-gray-700 font-medium">{label}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] text-green-600">{posPct}%▲</span>
+          <span className="text-[10px] text-red-500">{negPct}%▼</span>
+          <span className="text-[11px] text-gray-400">{formatCount(c.count)}</span>
+        </div>
+      </div>
+      <div className="h-1.5 rounded-full bg-gray-100">
+        <div className="h-full rounded-full bg-indigo-400" style={{ width: `${barPct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function TopIssuesTable({ brandId, compact, onClick }: Props) {
+  const [viewMode, setViewMode] = useState<"clusters" | "categories">("clusters");
+
   const { data: topicsData, isLoading: topicsLoading } = useQuery({
     queryKey: ["topics", brandId],
     queryFn: () => fetchTopics(brandId),
@@ -69,7 +131,13 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
     staleTime: 5 * 60_000,
   });
 
-  const isLoading = topicsLoading || clustersLoading;
+  const { data: categoryData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["issue-categories", brandId],
+    queryFn: () => fetchIssueCategories(brandId, 30),
+    staleTime: 5 * 60_000,
+  });
+
+  const isLoading = topicsLoading || clustersLoading || (viewMode === "categories" && categoriesLoading);
   const clusters = clusterData?.clusters ?? [];
   const hasClusters = clusters.length > 0;
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
@@ -78,6 +146,8 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
   if (compact) {
     const visibleClusters = clusters.slice(0, 5);
     const maxCount = clusters[0]?.article_count ?? 1;
+    const categoryItems = (categoryData?.categories ?? []).slice(0, 5);
+    const maxCatCount = categoryItems[0]?.count ?? 1;
 
     /* fallback to topic-based pos/neg split when no clusters */
     const allTopics = topicsData ?? [];
@@ -94,13 +164,34 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
       <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
         <div className="flex items-center justify-between mb-1 flex-none">
           <span className="text-[11px] font-semibold text-gray-800">Top Issues</span>
-          <span className="text-[9px] text-gray-400">{hasClusters ? "Clusters" : "All Sources"}</span>
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setViewMode("clusters")}
+              className={`text-[8px] px-1 py-px rounded ${viewMode === "clusters" ? "bg-indigo-100 text-indigo-600 font-semibold" : "text-gray-400"}`}
+            >Clusters</button>
+            <button
+              onClick={() => setViewMode("categories")}
+              className={`text-[8px] px-1 py-px rounded ${viewMode === "categories" ? "bg-indigo-100 text-indigo-600 font-semibold" : "text-gray-400"}`}
+            >Categories</button>
+          </div>
         </div>
 
         {isLoading ? (
           <div className="space-y-1.5 flex-1">
             {[1,2,3,4].map(i => <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" />)}
           </div>
+        ) : viewMode === "categories" ? (
+          categoryItems.length > 0 ? (
+            <div className="flex-1 min-h-0 overflow-hidden space-y-1">
+              {categoryItems.map(c => (
+                <CategoryRow key={c.category} c={c} maxCount={maxCatCount} compact />
+              ))}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <span className="text-[8px] text-gray-400">Populates after next pipeline run</span>
+            </div>
+          )
         ) : hasClusters ? (
           <div className="flex-1 min-h-0 overflow-hidden space-y-1">
             {visibleClusters.map(c => (
@@ -154,17 +245,41 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
   const visibleClusters = clusters.slice(0, 10);
   const maxClusterCount = Math.max(clusters[0]?.article_count ?? 1, 1);
 
+  const categoryItems = categoryData?.categories ?? [];
+  const maxCatCount = categoryItems[0]?.count ?? 1;
+
   return (
     <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm font-semibold text-gray-800">Top Issues</div>
-        <span className="text-[10px] text-gray-400">{hasClusters ? "Issue Clusters · 30d" : "All Sources"}</span>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+          <button
+            onClick={e => { e.stopPropagation(); setViewMode("clusters"); }}
+            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${viewMode === "clusters" ? "bg-white text-gray-800 shadow-sm font-medium" : "text-gray-500 hover:text-gray-700"}`}
+          >Clusters</button>
+          <button
+            onClick={e => { e.stopPropagation(); setViewMode("categories"); }}
+            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${viewMode === "categories" ? "bg-white text-gray-800 shadow-sm font-medium" : "text-gray-500 hover:text-gray-700"}`}
+          >Categories</button>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
           {[1,2,3,4,5].map(i => <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />)}
         </div>
+      ) : viewMode === "categories" ? (
+        categoryItems.length > 0 ? (
+          <div className="space-y-3">
+            {categoryItems.map(c => (
+              <CategoryRow key={c.category} c={c} maxCount={maxCatCount} compact={false} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-400 py-8 text-center">
+            Issue category data will populate after the next pipeline run.
+          </div>
+        )
       ) : hasClusters ? (
         <div className="space-y-3">
           {visibleClusters.map(c => (

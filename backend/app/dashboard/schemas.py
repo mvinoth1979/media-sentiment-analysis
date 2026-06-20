@@ -54,6 +54,8 @@ class ArticleItem(BaseModel):
     editorial_tone: str | None = None
     sentiment_divergence: bool = False
     is_regulatory_source: bool = False
+    # Structured issue taxonomy (12 categories)
+    issue_category: str = "other"
 
 
 class SourceStat(BaseModel):
@@ -337,5 +339,20 @@ class YTSentimentSplitResponse(BaseModel):
     creator: YTSentimentBucket
     audience: YTSentimentBucket
     divergent_videos: list[YTDivergentVideo]
+    period_days: int
+    brand_id: str
+
+
+# ── Issue Category Breakdown (Phase 3) ───────────────────────────────────────
+
+class IssueCategoryItem(BaseModel):
+    category: str
+    count: int
+    positive_count: int
+    negative_count: int
+
+
+class IssueCategoriesResponse(BaseModel):
+    categories: list[IssueCategoryItem]
     period_days: int
     brand_id: str

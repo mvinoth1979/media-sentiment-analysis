@@ -49,6 +49,7 @@ export interface ArticleItem {
   editorial_tone?: "factual" | "positive_frame" | "negative_frame" | "critical" | null;
   sentiment_divergence?: boolean | null;
   is_regulatory_source?: boolean | null;
+  issue_category?: string | null;
 }
 
 export interface SourceStat {
@@ -330,6 +331,19 @@ export interface YTSentimentSplitData {
   creator: YTSentimentBucket;
   audience: YTSentimentBucket;
   divergent_videos: YTDivergentVideo[];
+  period_days: number;
+  brand_id: string;
+}
+
+export interface IssueCategoryItem {
+  category: string;
+  count: number;
+  positive_count: number;
+  negative_count: number;
+}
+
+export interface IssueCategoriesData {
+  categories: IssueCategoryItem[];
   period_days: number;
   brand_id: string;
 }

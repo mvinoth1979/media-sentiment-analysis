@@ -10,6 +10,12 @@ log = logging.getLogger(__name__)
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
 _VALID_TONES  = {"factual", "positive_frame", "negative_frame", "critical"}
+_VALID_CATEGORIES = {
+    "financial_performance", "regulatory_compliance", "product_quality",
+    "leadership_governance", "crisis_controversy", "awards_recognition",
+    "csr_sustainability", "policy_government", "competitive_landscape",
+    "customer_experience", "brand_advocacy", "market_opportunity", "other",
+}
 
 _INDIAN_STATES = (
     "Andhra Pradesh, Arunachal Pradesh, Assam, Bihar, Chhattisgarh, Goa, Gujarat, "
@@ -39,6 +45,11 @@ def _parse_label(label: str) -> str:
 def _parse_tone(tone: str) -> str:
     normalized = tone.lower().strip().replace(" ", "_")
     return normalized if normalized in _VALID_TONES else "factual"
+
+
+def _parse_category(cat: str) -> str:
+    normalized = cat.lower().strip().replace(" ", "_")
+    return normalized if normalized in _VALID_CATEGORIES else "other"
 
 
 def _clip(v) -> float | None:
@@ -90,6 +101,7 @@ Return JSON: {{
   "editorial_tone": "factual"|"positive_frame"|"negative_frame"|"critical",
   "entities": [strings], "topics": [strings], "keywords": [strings],
   "states_mentioned": [Indian state/UT names — only from: {states}. Empty list if none.],
+  "issue_category": "financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other",
   "confidence": float 0-1
 }}
 
@@ -102,6 +114,7 @@ Source: {source_context}
 Return JSON: {{"sentiment_score": float -1 to 1, "sentiment_label": "positive"|"negative"|"neutral",
 "entities": [strings], "topics": [strings], "keywords": [strings],
 "states_mentioned": [Indian state/UT names from text — use only: {states}. Empty list if none.],
+"issue_category": "financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other",
 "confidence": float 0-1}}
 
 Language: {language}
@@ -164,6 +177,7 @@ def analyse_with_groq(
             headline_sentiment_score=hs,
             body_sentiment_score=bs,
             editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
+            issue_category=_parse_category(data.get("issue_category", "other")),
         ), False
     except Exception as e:
         log.error("Groq error: %s — %s", type(e).__name__, str(e)[:300])

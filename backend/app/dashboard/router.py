@@ -31,6 +31,7 @@ from app.dashboard.schemas import (
     DivergentArticle, DivergenceSummaryResponse,
     JournalistArticle, JournalistProfile, JournalistCoverageResponse,
     YTSentimentBucket, YTDivergentVideo, YTSentimentSplitResponse,
+    IssueCategoryItem, IssueCategoriesResponse,
 )
 
 router = APIRouter()
@@ -65,6 +66,7 @@ def _article_to_item(a: dict) -> ArticleItem:
         editorial_tone=a.get("editorial_tone") or None,
         sentiment_divergence=bool(a.get("sentiment_divergence")),
         is_regulatory_source=bool(a.get("is_regulatory_source")),
+        issue_category=a.get("issue_category") or "other",
     )
 
 
@@ -1130,3 +1132,44 @@ def get_youtube_sentiment_split(
         period_days=days,
         brand_id=brand_id,
     )
+
+
+# ── Issue Category Breakdown ──────────────────────────────────────────────────
+
+@router.get("/issue-categories/{brand_id}", response_model=IssueCategoriesResponse)
+def get_issue_categories(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=365),
+    user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    db = get_db()
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = (
+        db.table("articles")
+        .select("issue_category, sentiment_label")
+        .eq("brand_id", brand_id)
+        .gte("published_at", since)
+        .not_.is_("issue_category", "null")
+        .execute()
+        .data
+    ) or []
+
+    counts: dict[str, dict] = {}
+    for r in rows:
+        cat = r.get("issue_category") or "other"
+        if cat == "other":
+            continue
+        label = r.get("sentiment_label", "neutral")
+        if cat not in counts:
+            counts[cat] = {"count": 0, "positive_count": 0, "negative_count": 0}
+        counts[cat]["count"] += 1
+        if label == "positive":
+            counts[cat]["positive_count"] += 1
+        elif label == "negative":
+            counts[cat]["negative_count"] += 1
+
+    categories = [
+        IssueCategoryItem(category=cat, **vals)
+        for cat, vals in sorted(counts.items(), key=lambda x: -x[1]["count"])
+    ]
+    return IssueCategoriesResponse(categories=categories, period_days=days, brand_id=brand_id)

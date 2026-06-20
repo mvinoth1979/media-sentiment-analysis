@@ -20,6 +20,9 @@ class NLPResult:
     # B1: editorial framing (set alongside A2 in the same Gemini call)
     editorial_tone: str = ""        # "factual" | "positive_frame" | "negative_frame" | "critical"
 
+    # Structured issue taxonomy (12 categories)
+    issue_category: str = "other"
+
     def to_dict(self) -> dict:
         hs = self.headline_sentiment_score
         bs = self.body_sentiment_score
@@ -42,4 +45,5 @@ class NLPResult:
             "body_sentiment_score": bs,
             "sentiment_divergence": divergence,
             "editorial_tone": self.editorial_tone,
+            "issue_category": self.issue_category,
         }
