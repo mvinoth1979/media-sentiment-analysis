@@ -654,15 +654,37 @@ def get_competitor_sov(
                 comp_counts[comp] = count
         source = "configured"
     else:
-        # Fallback: top co-mentioned named entities across all articles
+        # Fallback: top co-mentioned named entities, excluding media portals,
+        # Indian states/UTs, and the brand's own name
+        from app.ingestion.portals import PORTALS
+        _INDIAN_STATES_SET = {
+            "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
+            "goa", "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka",
+            "kerala", "madhya pradesh", "maharashtra", "manipur", "meghalaya",
+            "mizoram", "nagaland", "odisha", "punjab", "rajasthan", "sikkim",
+            "tamil nadu", "telangana", "tripura", "uttar pradesh", "uttarakhand",
+            "west bengal", "delhi", "jammu & kashmir", "jammu and kashmir", "ladakh",
+            "chandigarh", "puducherry", "india", "भारत",
+        }
+        _PORTAL_NAMES = {p["name"].lower() for p in PORTALS}
+        brand_lower = brand_name.lower()
+
+        def _is_blocked(entity: str) -> bool:
+            el = entity.lower().strip()
+            return (
+                el in _INDIAN_STATES_SET
+                or el in _PORTAL_NAMES
+                or brand_lower in el
+                or el in brand_lower
+                or len(el) < 3
+            )
+
         entity_counter: Counter = Counter()
         for a in articles:
-            entity_counter.update(e for e in (a.get("entities") or []) if e and len(e) > 2)
-        # drop the brand's own name to avoid self-reference
-        brand_lower = brand_name.lower()
-        for key in list(entity_counter.keys()):
-            if brand_lower in key.lower() or key.lower() in brand_lower:
-                del entity_counter[key]
+            for e in (a.get("entities") or []):
+                if e and not _is_blocked(e):
+                    entity_counter[e] += 1
+
         comp_counts = dict(entity_counter.most_common(4))
         source = "entity_fallback"
 
@@ -704,13 +726,27 @@ def discover_and_save_competitors(
     config_row = db.table("brand_configs").select("keywords").eq("brand_id", brand_id).execute().data
     keywords: list[str] = (config_row[0].get("keywords") or []) if config_row else []
 
-    # Build candidate entity list from recent articles (top 20 by frequency)
+    # Build candidate entity list — reuse same block-list as the SoV GET endpoint
+    from app.ingestion.portals import PORTALS as _PORTALS
+    _STATES = {
+        "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
+        "goa", "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka",
+        "kerala", "madhya pradesh", "maharashtra", "manipur", "meghalaya",
+        "mizoram", "nagaland", "odisha", "punjab", "rajasthan", "sikkim",
+        "tamil nadu", "telangana", "tripura", "uttar pradesh", "uttarakhand",
+        "west bengal", "delhi", "jammu & kashmir", "jammu and kashmir", "ladakh",
+        "chandigarh", "puducherry", "india",
+    }
+    _MEDIA = {p["name"].lower() for p in _PORTALS}
+    brand_lower = brand_name.lower()
+
     articles = get_articles(brand_id, limit=1000)
     entity_counter: Counter = Counter()
-    brand_lower = brand_name.lower()
     for a in articles:
         for e in (a.get("entities") or []):
-            if e and len(e) > 2 and brand_lower not in e.lower() and e.lower() not in brand_lower:
+            el = (e or "").lower().strip()
+            if el and len(el) >= 3 and el not in _STATES and el not in _MEDIA \
+                    and brand_lower not in el and el not in brand_lower:
                 entity_counter[e] += 1
     candidate_entities = [e for e, _ in entity_counter.most_common(20)]
 

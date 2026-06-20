@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { fetchCompetitorSoV, discoverCompetitors } from "../lib/api";
 import type { CompetitorSoVData, SoVEntry } from "../lib/types";
@@ -33,13 +33,30 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
   const [data, setData] = useState<CompetitorSoVData | null>(null);
   const [discovering, setDiscovering] = useState(false);
   const [discovered, setDiscovered] = useState<string[] | null>(null);
+  const autoTriggered = useRef(false);   // fire once per mount, not on every re-render
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
   const load = useCallback(() => {
     fetchCompetitorSoV(brandId).then(setData).catch(() => {});
   }, [brandId]);
 
-  useEffect(() => { load(); }, [load]);
+  // Auto-discover competitors on first load when none are configured yet
+  useEffect(() => {
+    fetchCompetitorSoV(brandId).then(result => {
+      setData(result);
+      if (result.source === "entity_fallback" && !autoTriggered.current) {
+        autoTriggered.current = true;
+        setDiscovering(true);
+        discoverCompetitors(brandId)
+          .then(r => {
+            if (r.saved) fetchCompetitorSoV(brandId).then(setData).catch(() => {});
+            setDiscovered(r.competitors);
+          })
+          .catch(() => {})
+          .finally(() => setDiscovering(false));
+      }
+    }).catch(() => {});
+  }, [brandId]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDiscover = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,7 +65,7 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
     try {
       const result = await discoverCompetitors(brandId);
       setDiscovered(result.competitors);
-      load(); // refresh SoV with newly saved competitors
+      load();
     } catch {
       setDiscovered([]);
     } finally {
@@ -62,7 +79,12 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
   if (compact) {
     return (
       <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
-        <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Share of Voice</div>
+        <div className="flex items-center justify-between mb-1 flex-none">
+          <span className="text-[11px] font-semibold text-gray-800">Share of Voice</span>
+          {discovering && (
+            <span className="text-[8px] text-blue-500 animate-pulse">AI detecting…</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-1 min-h-0">
           <div className="relative w-[70px] h-[70px] shrink-0">
             <ResponsiveContainer width="100%" height="100%">
