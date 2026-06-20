@@ -142,4 +142,12 @@ export const fetchHeadlines = (
     .get<import("./types").HeadlinesData>(`/dashboard/headlines/${brandId}`, { params: { tab, ...params } })
     .then(r => r.data);
 
+export const fetchReviewSummary = (
+  brandId: string,
+  params?: { date_from?: string; date_to?: string }
+) =>
+  api
+    .get<import("./types").ReviewSummaryData>(`/dashboard/review-summary/${brandId}`, { params })
+    .then(r => r.data);
+
 export default api;

@@ -24,6 +24,7 @@ from app.dashboard.schemas import (
     SentimentTrendPoint, SentimentTrendResponse,
     SourceCategoryPoint, SourceCategoriesResponse,
     HeadlineItem, HeadlinesResponse,
+    ReviewSummaryResponse, ReviewStarBucket, TopicTheme,
 )
 
 router = APIRouter()
@@ -74,6 +75,8 @@ def get_overview(
             "sentiment_score": a.get("sentiment_score", 0),
             "source_credibility": a.get("source_credibility", 0.5),
             "reach_score": a.get("reach_score", 0),
+            "collected_at": a.get("collected_at"),
+            "reach_metadata": a.get("reach_metadata") or {},
         }
         for a in recent
     ])
@@ -122,6 +125,8 @@ def _window_kpi(brand_id: str, date_from: str, date_to: str) -> dict:
             "sentiment_score": a.get("sentiment_score", 0),
             "source_credibility": a.get("source_credibility", 0.5),
             "reach_score": a.get("reach_score", 0),
+            "collected_at": a.get("collected_at"),
+            "reach_metadata": a.get("reach_metadata") or {},
         }
         for a in articles
     ])
@@ -530,3 +535,76 @@ def get_headlines(
         ))
 
     return HeadlinesResponse(tab=tab, items=items)
+
+
+def _score_to_stars(score: float) -> int:
+    """Map sentiment_score (-1 to +1) to 1–5 star rating."""
+    if score >= 0.5:
+        return 5
+    if score >= 0.1:
+        return 4
+    if score > -0.1:
+        return 3
+    if score > -0.5:
+        return 2
+    return 1
+
+
+@router.get("/review-summary/{brand_id}", response_model=ReviewSummaryResponse)
+def get_review_summary(
+    brand_id: str,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    articles = get_articles(brand_id, limit=2000, date_from=date_from, date_to=date_to)
+    if not articles:
+        return ReviewSummaryResponse(
+            total=0,
+            avg_rating=0.0,
+            distribution=[ReviewStarBucket(stars=s, count=0, pct=0.0) for s in (5, 4, 3, 2, 1)],
+            top_positive_topics=[],
+            top_negative_topics=[],
+        )
+
+    star_counts: dict[int, int] = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
+    pos_topics: Counter = Counter()
+    neg_topics: Counter = Counter()
+    score_sum = 0.0
+
+    for a in articles:
+        score = a.get("sentiment_score") or 0.0
+        label = a.get("sentiment_label", "neutral")
+        score_sum += score
+        star_counts[_score_to_stars(score)] += 1
+        topics = a.get("topics") or []
+        if label == "positive":
+            pos_topics.update(topics)
+        elif label == "negative":
+            neg_topics.update(topics)
+
+    total = len(articles)
+    avg_score = score_sum / total
+    avg_rating = round((avg_score + 1) / 2 * 4 + 1, 1)
+
+    distribution = [
+        ReviewStarBucket(stars=s, count=c, pct=round(c / total * 100, 1))
+        for s, c in sorted(star_counts.items(), reverse=True)
+    ]
+
+    pos_total = sum(pos_topics.values()) or 1
+    neg_total = sum(neg_topics.values()) or 1
+
+    return ReviewSummaryResponse(
+        total=total,
+        avg_rating=avg_rating,
+        distribution=distribution,
+        top_positive_topics=[
+            TopicTheme(label=t, pct=round(c / pos_total * 100, 1))
+            for t, c in pos_topics.most_common(5)
+        ],
+        top_negative_topics=[
+            TopicTheme(label=t, pct=round(c / neg_total * 100, 1))
+            for t, c in neg_topics.most_common(5)
+        ],
+    )

@@ -1,7 +1,29 @@
 import hashlib
 import logging
 import re
+import unicodedata
 from datetime import datetime, timezone
+
+_LOW_SIGNAL_WORDS = {
+    "nice", "good", "great", "super", "wow", "ok", "okay", "yes", "no",
+    "lol", "haha", "hehe", "thanks", "thank", "cool", "awesome", "amazing",
+    "best", "love", "like", "same", "true", "facts", "real", "bro", "sir",
+    "ma", "mam", "👍", "❤️", "🔥", "💯", "😍", "🙏", "👏", "😊", "💪",
+}
+
+def _is_low_signal(text: str) -> bool:
+    stripped = text.strip()
+    if len(stripped) < 8:
+        return True
+    # strip emojis/punctuation and check if only low-signal words remain
+    clean = "".join(
+        c for c in stripped.lower()
+        if unicodedata.category(c) not in ("So", "Cn") and c.isalpha() or c == " "
+    ).strip()
+    if not clean:
+        return True  # pure emoji comment
+    words = set(clean.split())
+    return bool(words) and words.issubset(_LOW_SIGNAL_WORDS)
 
 import feedparser
 
@@ -259,6 +281,9 @@ def get_video_comments(video_id: str, brand_id: str,
         comment_id = item["id"]
         text = top.get("textDisplay", "").strip()
         if len(text) < 5:
+            continue
+
+        if _is_low_signal(text):
             continue
 
         like_count = int(top.get("likeCount", 0))

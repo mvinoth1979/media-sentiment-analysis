@@ -72,7 +72,16 @@ def delete_articles(article_ids: list[str], brand_id: str) -> list[dict]:
 
 def get_kpi_summary(brand_id: str) -> dict:
     db = get_db()
-    rows = db.table("articles").select("sentiment_label, source_type").eq("brand_id", brand_id).execute().data
+    # Exclude very low-confidence classifications (< 0.3) from KPI counts.
+    # Articles with NULL confidence (ingested before migration 012) are always included.
+    rows = (
+        db.table("articles")
+        .select("sentiment_label, source_type")
+        .eq("brand_id", brand_id)
+        .or_("confidence.is.null,confidence.gte.0.3")
+        .execute()
+        .data
+    )
     total = len(rows)
     if total == 0:
         return {"total": 0, "positive": 0, "negative": 0, "neutral": 0,

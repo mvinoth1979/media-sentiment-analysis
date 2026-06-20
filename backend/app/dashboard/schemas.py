@@ -175,3 +175,24 @@ class HeadlineItem(BaseModel):
 class HeadlinesResponse(BaseModel):
     tab: str
     items: list[HeadlineItem]
+
+
+# --- Review Summary (derived from pipeline sentiment data) ---
+
+class ReviewStarBucket(BaseModel):
+    stars: int
+    count: int
+    pct: float
+
+
+class TopicTheme(BaseModel):
+    label: str
+    pct: float
+
+
+class ReviewSummaryResponse(BaseModel):
+    total: int
+    avg_rating: float
+    distribution: list[ReviewStarBucket]
+    top_positive_topics: list[TopicTheme]
+    top_negative_topics: list[TopicTheme]

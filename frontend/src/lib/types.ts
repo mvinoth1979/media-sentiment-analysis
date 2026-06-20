@@ -177,3 +177,22 @@ export interface HeadlinesData {
   tab: string;
   items: HeadlineItem[];
 }
+
+export interface ReviewStarBucket {
+  stars: number;
+  count: number;
+  pct: number;
+}
+
+export interface TopicTheme {
+  label: string;
+  pct: number;
+}
+
+export interface ReviewSummaryData {
+  total: number;
+  avg_rating: number;
+  distribution: ReviewStarBucket[];
+  top_positive_topics: TopicTheme[];
+  top_negative_topics: TopicTheme[];
+}
