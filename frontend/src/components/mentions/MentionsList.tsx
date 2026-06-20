@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { fetchMentions, deleteMentions, exportMentionsCsv } from "../../lib/api";
+import { formatCount } from "../../lib/utils";
 import { SentimentBadge } from "../ui/SentimentBadge";
 import { YouTubeIcon } from "../ui/YouTubeIcon";
 import type { ArticleItem } from "../../lib/types";
@@ -14,6 +15,7 @@ interface Props {
   initialPortalId?: string;
   initialTopic?: string;
   initialState?: string;
+  initialSentiment?: string;
   selectable?: boolean;
   syncUrl?: boolean;
 }
@@ -48,12 +50,6 @@ function readParam(key: string, fallback = "") {
   return new URLSearchParams(window.location.search).get(key) ?? fallback;
 }
 
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return String(n);
-}
-
 export function MentionsList({
   brandId,
   brandName = "",
@@ -63,11 +59,12 @@ export function MentionsList({
   initialPortalId = "",
   initialTopic = "",
   initialState = "",
+  initialSentiment,
   selectable = false,
   syncUrl = false,
 }: Props) {
   const [page, setPage]           = useState(0);
-  const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : "");
+  const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : (initialSentiment ?? ""));
   const [language, setLanguage]   = useState(() => syncUrl ? readParam("language") : "");
   const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
   const [portalId, setPortalId]   = useState(initialPortalId);
@@ -113,6 +110,14 @@ export function MentionsList({
     const id = setTimeout(() => setQ(qDraft), 400);
     return () => clearTimeout(id);
   }, [qDraft]);
+
+  // React to "View All" clicks from TopHeadlines — apply sentiment filter externally
+  useEffect(() => {
+    if (initialSentiment !== undefined) {
+      setSentiment(initialSentiment);
+      setPage(0);
+    }
+  }, [initialSentiment]);
 
   const params: Record<string, string> = { limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) };
   if (sentiment)  params.sentiment    = sentiment;

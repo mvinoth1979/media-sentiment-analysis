@@ -117,3 +117,63 @@ export interface OverviewData {
   pipeline_last_run_at: string | null;
   pipeline_last_stats: PipelineStats;
 }
+
+// ── Phase 3 types ──────────────────────────────────────────────────────────────
+
+export interface SentimentTrendPoint {
+  time: string;
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
+export interface SentimentTrendData {
+  points: SentimentTrendPoint[];
+  points_tier1: SentimentTrendPoint[];
+  window: "1d" | "1h";
+}
+
+export interface SourceCategoryPoint {
+  category: string;
+  label: string;
+  color: string;
+  count: number;
+  positive: number;
+  negative: number;
+  neutral: number;
+  pct: number;
+  avg_credibility: number;
+  tier_distribution: Record<string, number>;
+}
+
+export interface SourceCategoriesData {
+  categories: SourceCategoryPoint[];
+  total: number;
+}
+
+export interface HeadlineItem {
+  id: string;
+  title: string;
+  url: string;
+  portal_id: string;
+  portal_name: string;
+  portal_category: string;
+  source_tier: number;
+  source_tier_label: string;
+  published_at: string | null;
+  collected_at: string | null;
+  sentiment_label: "positive" | "negative" | "neutral";
+  sentiment_score: number;
+  sentiment_intensity: string;
+  source_credibility: number;
+  language: string;
+  source_type: string;
+  repeat_author: boolean;
+  reach_tier: string | null;
+  author_name: string | null;
+}
+
+export interface HeadlinesData {
+  tab: string;
+  items: HeadlineItem[];
+}

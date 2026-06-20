@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchOverview, fetchAlerts, createAlert, deleteAlert } from "../lib/api";
 import type { AlertConfig } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
+import { MentionsBySourceDonut } from "../components/charts/MentionsBySourceDonut";
 import { SentimentPieChart } from "../components/charts/SentimentPieChart";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { MentionsList } from "../components/mentions/MentionsList";
+import { TopHeadlines } from "../components/TopHeadlines";
 
 interface Props {
   brandId: string;
@@ -148,6 +150,9 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
 }
 
 export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
+  const [mentionsSentimentFilter, setMentionsSentimentFilter] = useState("");
+  const mentionsRef = useRef<HTMLDivElement>(null);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["overview", brandId],
     queryFn: () => fetchOverview(brandId),
@@ -235,38 +240,48 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
         </div>
       </div>
 
-      {/* Trend chart + Top Sources */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <SentimentTrendChart brandId={brandId} data={data.trend} />
+      {/* Phase 3: Charts row — Trend + Donut | Headlines */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 flex flex-col gap-4">
+          <SentimentTrendChart brandId={brandId} />
+          <MentionsBySourceDonut brandId={brandId} />
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <div className="text-sm font-semibold text-gray-200 mb-3">Top Sources</div>
-          <div className="space-y-2">
-            {data.top_sources.map(s => (
-              <div key={s.portal_id}>
-                <div className="flex justify-between text-xs text-gray-400 mb-1">
-                  <span className="truncate max-w-[140px]">{s.portal_id.replace(/_/g, " ")}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-[10px] font-mono px-1 rounded ${
-                      s.avg_credibility >= 0.85
-                        ? "bg-green-900/40 text-green-400"
-                        : s.avg_credibility >= 0.75
-                        ? "bg-yellow-900/40 text-yellow-400"
-                        : "bg-gray-800 text-gray-500"
-                    }`}>
-                      {s.avg_credibility.toFixed(2)}
-                    </span>
-                    <span>{s.count}</span>
-                  </div>
-                </div>
-                <div className="bg-gray-800 rounded h-1.5">
-                  <div className="bg-indigo-500 h-full rounded"
-                       style={{ width: `${Math.min(100, (s.count / (kpi.total || 1)) * 100)}%` }} />
+        <TopHeadlines
+          brandId={brandId}
+          onViewAll={(tab) => {
+            mentionsRef.current?.scrollIntoView({ behavior: "smooth" });
+            setMentionsSentimentFilter(tab === "trending" ? "" : tab);
+          }}
+        />
+      </div>
+
+      {/* Top Sources */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+        <div className="text-sm font-semibold text-gray-200 mb-3">Top Sources</div>
+        <div className="space-y-2">
+          {data.top_sources.map(s => (
+            <div key={s.portal_id}>
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span className="truncate max-w-[140px]">{s.portal_id.replace(/_/g, " ")}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[10px] font-mono px-1 rounded ${
+                    s.avg_credibility >= 0.85
+                      ? "bg-green-900/40 text-green-400"
+                      : s.avg_credibility >= 0.75
+                      ? "bg-yellow-900/40 text-yellow-400"
+                      : "bg-gray-800 text-gray-500"
+                  }`}>
+                    {s.avg_credibility.toFixed(2)}
+                  </span>
+                  <span>{s.count}</span>
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="bg-gray-800 rounded h-1.5">
+                <div className="bg-indigo-500 h-full rounded"
+                     style={{ width: `${Math.min(100, (s.count / (kpi.total || 1)) * 100)}%` }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -282,16 +297,19 @@ export function Overview({ brandId, brandName, isAdmin, userEmail }: Props) {
         }}
       />
 
-      {/* Mentions table */}
-      <MentionsList
-        brandId={brandId}
-        brandName={brandName}
-        portals={data.top_sources.map(s => s.portal_id)}
-        topics={data.top_topics}
-        states={data.state_breakdown.map(s => s.state)}
-        selectable
-        syncUrl
-      />
+      {/* Mentions table — ref for "View All" scroll target */}
+      <div ref={mentionsRef}>
+        <MentionsList
+          brandId={brandId}
+          brandName={brandName}
+          portals={data.top_sources.map(s => s.portal_id)}
+          topics={data.top_topics}
+          states={data.state_breakdown.map(s => s.state)}
+          initialSentiment={mentionsSentimentFilter}
+          selectable
+          syncUrl
+        />
+      </div>
 
       {/* Topics + Keywords */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

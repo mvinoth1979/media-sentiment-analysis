@@ -11,12 +11,19 @@ from app.storage.postgres import (
     get_pipeline_info, get_state_breakdown,
 )
 from app.storage.rejection_store import save_rejections
-from app.storage.influxdb import query_sentiment_trend
+from app.storage.influxdb import (
+    query_sentiment_trend,
+    query_sentiment_counts_trend,
+    query_sentiment_counts_trend_range,
+)
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
     SourceStat, TopicStat, StateStat, TrendPoint,
     Annotation, AnnotationCreate, DeleteMentionsRequest, PipelineStats,
+    SentimentTrendPoint, SentimentTrendResponse,
+    SourceCategoryPoint, SourceCategoriesResponse,
+    HeadlineItem, HeadlinesResponse,
 )
 
 router = APIRouter()
@@ -324,3 +331,202 @@ def create_trend_annotation(
     }
     inserted = db.table("trend_annotations").insert(row).execute().data
     return inserted[0]
+
+
+# ── Phase 3 helpers ────────────────────────────────────────────────────────────
+
+def _days_between(iso_from: str, iso_to: str) -> int:
+    a = datetime.fromisoformat(iso_from.replace("Z", "+00:00"))
+    b = datetime.fromisoformat(iso_to.replace("Z", "+00:00"))
+    return abs((b - a).days)
+
+
+def _aggregate_by_window(articles: list[dict], window: str) -> list[dict]:
+    """Groups articles into time buckets (day or hour) and counts by sentiment."""
+    from collections import defaultdict
+    buckets: dict[str, dict] = defaultdict(lambda: {"positive": 0, "negative": 0, "neutral": 0})
+    for a in articles:
+        ts = a.get("collected_at") or a.get("published_at") or ""
+        if not ts:
+            continue
+        day = ts[:10]
+        buckets[day][a.get("sentiment_label", "neutral")] += 1
+    return [
+        {"time": f"{day}T00:00:00+00:00", **counts}
+        for day, counts in sorted(buckets.items())
+    ]
+
+
+def _sentiment_intensity(label: str, score: float) -> str:
+    """Maps existing 3-label + 0–1 score to a 5-level intensity label (no NLP rescore)."""
+    if label == "positive":
+        return "Strongly Positive" if score >= 0.75 else "Mildly Positive"
+    if label == "negative":
+        return "Strongly Negative" if score <= 0.25 else "Mildly Negative"
+    return "Neutral"
+
+
+def _youtube_reach_tier(view_count: int) -> str:
+    if view_count >= 500_000:
+        return "High"
+    if view_count >= 50_000:
+        return "Medium"
+    return "Low"
+
+
+def _get_repeat_negative_authors(brand_id: str) -> set[str]:
+    """Authors with >= 2 negative articles in the last 30 days — repeat-critic flag."""
+    from collections import Counter
+    date_from = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    articles = get_articles(brand_id, limit=500, sentiment="negative", date_from=date_from)
+    counts = Counter(
+        a.get("author") for a in articles
+        if a.get("author") and not str(a.get("author", "")).startswith("youtube_")
+    )
+    return {auth for auth, n in counts.items() if n >= 2}
+
+
+# ── Phase 3 endpoints ──────────────────────────────────────────────────────────
+
+@router.get("/trends/{brand_id}/sentiment", response_model=SentimentTrendResponse)
+def get_sentiment_trend(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=365),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    effective_to = date_to or datetime.now(timezone.utc).isoformat()
+    span_days = _days_between(date_from, effective_to) if date_from else days
+    window = "1h" if span_days <= 14 else "1d"
+
+    if date_from:
+        raw = query_sentiment_counts_trend_range(brand_id, date_from, effective_to, window)
+    else:
+        raw = query_sentiment_counts_trend(brand_id, days)
+
+    # Tier 1+2 overlay: aggregate from Supabase articles with credibility >= 0.78
+    all_articles = get_articles(brand_id, limit=2000, date_from=date_from, date_to=date_to)
+    tier12 = [a for a in all_articles if (a.get("source_credibility") or 0) >= 0.78]
+    points_tier1 = _aggregate_by_window(tier12, window)
+
+    return SentimentTrendResponse(
+        points=[SentimentTrendPoint(**p) for p in raw],
+        points_tier1=[SentimentTrendPoint(**p) for p in points_tier1],
+        window=window,
+    )
+
+
+@router.get("/source-categories/{brand_id}", response_model=SourceCategoriesResponse)
+def get_source_categories(
+    brand_id: str,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    from collections import defaultdict
+    from app.ingestion.portals import get_portal_category, get_portal_tier, CATEGORY_LABELS, CATEGORY_COLORS
+
+    articles = get_articles(brand_id, limit=2000, date_from=date_from, date_to=date_to)
+    cat_map: dict[str, dict] = {}
+
+    for a in articles:
+        pid = a.get("portal_id", "")
+        cat = get_portal_category(pid)
+        tier = get_portal_tier(pid)
+        if cat not in cat_map:
+            cat_map[cat] = {
+                "category": cat,
+                "label": CATEGORY_LABELS.get(cat, cat),
+                "color": CATEGORY_COLORS.get(cat, "#6b7280"),
+                "count": 0, "positive": 0, "negative": 0, "neutral": 0,
+                "_cred_sum": 0.0,
+                "_tier_dist": {"tier1": 0, "tier2": 0, "tier3": 0, "tier4": 0, "youtube": 0},
+            }
+        cat_map[cat]["count"] += 1
+        cat_map[cat]["_cred_sum"] += a.get("source_credibility") or 0.5
+        cat_map[cat][a.get("sentiment_label", "neutral")] += 1
+        tier_key = f"tier{tier}" if tier > 0 else "youtube"
+        cat_map[cat]["_tier_dist"][tier_key] = cat_map[cat]["_tier_dist"].get(tier_key, 0) + 1
+
+    total = sum(v["count"] for v in cat_map.values())
+    result = []
+    for entry in sorted(cat_map.values(), key=lambda x: x["count"], reverse=True):
+        count = entry["count"]
+        cred_sum = entry.pop("_cred_sum")
+        tier_dist = entry.pop("_tier_dist")
+        result.append(SourceCategoryPoint(
+            **{k: v for k, v in entry.items()},
+            pct=round(count / total * 100, 1) if total else 0.0,
+            avg_credibility=round(cred_sum / count, 2) if count else 0.0,
+            tier_distribution=tier_dist,
+        ))
+
+    return SourceCategoriesResponse(categories=result, total=total)
+
+
+@router.get("/headlines/{brand_id}", response_model=HeadlinesResponse)
+def get_headlines(
+    brand_id: str,
+    tab: str = Query("positive", pattern="^(positive|negative|trending)$"),
+    limit: int = Query(5, ge=1, le=10),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    from app.ingestion.portals import get_portal, get_portal_category, get_portal_tier, TIER_LABELS
+
+    sentiment_filter = None if tab == "trending" else tab
+    articles = get_articles(
+        brand_id, limit=limit * 6,
+        sentiment=sentiment_filter,
+        date_from=date_from, date_to=date_to,
+    )
+
+    if tab == "positive":
+        articles = sorted(articles, key=lambda a: (
+            a.get("sentiment_score") or 0,
+            a.get("source_credibility") or 0,
+        ), reverse=True)
+    elif tab == "negative":
+        articles = sorted(articles, key=lambda a: a.get("sentiment_score") or 1.0)
+    else:
+        # trending: recency-sorted (already default), filter noise
+        articles = [a for a in articles if (a.get("source_credibility") or 0) >= 0.70]
+
+    repeat_authors = _get_repeat_negative_authors(brand_id) if tab == "negative" else set()
+
+    items = []
+    for a in articles[:limit]:
+        pid = a.get("portal_id", "")
+        portal = get_portal(pid)
+        tier = get_portal_tier(pid)
+        label = a.get("sentiment_label", "neutral")
+        score = a.get("sentiment_score") or 0.5
+        reach_meta = a.get("reach_metadata") or {}
+        view_count = int(reach_meta.get("view_count") or 0)
+        author = a.get("author")
+
+        items.append(HeadlineItem(
+            id=str(a.get("id", "")),
+            title=a.get("title", ""),
+            url=a.get("url", ""),
+            portal_id=pid,
+            portal_name=portal["name"] if portal else pid.replace("_", " ").title(),
+            portal_category=get_portal_category(pid),
+            source_tier=tier,
+            source_tier_label=TIER_LABELS.get(tier, "Tier 4"),
+            published_at=a.get("published_at"),
+            collected_at=a.get("collected_at"),
+            sentiment_label=label,
+            sentiment_score=score,
+            sentiment_intensity=_sentiment_intensity(label, score),
+            source_credibility=a.get("source_credibility") or 0.5,
+            language=a.get("language", "en"),
+            source_type=a.get("source_type") or "news",
+            repeat_author=bool(author and author in repeat_authors),
+            reach_tier=_youtube_reach_tier(view_count) if pid.startswith("youtube_") and view_count > 0 else None,
+            author_name=author,
+        ))
+
+    return HeadlinesResponse(tab=tab, items=items)

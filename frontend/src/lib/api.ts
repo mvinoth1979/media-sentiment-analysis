@@ -115,4 +115,31 @@ export const inviteUser = (payload: { email: string; role: string; brand_id?: st
 export const fetchBrandUsers = (brandId: string) =>
   api.get<import("./types").BrandUser[]>(`/tenants/users/${brandId}`).then(r => r.data);
 
+// ── Phase 3 ────────────────────────────────────────────────────────────────────
+
+export const fetchSentimentTrend = (
+  brandId: string,
+  params?: { days?: number; date_from?: string; date_to?: string }
+) =>
+  api
+    .get<import("./types").SentimentTrendData>(`/dashboard/trends/${brandId}/sentiment`, { params })
+    .then(r => r.data);
+
+export const fetchSourceCategories = (
+  brandId: string,
+  params?: { date_from?: string; date_to?: string }
+) =>
+  api
+    .get<import("./types").SourceCategoriesData>(`/dashboard/source-categories/${brandId}`, { params })
+    .then(r => r.data);
+
+export const fetchHeadlines = (
+  brandId: string,
+  tab: "positive" | "negative" | "trending",
+  params?: { limit?: number; date_from?: string; date_to?: string }
+) =>
+  api
+    .get<import("./types").HeadlinesData>(`/dashboard/headlines/${brandId}`, { params: { tab, ...params } })
+    .then(r => r.data);
+
 export default api;

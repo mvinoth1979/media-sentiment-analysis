@@ -31,6 +31,76 @@ def write_sentiment_point(brand_id: str, perception_score: float,
         )
 
 
+def query_sentiment_counts_trend(brand_id: str, days: int = 30) -> list[dict]:
+    """
+    Returns daily positive/negative/neutral counts via Flux pivot().
+    pivot() collapses 3 field-rows per timestamp into one wide row — single round-trip.
+    """
+    flux = f'''
+from(bucket: "{settings.influxdb_bucket}")
+  |> range(start: -{days}d)
+  |> filter(fn: (r) => r._measurement == "brand_sentiment")
+  |> filter(fn: (r) => r.brand_id == "{brand_id}")
+  |> filter(fn: (r) => r._field == "positive_count" or
+                        r._field == "negative_count" or
+                        r._field == "neutral_count")
+  |> aggregateWindow(every: 1d, fn: sum, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> yield(name: "daily")
+'''
+    try:
+        with _client() as c:
+            tables = c.query_api().query(flux, org=settings.influxdb_org)
+            results = []
+            for table in tables:
+                for record in table.records:
+                    results.append({
+                        "time":     record.get_time().isoformat(),
+                        "positive": int(record.values.get("positive_count") or 0),
+                        "negative": int(record.values.get("negative_count") or 0),
+                        "neutral":  int(record.values.get("neutral_count")  or 0),
+                    })
+            return sorted(results, key=lambda r: r["time"])
+    except Exception:
+        return []
+
+
+def query_sentiment_counts_trend_range(
+    brand_id: str,
+    date_from: str,
+    date_to: str,
+    window: str = "1d",
+) -> list[dict]:
+    """Explicit date-range variant; window is a Flux duration string e.g. '1d', '1h'."""
+    flux = f'''
+from(bucket: "{settings.influxdb_bucket}")
+  |> range(start: {date_from}, stop: {date_to})
+  |> filter(fn: (r) => r._measurement == "brand_sentiment")
+  |> filter(fn: (r) => r.brand_id == "{brand_id}")
+  |> filter(fn: (r) => r._field == "positive_count" or
+                        r._field == "negative_count" or
+                        r._field == "neutral_count")
+  |> aggregateWindow(every: {window}, fn: sum, createEmpty: false)
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> yield(name: "range")
+'''
+    try:
+        with _client() as c:
+            tables = c.query_api().query(flux, org=settings.influxdb_org)
+            results = []
+            for table in tables:
+                for record in table.records:
+                    results.append({
+                        "time":     record.get_time().isoformat(),
+                        "positive": int(record.values.get("positive_count") or 0),
+                        "negative": int(record.values.get("negative_count") or 0),
+                        "neutral":  int(record.values.get("neutral_count")  or 0),
+                    })
+            return sorted(results, key=lambda r: r["time"])
+    except Exception:
+        return []
+
+
 def query_sentiment_trend(brand_id: str, days: int = 7) -> list[dict]:
     flux = f'''
 from(bucket: "{settings.influxdb_bucket}")

@@ -1,20 +1,85 @@
 import { useState } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, Label, ResponsiveContainer } from "recharts";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, Legend,
+  ReferenceLine, Label, ResponsiveContainer,
+} from "recharts";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchAnnotations, createAnnotation } from "../../lib/api";
-import type { TrendPoint, Annotation } from "../../lib/types";
+import { fetchAnnotations, createAnnotation, fetchSentimentTrend } from "../../lib/api";
+import type { Annotation, SentimentTrendPoint } from "../../lib/types";
+import { sentimentIntensity } from "../../lib/utils";
 
 interface Props {
   brandId: string;
-  data: TrendPoint[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export function SentimentTrendChart({ brandId, data }: Props) {
-  const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
-  const [draftDate, setDraftDate] = useState("");
-  const [draftLabel, setDraftLabel] = useState("");
+interface ChartPoint {
+  date: string;
+  _iso: string;
+  positive: number;
+  negative: number;
+  neutral: number;
+}
 
+function formatChartData(points: SentimentTrendPoint[], window: "1d" | "1h"): ChartPoint[] {
+  return points.map(p => ({
+    date:
+      window === "1d"
+        ? new Date(p.time).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+        : new Date(p.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+    _iso: p.time.slice(0, 10),
+    positive: p.positive,
+    negative: p.negative,
+    neutral:  p.neutral,
+  }));
+}
+
+interface TooltipEntry { dataKey: string; value: number; }
+interface CustomTooltipProps { active?: boolean; payload?: TooltipEntry[]; label?: string; }
+
+function SentimentTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const pos = payload.find((p: TooltipEntry) => p.dataKey === "positive")?.value ?? 0;
+  const neg = payload.find((p: TooltipEntry) => p.dataKey === "negative")?.value ?? 0;
+  const neu = payload.find((p: TooltipEntry) => p.dataKey === "neutral")?.value ?? 0;
+  const total = pos + neg + neu;
+  const dominant =
+    pos >= neg && pos >= neu ? "positive" :
+    neg >= pos && neg >= neu ? "negative" : "neutral";
+  const domScore = total > 0
+    ? dominant === "positive" ? pos / total
+    : dominant === "negative" ? 1 - (pos / total)
+    : 0.5
+    : 0.5;
+  const { text } = sentimentIntensity(dominant, domScore);
+
+  return (
+    <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs shadow-xl">
+      <div className="text-gray-400 mb-1">{label}</div>
+      <div className="text-indigo-300 text-[10px] mb-1.5 font-medium">{text}</div>
+      <div className="text-green-400">+{pos} positive</div>
+      <div className="text-red-400">−{neg} negative</div>
+      <div className="text-yellow-400">~{neu} neutral</div>
+    </div>
+  );
+}
+
+export function SentimentTrendChart({ brandId, dateFrom, dateTo }: Props) {
+  const queryClient = useQueryClient();
+  const [showForm,   setShowForm]   = useState(false);
+  const [draftDate,  setDraftDate]  = useState("");
+  const [draftLabel, setDraftLabel] = useState("");
+  const [showTier1,  setShowTier1]  = useState(false);
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const { data: trendData, isLoading } = useQuery({
+    queryKey: ["sentiment-trend", brandId, dateFrom, dateTo],
+    queryFn: () => fetchSentimentTrend(brandId, { date_from: dateFrom, date_to: dateTo, days: 30 }),
+    staleTime: 5 * 60_000,
+  });
+
+  // F08 annotation queries — identical to v1.0, preserved exactly
   const { data: annotations = [] } = useQuery<Annotation[]>({
     queryKey: ["annotations", brandId],
     queryFn: () => fetchAnnotations(brandId),
@@ -31,31 +96,57 @@ export function SentimentTrendChart({ brandId, data }: Props) {
     },
   });
 
-  const byDate = new Map<string, { sum: number; count: number }>();
-  for (const d of data) {
-    const date = d.time.slice(0, 10);
-    const bucket = byDate.get(date) ?? { sum: 0, count: 0 };
-    bucket.sum += d.value;
-    bucket.count += 1;
-    byDate.set(date, bucket);
+  // ── Chart data ────────────────────────────────────────────────────────────
+  const window_ = trendData?.window ?? "1d";
+  const chartData: ChartPoint[] = trendData ? formatChartData(trendData.points, window_) : [];
+  const tier1Data: ChartPoint[] = trendData?.points_tier1?.length
+    ? formatChartData(trendData.points_tier1, window_)
+    : [];
+  const chartDates = new Set(chartData.map(p => p._iso));
+
+  // Find formatted x-axis label matching annotation date (F08 preserved)
+  function formattedDateOf(isoDate: string): string {
+    return chartData.find(d => d._iso === isoDate)?.date ?? isoDate;
   }
-  const formatted = Array.from(byDate.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { sum, count }]) => ({ date, score: Math.round(sum / count) }));
-  const chartDates = new Set(formatted.map(p => p.date));
+
+  // ── Skeleton ──────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+        <div className="h-5 w-48 bg-gray-800 rounded animate-pulse mb-4" />
+        <div className="h-[220px] bg-gray-800/50 rounded-lg animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-semibold text-gray-200">Perception Score — 7 Days</div>
-        <button
-          onClick={() => setShowForm(s => !s)}
-          className="text-xs text-indigo-400 hover:text-indigo-300"
-        >
-          {showForm ? "Cancel" : "+ Annotate"}
-        </button>
+        <div className="text-sm font-semibold text-gray-200">Sentiment Trend — Last 30 Days</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTier1(s => !s)}
+            title="Overlay dashed lines showing only Tier 1+2 national/major-regional sources"
+            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+              showTier1
+                ? "bg-violet-900/40 border-violet-600 text-violet-300"
+                : "border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-400"
+            }`}
+          >
+            Tier 1+2 only
+          </button>
+          <button
+            onClick={() => setShowForm(s => !s)}
+            className="text-xs text-indigo-400 hover:text-indigo-300"
+          >
+            {showForm ? "Cancel" : "+ Annotate"}
+          </button>
+        </div>
       </div>
 
+      {/* F08 annotation form — identical to v1.0 */}
       {showForm && (
         <form
           onSubmit={e => { e.preventDefault(); if (draftDate && draftLabel.trim()) addAnnotation.mutate(); }}
@@ -86,29 +177,48 @@ export function SentimentTrendChart({ brandId, data }: Props) {
         </form>
       )}
 
-      <ResponsiveContainer width="100%" height={160}>
-        <LineChart data={formatted}>
-          <XAxis
-            dataKey="date"
-            tickFormatter={d => new Date(d).toLocaleDateString("en-IN", { weekday: "short" })}
-            tick={{ fill: "#6b7280", fontSize: 11 }}
-          />
-          <YAxis domain={[0, 100]} tick={{ fill: "#6b7280", fontSize: 11 }} />
-          <Tooltip
-            contentStyle={{ background: "#1f2937", border: "none" }}
-            labelFormatter={d => new Date(d).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
-          />
-          <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2} dot={false} />
-          {annotations
-            .filter(a => chartDates.has(a.date))
-            .map(a => (
-              <ReferenceLine key={a.id} x={a.date} stroke="#f59e0b" strokeDasharray="3 3">
-                <Label value={a.label} position="insideTopLeft" fill="#f59e0b" fontSize={10} />
-              </ReferenceLine>
-            ))}
-        </LineChart>
-      </ResponsiveContainer>
+      {chartData.length === 0 ? (
+        <div className="h-[220px] flex items-center justify-center text-gray-600 text-sm">
+          No trend data yet — the pipeline runs hourly.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={chartData} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
+            <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 11 }} />
+            <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} allowDecimals={false} />
+            <Tooltip content={<SentimentTooltip />} />
+            <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
 
+            {/* Solid lines — all sources */}
+            <Line type="monotone" dataKey="positive" stroke="#22c55e" strokeWidth={2} dot={false} name="Positive" />
+            <Line type="monotone" dataKey="negative" stroke="#ef4444" strokeWidth={2} dot={false} name="Negative" />
+            <Line type="monotone" dataKey="neutral"  stroke="#eab308" strokeWidth={2} dot={false} name="Neutral"  />
+
+            {/* Dashed Tier 1+2 overlay — only when toggle is on */}
+            {showTier1 && tier1Data.length > 0 && (
+              <>
+                <Line type="monotone" data={tier1Data} dataKey="positive" stroke="#22c55e"
+                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" />
+                <Line type="monotone" data={tier1Data} dataKey="negative" stroke="#ef4444"
+                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" />
+                <Line type="monotone" data={tier1Data} dataKey="neutral"  stroke="#eab308"
+                      strokeWidth={1} strokeDasharray="4 2" dot={false} legendType="none" />
+              </>
+            )}
+
+            {/* F08 annotations — ReferenceLine per annotation, preserved exactly */}
+            {annotations
+              .filter(a => chartDates.has(a.date))
+              .map(a => (
+                <ReferenceLine key={a.id} x={formattedDateOf(a.date)} stroke="#f59e0b" strokeDasharray="3 3">
+                  <Label value={a.label} position="insideTopLeft" fill="#f59e0b" fontSize={10} />
+                </ReferenceLine>
+              ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+
+      {/* F08 annotation chips — preserved exactly */}
       {annotations.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {annotations.map(a => (
