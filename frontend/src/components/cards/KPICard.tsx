@@ -7,7 +7,6 @@
   sub?: string;
   icon?: string;
   accentColor?: "green" | "red" | "gray" | "blue" | "purple";
-  /** @deprecated use accentColor */
   color?: string;
 }
 
@@ -25,37 +24,37 @@ export function KPICard({ label, value, pct, delta, deltaUnit = "%", sub, icon, 
   const isNeg = delta != null && delta < 0;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-2 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-xs text-gray-500 font-medium leading-tight">{label}</div>
+    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex flex-col gap-1 shadow-sm">
+      <div className="flex items-center justify-between gap-1">
+        <div className="text-[11px] text-gray-500 font-medium leading-tight">{label}</div>
         {icon && (
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 ${accent.icon}`}>
+          <div className={`w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0 ${accent.icon}`}>
             {icon}
           </div>
         )}
       </div>
 
       <div className="flex items-baseline gap-1.5 flex-wrap">
-        <span className="text-2xl font-bold text-gray-900">{value}</span>
+        <span className="text-xl font-bold text-gray-900 leading-tight">{value}</span>
         {pct != null && (
-          <span className="text-sm text-gray-500 font-medium">({pct.toFixed(1)}%)</span>
+          <span className="text-xs text-gray-500 font-medium">({pct.toFixed(1)}%)</span>
         )}
       </div>
 
       {delta != null && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+        <div className="flex items-center gap-1.5">
+          <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
             isPos ? "bg-green-50 text-green-600" :
             isNeg ? "bg-red-50 text-red-500" :
             "bg-gray-100 text-gray-500"
           }`}>
-            {isPos ? "▲" : isNeg ? "▼" : "—"}{" "}{Math.abs(delta).toFixed(1)}{deltaUnit}
+            {isPos ? "▲" : isNeg ? "▼" : "—"} {Math.abs(delta).toFixed(1)}{deltaUnit}
           </span>
           {sub && <span className="text-[10px] text-gray-400">{sub}</span>}
         </div>
       )}
       {delta == null && sub && (
-        <div className="text-[11px] text-gray-400">{sub}</div>
+        <div className="text-[10px] text-gray-400">{sub}</div>
       )}
     </div>
   );
