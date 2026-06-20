@@ -82,6 +82,19 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
               ⚠ Repeat critic
             </span>
           )}
+          {item.sentiment_divergence && (
+            <span
+              title="Headline sentiment diverges from body — verify manually"
+              className="text-[9px] text-amber-600 border border-amber-200 bg-amber-50 px-1 rounded"
+            >
+              ⚠ Divergent
+            </span>
+          )}
+          {item.is_regulatory_source && (
+            <span className="text-[9px] text-blue-600 border border-blue-200 bg-blue-50 px-1 rounded">
+              🛡 Gov/Reg
+            </span>
+          )}
         </div>
 
         {/* Meta row */}

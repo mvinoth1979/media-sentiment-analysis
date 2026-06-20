@@ -46,6 +46,14 @@ const SOURCE_TYPE_FILTERS = [
   { label: "YT Comments", value: "youtube_comment" },
 ];
 
+const TONE_FILTERS = [
+  { label: "All tones", value: "" },
+  { label: "Factual", value: "factual" },
+  { label: "Positive frame", value: "positive_frame" },
+  { label: "Negative frame", value: "negative_frame" },
+  { label: "Critical", value: "critical" },
+];
+
 function readParam(key: string, fallback = "") {
   return new URLSearchParams(window.location.search).get(key) ?? fallback;
 }
@@ -68,6 +76,7 @@ export function MentionsList({
   const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : (initialSentiment ?? ""));
   const [language, setLanguage]   = useState(() => syncUrl ? readParam("language") : "");
   const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
+  const [editorialTone, setEditorialTone] = useState(() => syncUrl ? readParam("editorial_tone") : "");
   const [portalId, setPortalId]   = useState(initialPortalId);
   const [topic, setTopic]         = useState(initialTopic);
   const [state, setState]         = useState(() => syncUrl ? readParam("state") : initialState);
@@ -85,10 +94,11 @@ export function MentionsList({
   useEffect(() => {
     if (!syncRef.current) return;
     const sp = new URLSearchParams();
-    if (sentiment)   sp.set("sentiment", sentiment);
-    if (language)    sp.set("language", language);
-    if (sourceType)  sp.set("source_type", sourceType);
-    if (state)       sp.set("state", state);
+    if (sentiment)      sp.set("sentiment", sentiment);
+    if (language)       sp.set("language", language);
+    if (sourceType)     sp.set("source_type", sourceType);
+    if (editorialTone)  sp.set("editorial_tone", editorialTone);
+    if (state)          sp.set("state", state);
     if (dateFrom)    sp.set("date_from", dateFrom);
     if (dateTo)      sp.set("date_to", dateTo);
     if (q)           sp.set("q", q);
@@ -115,7 +125,7 @@ export function MentionsList({
   // Reset discovered page range when filters change
   useEffect(() => {
     setMaxKnownPage(0);
-  }, [sentiment, language, sourceType, portalId, topic, state, dateFrom, dateTo, q]);
+  }, [sentiment, language, sourceType, editorialTone, portalId, topic, state, dateFrom, dateTo, q]);
 
   // React to "View All" clicks from TopHeadlines — apply sentiment filter externally
   useEffect(() => {
@@ -126,24 +136,25 @@ export function MentionsList({
   }, [initialSentiment]);
 
   const params: Record<string, string> = { limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) };
-  if (sentiment)  params.sentiment    = sentiment;
-  if (language)   params.language     = language;
-  if (sourceType) params.source_type  = sourceType;
-  if (portalId)   params.portal_id    = portalId;
-  if (topic)      params.topic        = topic;
-  if (state)      params.state        = state;
-  if (dateFrom)   params.date_from    = dateFrom;
-  if (dateTo)     params.date_to      = dateTo;
-  if (q)          params.q            = q;
+  if (sentiment)     params.sentiment      = sentiment;
+  if (language)      params.language       = language;
+  if (sourceType)    params.source_type    = sourceType;
+  if (editorialTone) params.editorial_tone = editorialTone;
+  if (portalId)      params.portal_id      = portalId;
+  if (topic)         params.topic          = topic;
+  if (state)         params.state          = state;
+  if (dateFrom)      params.date_from      = dateFrom;
+  if (dateTo)        params.date_to        = dateTo;
+  if (q)             params.q              = q;
 
   const { data: articles = [], isLoading, isFetching } = useQuery<ArticleItem[]>({
-    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, portalId, topic, state, dateFrom, dateTo, q],
+    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, editorialTone, portalId, topic, state, dateFrom, dateTo, q],
     queryFn: () => fetchMentions(brandId, params),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
-  const hasFilters = !!(sentiment || language || sourceType || portalId || topic || state || dateFrom || dateTo || q);
+  const hasFilters = !!(sentiment || language || sourceType || editorialTone || portalId || topic || state || dateFrom || dateTo || q);
 
   // Track how many pages we know exist (grows as user navigates forward)
   // Must be after useQuery so articles/isLoading are in scope
@@ -173,7 +184,7 @@ export function MentionsList({
   }
 
   function resetFilters() {
-    setSentiment(""); setLanguage(""); setSourceType(""); setPortalId("");
+    setSentiment(""); setLanguage(""); setSourceType(""); setEditorialTone(""); setPortalId("");
     setTopic(""); setState(""); setDateFrom(""); setDateTo("");
     setQDraft(""); setQ(""); setPage(0);
   }
@@ -253,6 +264,16 @@ export function MentionsList({
           className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2.5 py-1 focus:outline-none focus:border-blue-500"
         >
           {SOURCE_TYPE_FILTERS.map(f => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={editorialTone}
+          onChange={e => set(setEditorialTone)(e.target.value)}
+          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2.5 py-1 focus:outline-none focus:border-blue-500"
+        >
+          {TONE_FILTERS.map(f => (
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
@@ -385,12 +406,32 @@ export function MentionsList({
                   )}
                   <td className="py-2 pr-3 text-gray-400 hidden sm:table-cell">{page * PAGE_SIZE + i + 1}</td>
 
-                  {/* Title + reach metadata + state tags */}
+                  {/* Title + reach metadata + state tags + Phase 1 badges */}
                   <td className="py-2 pr-3 max-w-[180px] sm:max-w-xs">
                     <a href={a.url} target="_blank" rel="noreferrer"
                        className="text-gray-700 hover:text-blue-600 line-clamp-2 leading-snug">
                       {a.title}
                     </a>
+                    {/* Phase 1: author name */}
+                    {a.author && (
+                      <div className="text-[9px] text-gray-400 mt-0.5 truncate">By {a.author}</div>
+                    )}
+                    {/* Phase 1: divergence + regulatory badges */}
+                    {(a.sentiment_divergence || a.is_regulatory_source) && (
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {a.sentiment_divergence && (
+                          <span
+                            title="Headline sentiment diverges from body — verify manually"
+                            className="text-[9px] px-1 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded"
+                          >⚠ Divergent</span>
+                        )}
+                        {a.is_regulatory_source && (
+                          <span className="text-[9px] px-1 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded">
+                            🛡 Gov/Reg
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {a.source_type === "youtube_video" && (a.reach_metadata?.view_count ?? 0) > 0 && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <YouTubeIcon className="inline w-2.5 h-2.5" />

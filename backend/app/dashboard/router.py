@@ -26,6 +26,7 @@ from app.dashboard.schemas import (
     HeadlineItem, HeadlinesResponse,
     ReviewSummaryResponse, ReviewStarBucket, TopicTheme,
     SoVEntry, CompetitorSoVResponse, CompetitorDiscoveryResponse,
+    ClusterArticle, IssueCluster, IssueClustersResponse,
 )
 
 router = APIRouter()
@@ -55,6 +56,11 @@ def _article_to_item(a: dict) -> ArticleItem:
             estimated_reach=a.get("reach_score") or 0,
             influence_score=a.get("source_credibility") or 0.5,
         ),
+        # Phase 1 data quality fields
+        author=a.get("author") or None,
+        editorial_tone=a.get("editorial_tone") or None,
+        sentiment_divergence=bool(a.get("sentiment_divergence")),
+        is_regulatory_source=bool(a.get("is_regulatory_source")),
     )
 
 
@@ -211,13 +217,15 @@ def get_mentions(
     date_from: str | None = None,
     date_to: str | None = None,
     q: str | None = None,
+    editorial_tone: str | None = None,
     _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
     articles = get_articles(brand_id, limit=limit, offset=offset,
                             sentiment=sentiment, language=language,
                             portal_id=portal_id, topic=topic, state=state,
                             source_type=source_type,
-                            date_from=date_from, date_to=date_to, q=q)
+                            date_from=date_from, date_to=date_to, q=q,
+                            editorial_tone=editorial_tone)
     return [_article_to_item(a) for a in articles]
 
 
@@ -533,6 +541,9 @@ def get_headlines(
             repeat_author=bool(author and author in repeat_authors),
             reach_tier=_youtube_reach_tier(view_count) if pid.startswith("youtube_") and view_count > 0 else None,
             author_name=author,
+            sentiment_divergence=bool(a.get("sentiment_divergence")),
+            is_regulatory_source=bool(a.get("is_regulatory_source")),
+            editorial_tone=a.get("editorial_tone") or None,
         ))
 
     return HeadlinesResponse(tab=tab, items=items)
@@ -761,3 +772,128 @@ def discover_and_save_competitors(
         saved = True
 
     return CompetitorDiscoveryResponse(competitors=competitors, saved=saved)
+
+
+# ── Issue Clusters (B4) ────────────────────────────────────────────────────────
+
+class _UF:
+    """Minimal union-find for topic co-occurrence merging."""
+    def __init__(self): self._p: dict[str, str] = {}
+    def find(self, x: str) -> str:
+        self._p.setdefault(x, x)
+        if self._p[x] != x:
+            self._p[x] = self.find(self._p[x])
+        return self._p[x]
+    def union(self, x: str, y: str) -> None:
+        rx, ry = self.find(x), self.find(y)
+        if rx != ry:
+            self._p[ry] = rx
+
+
+def _build_clusters(articles: list[dict], cutoff_7d: str) -> list[dict]:
+    """Group NLP topics into issue clusters via co-occurrence union-find.
+
+    Two topics belong to the same cluster when they co-appear in ≥2 articles.
+    Cluster label = the topic with the highest individual article count.
+    """
+    # topic → article indices
+    topic_arts: dict[str, list[int]] = {}
+    for i, a in enumerate(articles):
+        for t in (a.get("topics") or []):
+            if t:
+                topic_arts.setdefault(t, []).append(i)
+
+    if not topic_arts:
+        return []
+
+    # co-occurrence counts (within each article, all topic pairs)
+    co_occ: Counter = Counter()
+    for a in articles:
+        topics = list({t for t in (a.get("topics") or []) if t})
+        for j in range(len(topics)):
+            for k in range(j + 1, len(topics)):
+                co_occ[tuple(sorted((topics[j], topics[k])))] += 1
+
+    # merge topics that co-appear in ≥2 articles
+    uf = _UF()
+    for (ta, tb), cnt in co_occ.items():
+        if cnt >= 2:
+            uf.union(ta, tb)
+
+    # group topics by cluster root
+    root_members: dict[str, list[str]] = {}
+    for t in topic_arts:
+        root = uf.find(t)
+        root_members.setdefault(root, []).append(t)
+
+    clusters: list[dict] = []
+    for members in root_members.values():
+        # article_set: union of all articles mentioning any topic in this cluster
+        art_idx: set[int] = set()
+        for t in members:
+            art_idx.update(topic_arts.get(t, []))
+
+        cluster_name = max(members, key=lambda t: len(topic_arts.get(t, [])))
+        pos = neg = neu = recent = 0
+        top_cands: list[tuple[float, dict]] = []
+
+        for idx in art_idx:
+            a = articles[idx]
+            label = a.get("sentiment_label", "neutral")
+            if label == "positive":
+                pos += 1
+            elif label == "negative":
+                neg += 1
+            else:
+                neu += 1
+            if (a.get("collected_at") or "") >= cutoff_7d:
+                recent += 1
+            top_cands.append((abs(a.get("sentiment_score") or 0.5), a))
+
+        total = len(art_idx)
+        net_pct = round((pos - neg) / total * 100) if total else 0
+        trend = "rising" if total > 0 and recent / total > 0.5 else "stable"
+        top_arts = [
+            {"title": a.get("title", ""), "url": a.get("url", ""),
+             "sentiment_label": a.get("sentiment_label", "neutral")}
+            for _, a in sorted(top_cands, reverse=True)[:3]
+        ]
+        clusters.append({
+            "cluster_name": cluster_name,
+            "article_count": total,
+            "positive_count": pos,
+            "negative_count": neg,
+            "neutral_count": neu,
+            "net_sentiment_pct": net_pct,
+            "trend": trend,
+            "top_articles": top_arts,
+        })
+
+    clusters.sort(key=lambda c: c["article_count"], reverse=True)
+    return clusters[:10]
+
+
+@router.get("/issue-clusters/{brand_id}", response_model=IssueClustersResponse)
+def get_issue_clusters(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    cutoff_7d = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    articles = get_articles(brand_id, limit=2000, date_from=cutoff)
+    raw = _build_clusters(articles, cutoff_7d)
+    return IssueClustersResponse(
+        clusters=[IssueCluster(
+            cluster_name=c["cluster_name"],
+            article_count=c["article_count"],
+            positive_count=c["positive_count"],
+            negative_count=c["negative_count"],
+            neutral_count=c["neutral_count"],
+            net_sentiment_pct=c["net_sentiment_pct"],
+            trend=c["trend"],
+            top_articles=[ClusterArticle(**a) for a in c["top_articles"]],
+        ) for c in raw],
+        period_days=days,
+        brand_id=brand_id,
+    )

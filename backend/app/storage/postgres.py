@@ -21,7 +21,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                  portal_id: str | None = None, topic: str | None = None,
                  state: str | None = None, source_type: str | None = None,
                  date_from: str | None = None, date_to: str | None = None,
-                 q: str | None = None) -> list[dict]:
+                 q: str | None = None,
+                 editorial_tone: str | None = None) -> list[dict]:
     db = get_db()
     query = db.table("articles").select("*").eq("brand_id", brand_id)
     if sentiment:
@@ -36,6 +37,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
         query = query.contains("states_mentioned", [state])
     if source_type:
         query = query.eq("source_type", source_type)
+    if editorial_tone:
+        query = query.eq("editorial_tone", editorial_tone)
     if date_from:
         query = query.gte("collected_at", date_from)
     if date_to:
@@ -51,7 +54,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                                 sentiment=sentiment, language=language,
                                 portal_id=portal_id, topic=topic, state=None,
                                 source_type=source_type,
-                                date_from=date_from, date_to=date_to, q=q)
+                                date_from=date_from, date_to=date_to, q=q,
+                                editorial_tone=editorial_tone)
         return []
 
 

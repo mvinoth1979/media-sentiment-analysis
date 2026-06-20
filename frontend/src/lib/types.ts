@@ -43,6 +43,11 @@ export interface ArticleItem {
   model_used: string;
   author_info?: AuthorInfo | null;
   metrics?: MentionMetrics | null;
+  // Phase 1 data quality fields
+  author?: string | null;
+  editorial_tone?: "factual" | "positive_frame" | "negative_frame" | "critical" | null;
+  sentiment_divergence?: boolean | null;
+  is_regulatory_source?: boolean | null;
 }
 
 export interface SourceStat {
@@ -171,6 +176,10 @@ export interface HeadlineItem {
   repeat_author: boolean;
   reach_tier: string | null;
   author_name: string | null;
+  // Phase 1 data quality fields
+  sentiment_divergence?: boolean | null;
+  is_regulatory_source?: boolean | null;
+  editorial_tone?: string | null;
 }
 
 export interface HeadlinesData {
@@ -209,4 +218,29 @@ export interface CompetitorSoVData {
   total_articles: number;
   entries: SoVEntry[];
   source: "configured" | "entity_fallback";
+}
+
+// ── Issue Clusters (B4) ────────────────────────────────────────────────────────
+
+export interface ClusterArticle {
+  title: string;
+  url: string;
+  sentiment_label: "positive" | "negative" | "neutral";
+}
+
+export interface IssueCluster {
+  cluster_name: string;
+  article_count: number;
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
+  net_sentiment_pct: number;
+  trend: "rising" | "stable";
+  top_articles: ClusterArticle[];
+}
+
+export interface IssueClustersData {
+  clusters: IssueCluster[];
+  period_days: number;
+  brand_id: string;
 }

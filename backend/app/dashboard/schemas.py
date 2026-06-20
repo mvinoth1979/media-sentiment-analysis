@@ -49,6 +49,11 @@ class ArticleItem(BaseModel):
     model_used: str | None = None
     author_info: AuthorInfo | None = None
     metrics: MentionMetrics | None = None
+    # Phase 1 data quality fields
+    author: str | None = None
+    editorial_tone: str | None = None
+    sentiment_divergence: bool = False
+    is_regulatory_source: bool = False
 
 
 class SourceStat(BaseModel):
@@ -170,6 +175,10 @@ class HeadlineItem(BaseModel):
     repeat_author: bool = False
     reach_tier: str | None = None
     author_name: str | None = None
+    # Phase 1 data quality fields
+    sentiment_divergence: bool = False
+    is_regulatory_source: bool = False
+    editorial_tone: str | None = None
 
 
 class HeadlinesResponse(BaseModel):
@@ -217,3 +226,28 @@ class CompetitorSoVResponse(BaseModel):
 class CompetitorDiscoveryResponse(BaseModel):
     competitors: list[str]
     saved: bool
+
+
+# --- Issue Clusters (B4) ---
+
+class ClusterArticle(BaseModel):
+    title: str
+    url: str
+    sentiment_label: str
+
+
+class IssueCluster(BaseModel):
+    cluster_name: str
+    article_count: int
+    positive_count: int
+    negative_count: int
+    neutral_count: int
+    net_sentiment_pct: int
+    trend: str  # "rising" | "stable"
+    top_articles: list[ClusterArticle]
+
+
+class IssueClustersResponse(BaseModel):
+    clusters: list[IssueCluster]
+    period_days: int
+    brand_id: str
