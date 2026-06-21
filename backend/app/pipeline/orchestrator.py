@@ -85,8 +85,10 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         # Reddit collection — sub-cap (10 posts + 50 comments) so it cannot crowd out news.
         # Only runs when brand_config.reddit_enabled = True and credentials are set.
         if config.get("reddit_enabled", False):
+            log.info("Reddit collection starting for brand %s", brand_id[:8])
             try:
                 reddit_raw = collect_reddit_for_brand(brand, config)
+                log.info("Reddit collection done for brand %s: %d raw items", brand_id[:8], len(reddit_raw))
                 reddit_new = filter_new_articles(reddit_raw, brand_id)
                 reddit_new = [a for a in reddit_new
                               if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
@@ -95,12 +97,16 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             except Exception as e:
                 log.error("Reddit collection failed for brand %s: %s", brand_id[:8], e)
                 stats["errors"] += 1
+        else:
+            log.info("Reddit skipped for brand %s (reddit_enabled=%s)", brand_id[:8], config.get("reddit_enabled"))
 
         # Google Business Reviews — separate sub-cap (5 reviews) so it cannot crowd out news.
         # Only runs when brand_config.google_reviews_enabled = True and API key is set.
         if config.get("google_reviews_enabled", False):
+            log.info("Google Reviews collection starting for brand %s", brand_id[:8])
             try:
                 gr_raw = collect_google_reviews_for_brand(brand, config)
+                log.info("Google Reviews done for brand %s: %d raw items", brand_id[:8], len(gr_raw))
                 gr_new = filter_new_articles(gr_raw, brand_id)
                 gr_new = [a for a in gr_new
                           if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
@@ -109,6 +115,8 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
             except Exception as e:
                 log.error("Google reviews collection failed for brand %s: %s", brand_id[:8], e)
                 stats["errors"] += 1
+        else:
+            log.info("Google Reviews skipped for brand %s (google_reviews_enabled=%s)", brand_id[:8], config.get("google_reviews_enabled"))
 
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)
