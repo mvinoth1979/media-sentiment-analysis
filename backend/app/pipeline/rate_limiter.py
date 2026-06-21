@@ -31,9 +31,9 @@ class _TokenBucket:
             time.sleep(wait)
 
 
-# 12 RPM total NLP calls — shared across all threads and both providers
-# (Gemini limit: 15 RPM; Groq limit: 30 RPM; 12 stays safely below both)
-_nlp_bucket = _TokenBucket(rate=12)
+# 60 RPM total NLP calls — safe for paid Gemini (2000 RPM) and Groq free (30 RPM).
+# Groq is only used as fallback, so effective Groq rate stays well below 30 RPM.
+_nlp_bucket = _TokenBucket(rate=60)
 
 
 def acquire_nlp_slot():
