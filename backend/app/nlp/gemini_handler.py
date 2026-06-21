@@ -1,9 +1,12 @@
 import json
+import logging
 import re
 import time
 from google import genai
 from app.config import settings
 from app.nlp.schemas import NLPResult
+
+log = logging.getLogger(__name__)
 
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
@@ -180,7 +183,7 @@ def discover_competitors(brand_name: str, keywords: list[str], entities: list[st
     for attempt in range(3):
         try:
             response = _get_client().models.generate_content(
-                model="gemini-2.0-flash",
+                model=settings.gemini_model,
                 contents=prompt,
             )
             raw = _strip_fences(response.text.strip())
@@ -188,7 +191,11 @@ def discover_competitors(brand_name: str, keywords: list[str], entities: list[st
             competitors = [str(c).strip() for c in data.get("competitors", []) if c]
             return competitors[:5]
         except Exception as e:
-            if "429" in str(e) or "rate" in str(e).lower():
+            err = str(e)
+            if "404" in err:
+                log.error("Gemini model '%s' not found (404) — set GEMINI_MODEL env var to a valid model name", settings.gemini_model)
+                break
+            if "429" in err or "rate" in err.lower():
                 time.sleep(2 ** attempt * 5)
                 continue
             break
@@ -233,7 +240,7 @@ def analyse_with_gemini(
     for attempt in range(3):
         try:
             response = _get_client().models.generate_content(
-                model="gemini-2.0-flash",
+                model=settings.gemini_model,
                 contents=prompt,
             )
             raw = _strip_fences(response.text.strip())
@@ -249,7 +256,7 @@ def analyse_with_gemini(
                 topics=data.get("topics", []),
                 keywords=data.get("keywords", []),
                 states_mentioned=data.get("states_mentioned", []),
-                model_used="gemini-2.0-flash",
+                model_used=settings.gemini_model,
                 confidence=float(data.get("confidence", 0.0)),
                 source_type=source_type,
                 headline_sentiment_score=hs,
@@ -259,9 +266,14 @@ def analyse_with_gemini(
                 creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
             ), False
         except Exception as e:
-            if "429" in str(e) or "rate" in str(e).lower():
+            err = str(e)
+            if "404" in err:
+                log.error("Gemini model '%s' not found (404) — set GEMINI_MODEL env var to a valid model name", settings.gemini_model)
+                return None, False
+            if "429" in err or "rate" in err.lower():
                 rate_limited = True
                 time.sleep(2 ** attempt * 5)
                 continue
+            log.warning("Gemini error (attempt %d): %s", attempt + 1, err[:200])
             return None, False
     return None, rate_limited
