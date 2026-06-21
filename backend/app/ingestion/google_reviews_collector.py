@@ -78,10 +78,42 @@ def _fetch_place_reviews(places_id: str, api_key: str) -> dict:
     try:
         resp = httpx.get(url, headers=headers, timeout=_TIMEOUT)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        # Surface a clear diagnostic when the API returns 200 but omits the reviews
+        # key entirely — this happens when the Places API (New) Essentials plan is
+        # active but Advanced is NOT enabled.  The 'reviews' field is gated behind
+        # Advanced.  Log once at WARNING so it appears in Railway logs.
+        if "reviews" not in data:
+            log.warning(
+                "Places API returned place data for id=%s but the 'reviews' field is absent. "
+                "This means the Places API (New) Advanced plan is NOT enabled on your Google "
+                "Cloud project.  Fix: console.cloud.google.com → APIs & Services → "
+                "Places API (New) → enable 'Advanced' data SKU.  "
+                "Response keys present: %s",
+                places_id, list(data.keys()),
+            )
+        return data
     except httpx.HTTPStatusError as e:
-        log.warning("Places fetch failed for id=%s: HTTP %d — %s",
-                    places_id, e.response.status_code, e.response.text[:300])
+        status = e.response.status_code
+        body = e.response.text[:400]
+        if status == 403:
+            log.warning(
+                "Places fetch 403 FORBIDDEN for id=%s — likely causes: "
+                "(1) API key is restricted and does not allow Places API (New), "
+                "(2) billing is not enabled on the Google Cloud project, "
+                "(3) Places API (New) is not enabled in Google Cloud Console. "
+                "Raw error: %s",
+                places_id, body,
+            )
+        elif status == 400:
+            log.warning(
+                "Places fetch 400 BAD REQUEST for id=%s — the places_id may be invalid "
+                "or the FieldMask references a field not available on this plan. "
+                "Raw error: %s",
+                places_id, body,
+            )
+        else:
+            log.warning("Places fetch failed for id=%s: HTTP %d — %s", places_id, status, body)
         return {}
     except Exception as e:
         log.warning("Places fetch failed for id=%s: %s", places_id, e)
@@ -172,10 +204,12 @@ def collect_google_reviews_for_brand(brand: dict, config: dict) -> list[dict]:
 
     if not raw_reviews:
         log.warning(
-            "Brand %s: Places API returned no reviews for places_id=%s. "
-            "If the key is valid, check that Google Places API (New) 'Advanced' plan is enabled — "
-            "the free/Essentials plan does not return reviews.",
-            brand_id[:8], places_id,
+            "Brand '%s' (%s): Places API returned no reviews for places_id=%s. "
+            "Action required if the key is valid: "
+            "go to console.cloud.google.com → APIs & Services → Places API (New) "
+            "and confirm the 'Advanced' data SKU is enabled — the Essentials/free "
+            "plan does NOT return the reviews field.",
+            brand_name, brand_id[:8], places_id,
         )
         return []
 
