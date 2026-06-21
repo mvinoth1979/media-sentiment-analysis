@@ -22,13 +22,21 @@ def get_redis():
     )
 
 
+_DLQ_MAX_ITEMS = 500
+
+
 def push_to_dlq(article: dict, brand_id: str, retry_count: int = 0):
     r = get_redis()
+    # Slim the article body to keep each DLQ entry small (Upstash: 100MB/key limit)
+    slim = {k: v for k, v in article.items() if k != "body"}
+    slim["body"] = (article.get("body") or "")[:300]
     r.rpush(DLQ_KEY, json.dumps({
-        "article": article,
+        "article": slim,
         "brand_id": brand_id,
         "retry_count": retry_count,
     }))
+    # Cap at 500 entries — oldest are evicted first
+    r.ltrim(DLQ_KEY, -_DLQ_MAX_ITEMS, -1)
 
 
 def retry_dead_letters(max_items: int = 50) -> dict:

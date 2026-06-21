@@ -866,7 +866,7 @@ def _build_clusters(articles: list[dict], cutoff_7d: str) -> list[dict]:
         top_arts = [
             {"title": a.get("title", ""), "url": a.get("url", ""),
              "sentiment_label": a.get("sentiment_label", "neutral")}
-            for _, a in sorted(top_cands, reverse=True)[:3]
+            for _, a in sorted(top_cands, key=lambda x: x[0], reverse=True)[:3]
         ]
         clusters.append({
             "cluster_name": cluster_name,
