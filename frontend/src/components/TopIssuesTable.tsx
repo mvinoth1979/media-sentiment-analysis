@@ -175,7 +175,7 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
     const topicRows = allTopics.map(t => {
       const total = t.positive + t.neutral + t.negative || 1;
       const net = Math.round(((t.positive - t.negative) / total) * 100);
-      return { label: t.topic, count: t.count, net };
+      return { label: t.topic, count: t.count, net, isRising: false };
     });
 
     const clusterRows = clusters.map(c => ({
@@ -227,7 +227,7 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
                 count={r.count}
                 maxCount={maxCount}
                 netPct={r.net}
-                isRising={"isRising" in r ? r.isRising : false}
+                isRising={r.isRising}
               />
             ))}
           </div>
