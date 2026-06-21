@@ -6,6 +6,7 @@ from app.ingestion.deduplication import filter_new_articles, mark_article_seen, 
 from app.ingestion.youtube_collector import collect_youtube_for_brand
 from app.ingestion.reddit_collector import collect_reddit_for_brand
 from app.ingestion.google_reviews_collector import collect_google_reviews_for_brand
+from app.ingestion.keyword_variants import get_variants_for_keywords
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article, update_pipeline_status, decrement_bootstrap_runs
@@ -18,25 +19,46 @@ from app.pipeline.dead_letter import push_to_dlq
 log = logging.getLogger(__name__)
 
 
+def _entity_relevant(nlp_dict: dict, keywords: list[str], script_variants: dict) -> bool:
+    """Return True if any brand keyword appears in the NLP-extracted entity list.
+
+    Checks both English keywords and any script variants. Used as the final
+    relevance gate (Layer 4) for non-English articles before saving to DB.
+    """
+    entities = [e.lower() for e in (nlp_dict.get("entities") or [])]
+    all_variants = [v for variants in script_variants.values() for v in variants]
+    for kw in keywords:
+        kw_l = kw.lower()
+        if any(kw_l in e or e in kw_l for e in entities):
+            return True
+    for variant in all_variants:
+        if variant and any(variant.lower() in e or e in variant.lower() for e in entities):
+            return True
+    return False
+
+
 def run_brand_pipeline(brand: dict, config: dict) -> dict:
     brand_id = brand["id"]
     keywords = config.get("keywords", [])
     languages = config.get("languages", ["en"])
-    stats = {"brand_id": brand_id, "collected": 0, "processed": 0, "errors": 0}
+    # Fetch transliterated keyword variants for this brand's keyword set
+    keyword_variants = get_variants_for_keywords(keywords)
+    stats = {"brand_id": brand_id, "collected": 0, "processed": 0, "errors": 0,
+             "filtered_irrelevant": 0}
 
     update_pipeline_status(brand_id, "running")
 
     try:
         # Google News portals come FIRST — they are pre-filtered by keyword so their
         # articles fill the per-language cap with relevant content. Static portals
-        # (especially Tamil ones with skip_keyword_filter) are supplementary and only
-        # consume cap slots when Google News doesn't fill them.
+        # now also apply keyword filtering (English + script variants) via collect_portal.
         portals = get_gnews_portals(keywords, languages) + get_portals_for_languages(languages)
         all_articles: list[dict] = []
 
         for portal in portals:
             try:
-                articles = collect_portal(portal, keywords, brand_id)
+                articles = collect_portal(portal, keywords, brand_id,
+                                          keyword_variants=keyword_variants)
                 log.info("Portal %s → %d articles", portal["id"], len(articles))
                 all_articles.extend(articles)
             except Exception as e:
@@ -135,6 +157,21 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
                     push_to_dlq(article, brand_id)
                     continue
                 nlp_dict = nlp.to_dict()
+
+                # Layer 4: post-NLP entity gate for non-English articles.
+                # If the LLM found no brand entity in the text, the article is
+                # structurally irrelevant regardless of sentiment score. Mark it
+                # seen (prevents re-ingestion) but do not save to articles table.
+                if lang != "en" and article.get("source_type", "news") == "news":
+                    if not _entity_relevant(nlp_dict, keywords, keyword_variants):
+                        mark_article_seen(article["content_hash"], brand_id)
+                        stats["filtered_irrelevant"] += 1
+                        log.info(
+                            "Entity gate filtered [%s] %s",
+                            lang, article.get("title", "")[:70],
+                        )
+                        continue
+
                 archive_article(article)
                 save_article(article, nlp_dict)
                 mark_article_seen(article["content_hash"], brand_id)

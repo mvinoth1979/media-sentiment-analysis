@@ -116,6 +116,18 @@ def delete_articles(article_ids: list[str], brand_id: str) -> list[dict]:
     )
     if rows:
         db.table("articles").delete().eq("brand_id", brand_id).in_("id", article_ids).execute()
+        # Phase A fix: write content_hash AND story_hash to dedupe_hashes so user-deleted
+        # articles never re-enter on the next pipeline run, even if re-fetched from RSS.
+        dedupe_rows = []
+        for r in rows:
+            if r.get("content_hash"):
+                dedupe_rows.append({"content_hash": r["content_hash"], "brand_id": brand_id})
+            if r.get("story_hash") and r["story_hash"] != r.get("content_hash"):
+                dedupe_rows.append({"content_hash": r["story_hash"], "brand_id": brand_id})
+        if dedupe_rows:
+            db.table("dedupe_hashes").upsert(
+                dedupe_rows, on_conflict="content_hash,brand_id"
+            ).execute()
     return rows
 
 

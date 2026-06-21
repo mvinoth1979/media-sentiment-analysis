@@ -6,6 +6,34 @@ from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
 import feedparser
 
+# ── Blocked RSS categories ────────────────────────────────────────────────────
+# Articles whose RSS entry carries one of these category/tag terms are dropped
+# before keyword matching — they are structurally irrelevant to brand monitoring
+# regardless of whether the brand name appears incidentally in the text.
+_BLOCKED_CATEGORIES: frozenset[str] = frozenset({
+    # Sports (EN)
+    "cricket", "ipl", "football", "kabaddi", "tennis", "badminton",
+    "sports", "sport", "athletics", "hockey", "chess", "wrestling",
+    # Entertainment / Cinema (EN)
+    "cinema", "kollywood", "bollywood", "mollywood", "tollywood",
+    "film", "films", "movie", "movies", "entertainment", "celebrity",
+    "television", "tv shows", "web series", "music", "album",
+    # Lifestyle / Gossip (EN)
+    "astrology", "horoscope", "lifestyle", "fashion", "beauty",
+    "health tips", "recipes", "travel", "viral",
+    # Tamil
+    "விளையாட்டு", "கிரிக்கெட்", "சினிமா", "திரைப்படம்",
+    "பொழுதுபோக்கு", "ஜோதிடம்", "ஐபிஎல்",
+    # Hindi
+    "खेल", "क्रिकेट", "बॉलीवुड", "मनोरंजन", "सिनेमा", "ज्योतिष",
+    # Kannada
+    "ಕ್ರೀಡೆ", "ಕ್ರಿಕೆಟ್", "ಚಲನಚಿತ್ರ", "ಮನರಂಜನೆ", "ರಾಶಿಫಲ",
+    # Bengali
+    "খেলাধুলা", "ক্রিকেট", "বিনোদন", "সিনেমা", "জ্যোতিষ",
+    # Gujarati
+    "ક્રિકેટ", "મનોરંજન", "સિનેમા", "જ્યોતિષ",
+})
+
 
 # ── Story-level hash (wire-service dedup) ────────────────────────────────────
 
@@ -81,13 +109,44 @@ def _is_regulatory_source(article_url: str, portal_rss_url: str, title: str) -> 
     return any(phrase in title_lower for phrase in _REGULATORY_TITLE_PHRASES)
 
 
+# ── Category filter ───────────────────────────────────────────────────────────
+
+def _is_blocked_category(entry) -> bool:
+    """Return True if any RSS tag/category matches a known irrelevant domain."""
+    for tag in (entry.get("tags") or []):
+        term = (tag.get("term") or "").lower().strip()
+        if term in _BLOCKED_CATEGORIES:
+            return True
+    return False
+
+
 # ── Keyword filter ────────────────────────────────────────────────────────────
 
 def keyword_matches(text: str, keywords: list[str]) -> bool:
+    """English keyword matching with word-boundary regex — used for EN portals."""
     text_lower = text.lower()
     for kw in keywords:
         pattern = kw if kw.startswith("\\b") else r"\b" + re.escape(kw.lower()) + r"\b"
         if re.search(pattern, text_lower):
+            return True
+    return False
+
+
+def keyword_matches_multilang(text: str, en_keywords: list[str], script_variants: list[str]) -> bool:
+    """Relevance check for non-English portals.
+
+    Indian-language articles often keep brand names in English (code-switching),
+    so we first try a case-insensitive substring search for the English keywords.
+    If script variants are provided (transliterations), those are also checked
+    as exact Unicode substrings — no word-boundary assumption for non-ASCII text.
+    """
+    text_lower = text.lower()
+    for kw in en_keywords:
+        # Substring match (no \b): handles "Canara Bank" inside Tamil sentence
+        if kw.lower() in text_lower:
+            return True
+    for variant in script_variants:
+        if variant and variant in text:
             return True
     return False
 
@@ -104,20 +163,37 @@ def _parse_date(entry) -> datetime:
 
 # ── Main collector ────────────────────────────────────────────────────────────
 
-def collect_portal(portal: dict, keywords: list[str], brand_id: str) -> list[dict]:
+def collect_portal(portal: dict, keywords: list[str], brand_id: str,
+                   keyword_variants: dict | None = None) -> list[dict]:
     try:
         feed = feedparser.parse(portal["rss_url"])
     except Exception:
         return []
 
+    lang = portal.get("language", "en")
     articles = []
     for entry in feed.entries:
         title = getattr(entry, "title", "") or ""
         body = entry.get("summary", "") or entry.get("content", [{}])[0].get("value", "")
         combined = f"{title} {body}"
 
-        if not portal.get("skip_keyword_filter") and not keyword_matches(combined, keywords):
+        # Layer 3: category/tag blocking — runs on all portals before keyword check
+        if _is_blocked_category(entry):
             continue
+
+        # Layer 1/2: keyword relevance filtering
+        if portal.get("skip_keyword_filter"):
+            # gnews portals only — Google already filtered by keyword
+            pass
+        elif lang == "en":
+            # Standard word-boundary regex for English portals (unchanged behaviour)
+            if not keyword_matches(combined, keywords):
+                continue
+        else:
+            # Non-English portals: English keywords (code-switching) + script variants
+            script_variants = (keyword_variants or {}).get(lang, [])
+            if not keyword_matches_multilang(combined, keywords, script_variants):
+                continue
 
         url = entry.get("link", "")
         if not url:
