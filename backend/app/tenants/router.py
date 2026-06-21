@@ -17,6 +17,8 @@ class BrandConfigUpdate(BaseModel):
     youtube_channel_ids: list[str] | None = None
     reddit_enabled: bool | None = None
     reddit_subreddits: list[str] | None = None
+    google_places_id: str | None = None
+    google_reviews_enabled: bool | None = None
 
 
 @router.get("/me")

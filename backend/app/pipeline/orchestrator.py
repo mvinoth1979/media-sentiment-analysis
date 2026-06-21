@@ -5,6 +5,7 @@ from app.ingestion.rss_collector import collect_portal
 from app.ingestion.deduplication import filter_new_articles, mark_article_seen, filter_syndicated
 from app.ingestion.youtube_collector import collect_youtube_for_brand
 from app.ingestion.reddit_collector import collect_reddit_for_brand
+from app.ingestion.google_reviews_collector import collect_google_reviews_for_brand
 from app.nlp.router import analyse_article
 from app.pipeline.perception import calculate_perception_score
 from app.storage.postgres import save_article, update_pipeline_status, decrement_bootstrap_runs
@@ -93,6 +94,20 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
                 stats["collected"] += len(reddit_raw)
             except Exception as e:
                 log.error("Reddit collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+
+        # Google Business Reviews — separate sub-cap (5 reviews) so it cannot crowd out news.
+        # Only runs when brand_config.google_reviews_enabled = True and API key is set.
+        if config.get("google_reviews_enabled", False):
+            try:
+                gr_raw = collect_google_reviews_for_brand(brand, config)
+                gr_new = filter_new_articles(gr_raw, brand_id)
+                gr_new = [a for a in gr_new
+                          if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(gr_new)
+                stats["collected"] += len(gr_raw)
+            except Exception as e:
+                log.error("Google reviews collection failed for brand %s: %s", brand_id[:8], e)
                 stats["errors"] += 1
 
         if not new_articles:
