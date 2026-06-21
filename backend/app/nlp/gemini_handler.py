@@ -93,6 +93,13 @@ _SOURCE_CONTEXT = {
         "Emojis and Hinglish are intentional; states_mentioned is usually empty. "
         "Confidence should reflect text brevity."
     ),
+    "google_review": (
+        "This is a Google Business review left by a customer. Star rating strongly correlates "
+        "with sentiment (4-5 stars = positive, 1-2 stars = negative, 3 stars = neutral). "
+        "Text may be brief — use rating context to anchor sentiment score. "
+        "states_mentioned is usually empty unless the reviewer mentions a city or region. "
+        "Confidence should reflect text length and specificity."
+    ),
 }
 
 # Used when title and body are available separately (news articles — A2)

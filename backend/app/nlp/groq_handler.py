@@ -88,6 +88,10 @@ _SOURCE_CONTEXT = {
         "Short Reddit comment — sarcasm/irony common; Hinglish intentional; "
         "states_mentioned usually empty; weight tone heavily."
     ),
+    "google_review": (
+        "Google Business review — star rating anchors sentiment (4-5=positive, 1-2=negative, "
+        "3=neutral); text may be brief; states_mentioned usually empty."
+    ),
 }
 
 _SYSTEM = (

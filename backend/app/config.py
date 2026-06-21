@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     reddit_client_secret: str = ""
     reddit_user_agent: str = "MediaSense:v1.0"
 
+    google_places_api_key: str = ""
+
     secret_key: str = ""
     environment: str = "development"
     disable_scheduler: bool = False
