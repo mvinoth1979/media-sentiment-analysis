@@ -32,6 +32,7 @@ export function tierBadge(tier: number): { label: string; color: string; bg: str
     case 2:  return { label: "Tier 2",  color: "text-blue-300",   bg: "bg-blue-900/30"   };
     case 3:  return { label: "Tier 3",  color: "text-gray-300",   bg: "bg-gray-800"      };
     case 4:  return { label: "Tier 4",  color: "text-gray-500",   bg: "bg-gray-900"      };
+    case 5:  return { label: "Wire",    color: "text-amber-700",  bg: "bg-amber-50"      };
     default: return { label: "YouTube", color: "text-red-400",    bg: "bg-red-900/30"    };
   }
 }

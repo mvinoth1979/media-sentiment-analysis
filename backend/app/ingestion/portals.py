@@ -169,6 +169,7 @@ TIER_LABELS: dict[int, str] = {
     2: "Tier 2",
     3: "Tier 3",
     4: "Tier 4",
+    5: "Wire",
 }
 
 
@@ -193,6 +194,8 @@ def get_portal_tier(portal_id: str) -> int:
     """
     if portal_id.startswith("youtube_"):
         return 0
+    if portal_id.startswith("gnews_"):
+        return 5
     portal = get_portal(portal_id)
     if not portal:
         return 4
