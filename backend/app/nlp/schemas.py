@@ -23,6 +23,9 @@ class NLPResult:
     # Structured issue taxonomy (12 categories)
     issue_category: str = "other"
 
+    # Item 9: YouTube creator type classification (youtube_video only)
+    creator_type: str = "unknown"
+
     def to_dict(self) -> dict:
         hs = self.headline_sentiment_score
         bs = self.body_sentiment_score
@@ -46,4 +49,5 @@ class NLPResult:
             "sentiment_divergence": divergence,
             "editorial_tone": self.editorial_tone,
             "issue_category": self.issue_category,
+            "creator_type": self.creator_type,
         }

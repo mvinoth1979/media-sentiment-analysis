@@ -56,6 +56,8 @@ class ArticleItem(BaseModel):
     is_regulatory_source: bool = False
     # Structured issue taxonomy (12 categories)
     issue_category: str = "other"
+    # Item 9: YouTube creator type classification
+    creator_type: str | None = None
 
 
 class SourceStat(BaseModel):

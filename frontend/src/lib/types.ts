@@ -50,6 +50,8 @@ export interface ArticleItem {
   sentiment_divergence?: boolean | null;
   is_regulatory_source?: boolean | null;
   issue_category?: string | null;
+  // Item 9: YouTube creator type classification
+  creator_type?: string | null;
 }
 
 export interface SourceStat {
