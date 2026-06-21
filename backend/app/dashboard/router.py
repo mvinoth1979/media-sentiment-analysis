@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
-from app.auth.dependencies import require_brand_role, READ_ROLES, WRITE_ROLES
+from app.auth.dependencies import require_brand_role, require_role, READ_ROLES, WRITE_ROLES
 from app.storage.postgres import (
     get_articles, get_kpi_summary, get_db, delete_articles,
     get_pipeline_info, get_state_breakdown,
@@ -32,6 +32,8 @@ from app.dashboard.schemas import (
     JournalistArticle, JournalistProfile, JournalistCoverageResponse,
     YTSentimentBucket, YTDivergentVideo, YTSentimentSplitResponse,
     IssueCategoryItem, IssueCategoriesResponse,
+    ReviewQueueItem, ReviewQueueResponse, ReviewQueuePatchRequest,
+    VideoRiskItem, BrandRiskScoresResponse,
 )
 
 router = APIRouter()
@@ -1175,3 +1177,197 @@ def get_issue_categories(
         for cat, vals in sorted(counts.items(), key=lambda x: -x[1]["count"])
     ]
     return IssueCategoriesResponse(categories=categories, period_days=days, brand_id=brand_id)
+
+
+# ── Human Review Queue (Item 5) ───────────────────────────────────────────────
+
+@router.get("/review-queue/{brand_id}", response_model=ReviewQueueResponse)
+def get_review_queue(
+    brand_id: str,
+    status: str | None = Query(None, pattern="^(pending|approved|rejected)$"),
+    user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    """List review queue items for a brand. Both GET and PATCH require WRITE_ROLES."""
+    db = get_db()
+    query = (
+        db.table("human_review_queue")
+        .select("*")
+        .eq("brand_id", brand_id)
+    )
+    if status:
+        query = query.eq("status", status)
+    rows = (
+        query
+        .order("created_at", desc=True)
+        .limit(50)
+        .execute()
+        .data
+    ) or []
+
+    # Enrich with article title/url via a secondary lookup
+    article_ids = [r["article_id"] for r in rows if r.get("article_id")]
+    article_map: dict[str, dict] = {}
+    if article_ids:
+        art_rows = (
+            db.table("articles")
+            .select("id, title, url")
+            .in_("id", article_ids)
+            .execute()
+            .data
+        ) or []
+        article_map = {a["id"]: a for a in art_rows}
+
+    items = []
+    for r in rows:
+        art = article_map.get(r.get("article_id") or "")
+        items.append(ReviewQueueItem(
+            id=str(r["id"]),
+            brand_id=str(r["brand_id"]),
+            article_id=str(r["article_id"]),
+            reason=r.get("reason") or "",
+            status=r.get("status") or "pending",
+            reviewer_id=r.get("reviewer_id"),
+            reviewed_at=r.get("reviewed_at"),
+            created_at=r.get("created_at"),
+            article_title=art.get("title") if art else None,
+            article_url=art.get("url") if art else None,
+        ))
+
+    return ReviewQueueResponse(items=items, total=len(items))
+
+
+@router.patch("/review-queue/{item_id}")
+def patch_review_queue_item(
+    item_id: str,
+    payload: ReviewQueuePatchRequest,
+    user: dict = Depends(require_role(*WRITE_ROLES)),
+):
+    """Approve or reject a review queue item."""
+    db = get_db()
+    update_data: dict = {
+        "status": payload.status,
+        "reviewer_id": user.get("user_id"),
+        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    result = (
+        db.table("human_review_queue")
+        .update(update_data)
+        .eq("id", item_id)
+        .execute()
+    )
+    rows = result.data or []
+    if not rows:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Review queue item not found")
+    return {"id": item_id, "status": payload.status}
+
+
+# ── Per-video Brand Risk Score (Item 8) ───────────────────────────────────────
+
+import math as _math
+
+
+def _brand_risk_reach_tier(view_count: int) -> str:
+    """Map view count to reach tier label per Item 8 spec."""
+    if view_count > 1_000_000:
+        return "Viral"
+    if view_count >= 100_000:
+        return "High"
+    if view_count >= 10_000:
+        return "Mid"
+    return "Low"
+
+
+def _compute_risk_score(
+    sentiment_score: float,
+    view_count: int,
+    like_count: int,
+    comment_count: int,
+    days_old: int,
+) -> float:
+    """
+    Per-video brand risk score formula (Item 8):
+
+      risk = sentiment_score
+             × log10(views+1) / log10(10_000_001)
+             × (likes+comments) / max(views, 1) / 0.1
+             × recency_decay
+
+    recency_decay = exp(-days_old / 30)   (half-life ~30 days)
+    Returns 0.0 when views == 0.
+    """
+    if view_count <= 0:
+        return 0.0
+
+    reach_factor = _math.log10(view_count + 1) / _math.log10(10_000_001)
+    engagement_factor = (like_count + comment_count) / max(view_count, 1) / 0.1
+    recency_decay = _math.exp(-days_old / 30.0)
+
+    return sentiment_score * reach_factor * engagement_factor * recency_decay
+
+
+@router.get("/brand-risk-scores/{brand_id}", response_model=BrandRiskScoresResponse)
+def get_brand_risk_scores(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    """Top 10 YouTube videos by absolute risk score in the last {days} days."""
+    db = get_db()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    rows = (
+        db.table("articles")
+        .select(
+            "id, title, url, portal_id, sentiment_score, published_at, collected_at, reach_metadata"
+        )
+        .eq("brand_id", brand_id)
+        .in_("source_type", ["youtube_video"])
+        .gte("collected_at", cutoff)
+        .execute()
+        .data
+    ) or []
+
+    now = datetime.now(timezone.utc)
+    videos: list[VideoRiskItem] = []
+
+    for r in rows:
+        reach = r.get("reach_metadata") or {}
+        view_count = int(reach.get("view_count") or 0)
+        like_count = int(reach.get("like_count") or 0)
+        comment_count = int(reach.get("comment_count") or 0)
+        sentiment_score = float(r.get("sentiment_score") or 0.0)
+
+        # Compute days_old from collected_at
+        collected_str = r.get("collected_at") or r.get("published_at") or ""
+        try:
+            collected_dt = datetime.fromisoformat(collected_str.replace("Z", "+00:00"))
+            days_old = max(0, (now - collected_dt).days)
+        except Exception:
+            days_old = 0
+
+        risk_score = _compute_risk_score(
+            sentiment_score=sentiment_score,
+            view_count=view_count,
+            like_count=like_count,
+            comment_count=comment_count,
+            days_old=days_old,
+        )
+
+        videos.append(VideoRiskItem(
+            article_id=str(r["id"]),
+            title=r.get("title") or "",
+            url=r.get("url") or "",
+            portal_id=r.get("portal_id") or "",
+            view_count=view_count,
+            like_count=like_count,
+            comment_count=comment_count,
+            sentiment_score=round(sentiment_score, 4),
+            risk_score=round(risk_score, 4),
+            reach_tier=_brand_risk_reach_tier(view_count),
+            published_at=r.get("published_at"),
+        ))
+
+    # Sort by absolute risk score descending and keep top 10
+    videos.sort(key=lambda v: abs(v.risk_score), reverse=True)
+    return BrandRiskScoresResponse(videos=videos[:10], brand_id=brand_id, period_days=days)

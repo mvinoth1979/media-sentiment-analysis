@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class KPISummary(BaseModel):
@@ -358,3 +358,57 @@ class IssueCategoriesResponse(BaseModel):
     categories: list[IssueCategoryItem]
     period_days: int
     brand_id: str
+
+
+# ── Human Review Queue (Item 5) ───────────────────────────────────────────────
+
+class ReviewQueueItem(BaseModel):
+    id: str
+    brand_id: str
+    article_id: str
+    reason: str
+    status: str          # "pending" | "approved" | "rejected"
+    reviewer_id: str | None = None
+    reviewed_at: str | None = None
+    created_at: str | None = None
+    # Denormalized from articles for display
+    article_title: str | None = None
+    article_url: str | None = None
+
+
+class ReviewQueueResponse(BaseModel):
+    items: list[ReviewQueueItem]
+    total: int
+
+
+class ReviewQueuePatchRequest(BaseModel):
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def _validate_status(cls, v: str) -> str:
+        if v not in ("approved", "rejected"):
+            raise ValueError(f"status must be 'approved' or 'rejected', got '{v}'")
+        return v
+
+
+# ── Per-video Brand Risk Score (Item 8) ───────────────────────────────────────
+
+class VideoRiskItem(BaseModel):
+    article_id: str
+    title: str
+    url: str
+    portal_id: str
+    view_count: int = 0
+    like_count: int = 0
+    comment_count: int = 0
+    sentiment_score: float = 0.0
+    risk_score: float = 0.0
+    reach_tier: str = "Low"   # "Viral" | "High" | "Mid" | "Low"
+    published_at: str | None = None
+
+
+class BrandRiskScoresResponse(BaseModel):
+    videos: list[VideoRiskItem]
+    brand_id: str
+    period_days: int = 30

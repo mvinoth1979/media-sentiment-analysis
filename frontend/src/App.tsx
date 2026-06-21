@@ -9,6 +9,7 @@ import { TopicsView } from "./pages/TopicsView";
 import { UserManagement } from "./pages/UserManagement";
 import { JournalistCoverage } from "./pages/JournalistCoverage";
 import { BrandConfig } from "./pages/BrandConfig";
+import { ReviewQueue } from "./pages/ReviewQueue";
 import { Sidebar } from "./components/Sidebar";
 import type { Tab } from "./components/Sidebar";
 
@@ -103,6 +104,9 @@ function App() {
           {tab === "journalists" && <JournalistCoverage brandId={brand.id} brandName={brand.name} />}
           {tab === "brand-config" && isAdmin && (
             <BrandConfig brandId={brand.id} brandName={brand.name} />
+          )}
+          {tab === "review-queue" && isAdmin && (
+            <ReviewQueue brandId={brand.id} brandName={brand.name} />
           )}
           {tab === "users"       && isAdmin && (
             <UserManagement brandId={brand.id} brandName={brand.name} />
