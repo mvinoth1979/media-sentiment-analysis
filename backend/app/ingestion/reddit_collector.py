@@ -23,23 +23,51 @@ def _content_hash(prefix: str, unique_id: str) -> str:
     return hashlib.sha256(f"{prefix}::{unique_id}".encode()).hexdigest()
 
 
-def _search_posts(subreddit: str, keyword: str) -> list[dict]:
-    """Search a subreddit for posts matching keyword (last 7 days, newest first)."""
-    url = f"{_BASE}/r/{subreddit}/search.json"
-    params = {
-        "q": keyword,
-        "sort": "new",
-        "limit": 10,
-        "restrict_sr": "on",
-        "t": "week",
-    }
+def _fetch_listing(subreddit: str, kind: str = "new", limit: int = 25) -> list[dict]:
+    """Fetch a public subreddit listing (new/hot) — no auth, less likely to be blocked."""
+    url = f"{_BASE}/r/{subreddit}/{kind}.json"
     try:
-        resp = httpx.get(url, params=params, headers=_HEADERS, timeout=_TIMEOUT)
+        resp = httpx.get(url, params={"limit": limit}, headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
         return resp.json().get("data", {}).get("children", [])
     except Exception as e:
+        log.warning("Reddit listing /%s/%s failed: %s", subreddit, kind, e)
+        return []
+
+
+def _search_posts(subreddit: str, keyword: str) -> list[dict]:
+    """Search a subreddit for posts matching keyword.
+
+    Tries search.json first (targeted), falls back to new.json + local keyword
+    filter when search returns 403 (common from cloud IPs).
+    """
+    url = f"{_BASE}/r/{subreddit}/search.json"
+    params = {"q": keyword, "sort": "new", "limit": 10, "restrict_sr": "on", "t": "week"}
+    try:
+        resp = httpx.get(url, params=params, headers=_HEADERS, timeout=_TIMEOUT)
+        if resp.status_code == 403:
+            log.info("Reddit search 403 for r/%s — falling back to listing endpoint", subreddit)
+        else:
+            resp.raise_for_status()
+            return resp.json().get("data", {}).get("children", [])
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code != 403:
+            log.warning("Reddit search failed for r/%s + '%s': %s", subreddit, keyword, e)
+            return []
+        log.info("Reddit search 403 for r/%s — falling back to listing endpoint", subreddit)
+    except Exception as e:
         log.warning("Reddit search failed for r/%s + '%s': %s", subreddit, keyword, e)
         return []
+
+    # Fallback: fetch recent posts and filter locally by keyword
+    children = _fetch_listing(subreddit, "new") or _fetch_listing(subreddit, "hot")
+    kw_lower = keyword.lower()
+    return [
+        c for c in children
+        if kw_lower in (
+            c.get("data", {}).get("title", "") + " " + c.get("data", {}).get("selftext", "")
+        ).lower()
+    ]
 
 
 def _fetch_comments(subreddit: str, post_id: str) -> list[dict]:

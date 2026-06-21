@@ -79,6 +79,10 @@ def _fetch_place_reviews(places_id: str, api_key: str) -> dict:
         resp = httpx.get(url, headers=headers, timeout=_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
+    except httpx.HTTPStatusError as e:
+        log.warning("Places fetch failed for id=%s: HTTP %d — %s",
+                    places_id, e.response.status_code, e.response.text[:300])
+        return {}
     except Exception as e:
         log.warning("Places fetch failed for id=%s: %s", places_id, e)
         return {}
@@ -142,7 +146,7 @@ def collect_google_reviews_for_brand(brand: dict, config: dict) -> list[dict]:
     """
     api_key = settings.google_places_api_key
     if not api_key:
-        log.debug("GOOGLE_PLACES_API_KEY not set — skipping Google reviews")
+        log.warning("GOOGLE_PLACES_API_KEY not set in Railway Variables — skipping Google reviews for brand %s", brand_id[:8])
         return []
 
     if not config.get("google_reviews_enabled", False):
@@ -167,7 +171,12 @@ def collect_google_reviews_for_brand(brand: dict, config: dict) -> list[dict]:
     raw_reviews = place_data.get("reviews", [])
 
     if not raw_reviews:
-        log.info("Brand %s: no reviews found for places_id=%s", brand_id[:8], places_id)
+        log.warning(
+            "Brand %s: Places API returned no reviews for places_id=%s. "
+            "If the key is valid, check that Google Places API (New) 'Advanced' plan is enabled — "
+            "the free/Essentials plan does not return reviews.",
+            brand_id[:8], places_id,
+        )
         return []
 
     articles: list[dict] = []

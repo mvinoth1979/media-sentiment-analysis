@@ -190,6 +190,11 @@ def update_brand_config(
     _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
 ):
     db = get_db()
-    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    # Exclude None and empty strings — empty string for google_places_id would
+    # overwrite the auto-resolved value saved by the collector on a prior run.
+    updates = {
+        k: v for k, v in payload.model_dump().items()
+        if v is not None and not (isinstance(v, str) and v == "")
+    }
     rows = db.table("brand_configs").update(updates).eq("brand_id", brand_id).execute().data
     return rows[0] if rows else {}
