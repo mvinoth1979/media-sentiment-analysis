@@ -145,14 +145,14 @@ def collect_google_reviews_for_brand(brand: dict, config: dict) -> list[dict]:
     - The Places API returns an error or no reviews.
     """
     api_key = settings.google_places_api_key
+    brand_id = brand["id"]
+
     if not api_key:
-        log.warning("GOOGLE_PLACES_API_KEY not set in Railway Variables — skipping Google reviews for brand %s", brand_id[:8])
+        log.warning("GOOGLE_PLACES_API_KEY not set — skipping Google reviews for brand %s", brand_id[:8])
         return []
 
     if not config.get("google_reviews_enabled", False):
         return []
-
-    brand_id = brand["id"]
     brand_name = brand.get("name", "")
     places_id = config.get("google_places_id", "").strip()
 
