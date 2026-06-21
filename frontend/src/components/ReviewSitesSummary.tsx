@@ -45,61 +45,80 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
 
   const { avg_rating, total, distribution, top_positive_topics, top_negative_topics } = data;
   const ratingLabel = avg_rating.toFixed(1);
+  const maxCount = Math.max(...distribution.map(d => d.count), 1);
 
+  /* ── Compact — reference-style table ── */
   if (compact) {
+    /* Merge distribution rows + topic rows into a single list */
+    const distRows = distribution.map(d => ({
+      label: `${d.stars} Star${d.stars !== 1 ? "s" : ""}`,
+      count: d.count,
+      pct: d.pct,
+      isPos: d.stars >= 4,
+      isNeg: d.stars <= 2,
+    }));
+
     return (
-      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
-        {/* Header row */}
-        <div className="flex items-center justify-between mb-1 flex-none">
+      <div
+        onClick={onClick}
+        className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-1.5 flex-none">
           <span className="text-[11px] font-semibold text-gray-800">Review Sites</span>
           <div className="flex items-center gap-1">
-            <span className="text-base font-bold text-gray-900">{ratingLabel}</span>
-            <span className="text-[10px] text-gray-400">/5</span>
+            <span className="text-[11px] font-bold text-gray-900">{ratingLabel}</span>
+            <span className="text-[9px] text-gray-400">/5</span>
             <StarRating rating={avg_rating} size="sm" />
           </div>
         </div>
 
-        {/* Distribution bars */}
-        <div className="space-y-0.5 flex-none">
-          {distribution.map(d => (
-            <div key={d.stars} className="flex items-center gap-1">
-              <span className="text-[8px] text-gray-400 w-2 shrink-0">{d.stars}</span>
-              <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
-                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${d.pct}%` }} />
+        {/* Column headers */}
+        <div className="flex items-center justify-between mb-1 flex-none border-b border-gray-100 pb-1">
+          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Rating</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Reviews</span>
+            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide w-10 text-right">Share</span>
+          </div>
+        </div>
+
+        {/* Distribution rows */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {distRows.map(d => (
+            <div key={d.label} className="py-1.5 border-b border-gray-100 last:border-b-0">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className={`text-[11px] font-medium leading-none ${d.isPos ? "text-green-700" : d.isNeg ? "text-red-500" : "text-gray-600"}`}>
+                  {d.label}
+                </span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[11px] text-gray-500 tabular-nums">{d.count}</span>
+                  <span className={`text-[11px] font-semibold tabular-nums w-10 text-right ${d.isPos ? "text-green-600" : d.isNeg ? "text-red-500" : "text-gray-500"}`}>
+                    {d.pct}%
+                  </span>
+                </div>
               </div>
-              <span className="text-[8px] text-gray-500 w-7 text-right shrink-0">{d.pct}%</span>
+              {/* proportional bar */}
+              <div className="h-[3px] w-full bg-gray-100 rounded-full">
+                <div
+                  className={`h-full rounded-full ${d.isPos ? "bg-green-500" : d.isNeg ? "bg-red-400" : "bg-gray-300"}`}
+                  style={{ width: `${Math.min(100, Math.round((d.count / maxCount) * 100))}%` }}
+                />
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Topics — two mini-columns */}
-        {(top_positive_topics.length > 0 || top_negative_topics.length > 0) && (
-          <div className="mt-1.5 flex-1 min-h-0 overflow-hidden grid grid-cols-2 gap-x-2">
-            <div className="space-y-0.5 overflow-hidden">
-              <div className="text-[8px] font-bold text-green-600 uppercase tracking-wide mb-0.5">Positive</div>
-              {top_positive_topics.slice(0, 3).map(t => (
-                <div key={t.label} className="flex items-center gap-0.5 text-[8px]">
-                  <span className="text-gray-600 truncate flex-1">{t.label}</span>
-                  <span className="text-green-600 font-semibold shrink-0">{t.pct}%</span>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-0.5 overflow-hidden">
-              <div className="text-[8px] font-bold text-red-500 uppercase tracking-wide mb-0.5">Negative</div>
-              {top_negative_topics.slice(0, 3).map(t => (
-                <div key={t.label} className="flex items-center gap-0.5 text-[8px]">
-                  <span className="text-gray-600 truncate flex-1">{t.label}</span>
-                  <span className="text-red-500 font-semibold shrink-0">{t.pct}%</span>
-                </div>
-              ))}
-            </div>
+        {/* Totals footer */}
+        {total > 0 && (
+          <div className="flex-none pt-1 border-t border-gray-100 mt-1">
+            <span className="text-[9px] text-gray-400">{total.toLocaleString()} total reviews</span>
           </div>
         )}
       </div>
     );
   }
 
-  /* ── Expanded view — matches reference image exactly ── */
+  /* ── Expanded view ── */
   return (
     <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
       {/* Title row */}
@@ -110,7 +129,6 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
 
       {/* Rating + Distribution */}
       <div className="flex gap-6 mb-4">
-        {/* Left: big number */}
         <div className="shrink-0 text-center min-w-[72px]">
           <div className="text-5xl font-bold text-gray-900 leading-none">{ratingLabel}</div>
           <div className="text-xs text-gray-400 mb-1.5">/ 5</div>
@@ -120,7 +138,6 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
           </div>
         </div>
 
-        {/* Right: distribution bars */}
         <div className="flex-1">
           <div className="text-[11px] text-gray-500 font-medium mb-2">Rating Distribution</div>
           <div className="space-y-1.5">
@@ -137,7 +154,7 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
         </div>
       </div>
 
-      {/* Two-column themes — matches reference */}
+      {/* Two-column themes */}
       <div className="border-t border-gray-100 pt-3 grid grid-cols-2 gap-x-6">
         <div>
           <div className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-2">

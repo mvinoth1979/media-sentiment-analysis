@@ -10,27 +10,63 @@ interface Props {
   onClick?: () => void;
 }
 
-/* ── Cluster row used in both compact and expanded modes ── */
-function ClusterRow({ c, maxCount, compact }: { c: IssueCluster; maxCount: number; compact: boolean }) {
+/* ── Reference-style row: label + bar underneath + count + sentiment ── */
+function RefRow({
+  label,
+  count,
+  maxCount,
+  netPct,
+  isRising,
+}: {
+  label: string;
+  count: number;
+  maxCount: number;
+  netPct: number;
+  isRising?: boolean;
+}) {
+  const barPct = Math.min(100, Math.round((count / maxCount) * 100));
+  const isNeg = netPct < 0;
+  const sentLabel = isNeg ? `${netPct}%` : `+${netPct}%`;
+  const sentColor = isNeg ? "text-red-500" : "text-green-600";
+  const barColor = isNeg ? "bg-red-400" : "bg-green-500";
+
+  return (
+    <div className="py-1.5 border-b border-gray-100 last:border-b-0">
+      {/* label row */}
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-[11px] font-medium text-gray-800 truncate capitalize leading-none">
+            {label.replace(/_/g, " ")}
+          </span>
+          {isRising && (
+            <span className="text-[9px] text-amber-500 font-semibold shrink-0">↑</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] text-gray-500 tabular-nums">{count}</span>
+          <span className={`text-[11px] font-semibold tabular-nums w-10 text-right ${sentColor}`}>
+            {sentLabel}
+          </span>
+        </div>
+      </div>
+      {/* proportional bar */}
+      <div className="h-[3px] w-full bg-gray-100 rounded-full">
+        <div
+          className={`h-full rounded-full ${barColor}`}
+          style={{ width: `${barPct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Expanded-mode cluster row (unchanged style) ── */
+function ClusterRow({ c, maxCount }: { c: IssueCluster; maxCount: number }) {
   const barPct = Math.min(100, Math.round((c.article_count / maxCount) * 100));
   const isNeg = c.net_sentiment_pct < 0;
   const netLabel = isNeg ? `${c.net_sentiment_pct}%` : `+${c.net_sentiment_pct}%`;
   const barColor = isNeg ? "bg-red-400" : "bg-green-400";
   const netColor = isNeg ? "text-red-500" : "text-green-600";
-
-  if (compact) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-[8px] text-gray-600 truncate flex-1 capitalize">
-          {c.cluster_name.replace(/_/g, " ")}
-        </span>
-        {c.trend === "rising" && (
-          <span className="text-[7px] text-amber-500 font-semibold shrink-0">↑</span>
-        )}
-        <span className={`text-[8px] font-semibold shrink-0 ${netColor}`}>{netLabel}</span>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -81,23 +117,13 @@ const CATEGORY_ACCENTS: Record<string, string> = {
   financial_performance: "border-l-indigo-400",
 };
 
-function CategoryRow({ c, maxCount, compact }: { c: IssueCategoryItem; maxCount: number; compact: boolean }) {
+function CategoryRow({ c, maxCount }: { c: IssueCategoryItem; maxCount: number }) {
   const total = c.count || 1;
   const posPct = Math.round((c.positive_count / total) * 100);
   const negPct = Math.round((c.negative_count / total) * 100);
   const barPct = Math.min(100, Math.round((c.count / maxCount) * 100));
   const accent = CATEGORY_ACCENTS[c.category] ?? "border-l-gray-300";
   const label = CATEGORY_LABELS[c.category] ?? c.category.replace(/_/g, " ");
-
-  if (compact) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-[8px] text-gray-600 truncate flex-1">{label}</span>
-        <span className="text-[7px] text-green-600 shrink-0">{posPct}%</span>
-        <span className="text-[7px] text-red-500 shrink-0">{negPct}%</span>
-      </div>
-    );
-  }
 
   return (
     <div className={`pl-2 border-l-2 ${accent}`}>
@@ -142,88 +168,74 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
   const hasClusters = clusters.length > 0;
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
-  /* ── Compact ── */
+  /* ── Compact — reference-style table ── */
   if (compact) {
-    const visibleClusters = clusters.slice(0, 5);
-    const maxCount = clusters[0]?.article_count ?? 1;
-    const categoryItems = (categoryData?.categories ?? []).slice(0, 5);
-    const maxCatCount = categoryItems[0]?.count ?? 1;
-
-    /* fallback to topic-based pos/neg split when no clusters */
+    /* Build rows: clusters first, fall back to topics */
     const allTopics = topicsData ?? [];
-    const withNet = allTopics.map(t => {
+    const topicRows = allTopics.map(t => {
       const total = t.positive + t.neutral + t.negative || 1;
-      const posPct = Math.round((t.positive / total) * 100);
-      const negPct = Math.round((t.negative / total) * 100);
-      return { ...t, posPct, negPct, net: posPct - negPct };
+      const net = Math.round(((t.positive - t.negative) / total) * 100);
+      return { label: t.topic, count: t.count, net };
     });
-    const positiveTopics = withNet.filter(t => t.net >= 0).slice(0, 5);
-    const negativeTopics = withNet.filter(t => t.net < 0).slice(0, 5);
+
+    const clusterRows = clusters.map(c => ({
+      label: c.cluster_name,
+      count: c.article_count,
+      net: c.net_sentiment_pct,
+      isRising: c.trend === "rising",
+    }));
+
+    const rows = hasClusters ? clusterRows.slice(0, 7) : topicRows.slice(0, 7);
+    const maxCount = rows[0]?.count ?? 1;
 
     return (
-      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
-        <div className="flex items-center justify-between mb-1 flex-none">
+      <div
+        onClick={onClick}
+        className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-1.5 flex-none">
           <span className="text-[11px] font-semibold text-gray-800">Top Issues</span>
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => setViewMode("clusters")}
-              className={`text-[8px] px-1 py-px rounded ${viewMode === "clusters" ? "bg-indigo-100 text-indigo-600 font-semibold" : "text-gray-400"}`}
-            >Clusters</button>
-            <button
-              onClick={() => setViewMode("categories")}
-              className={`text-[8px] px-1 py-px rounded ${viewMode === "categories" ? "bg-indigo-100 text-indigo-600 font-semibold" : "text-gray-400"}`}
-            >Categories</button>
+          <span className="text-[10px] text-gray-400">(All Sources)</span>
+        </div>
+
+        {/* Column headers */}
+        <div className="flex items-center justify-between mb-1 flex-none border-b border-gray-100 pb-1">
+          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Issue</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Mentions</span>
+            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide w-10 text-right">Sentiment</span>
           </div>
         </div>
 
+        {/* Rows */}
         {isLoading ? (
-          <div className="space-y-1.5 flex-1">
-            {[1,2,3,4].map(i => <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" />)}
+          <div className="space-y-2 flex-1 pt-1">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="space-y-1">
+                <div className="h-2.5 bg-gray-100 rounded animate-pulse w-3/4" />
+                <div className="h-[3px] bg-gray-100 rounded animate-pulse w-1/2" />
+              </div>
+            ))}
           </div>
-        ) : viewMode === "categories" ? (
-          categoryItems.length > 0 ? (
-            <div className="flex-1 min-h-0 overflow-hidden space-y-1">
-              {categoryItems.map(c => (
-                <CategoryRow key={c.category} c={c} maxCount={maxCatCount} compact />
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <span className="text-[8px] text-gray-400">Populates after next pipeline run</span>
-            </div>
-          )
-        ) : hasClusters ? (
-          <div className="flex-1 min-h-0 overflow-hidden space-y-1">
-            {visibleClusters.map(c => (
-              <ClusterRow key={c.cluster_name} c={c} maxCount={maxCount} compact />
+        ) : rows.length > 0 ? (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {rows.map(r => (
+              <RefRow
+                key={r.label}
+                label={r.label}
+                count={r.count}
+                maxCount={maxCount}
+                netPct={r.net}
+                isRising={"isRising" in r ? r.isRising : false}
+              />
             ))}
           </div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-2 gap-x-2">
-            <div className="overflow-hidden">
-              <div className="text-[8px] font-bold text-green-600 uppercase tracking-wide mb-1">Positive</div>
-              <div className="space-y-1">
-                {positiveTopics.map(t => (
-                  <div key={t.topic} className="flex items-center gap-1">
-                    <span className="text-[8px] text-gray-600 truncate flex-1 capitalize">{t.topic.replace(/_/g, " ")}</span>
-                    <span className="text-[8px] font-semibold text-green-600 shrink-0">+{t.net}%</span>
-                  </div>
-                ))}
-                {positiveTopics.length === 0 && <span className="text-[8px] text-gray-400">None yet</span>}
-              </div>
-            </div>
-            <div className="overflow-hidden">
-              <div className="text-[8px] font-bold text-red-500 uppercase tracking-wide mb-1">Negative</div>
-              <div className="space-y-1">
-                {negativeTopics.map(t => (
-                  <div key={t.topic} className="flex items-center gap-1">
-                    <span className="text-[8px] text-gray-600 truncate flex-1 capitalize">{t.topic.replace(/_/g, " ")}</span>
-                    <span className="text-[8px] font-semibold text-red-500 shrink-0">{t.net}%</span>
-                  </div>
-                ))}
-                {negativeTopics.length === 0 && <span className="text-[8px] text-gray-400">None yet</span>}
-              </div>
-            </div>
+          <div className="flex-1 flex items-center justify-center">
+            <span className="text-[9px] text-gray-400 text-center">
+              Populates after next pipeline run
+            </span>
           </div>
         )}
       </div>
@@ -266,13 +278,13 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />)}
+          {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />)}
         </div>
       ) : viewMode === "categories" ? (
         categoryItems.length > 0 ? (
           <div className="space-y-3">
             {categoryItems.map(c => (
-              <CategoryRow key={c.category} c={c} maxCount={maxCatCount} compact={false} />
+              <CategoryRow key={c.category} c={c} maxCount={maxCatCount} />
             ))}
           </div>
         ) : (
@@ -283,7 +295,7 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
       ) : hasClusters ? (
         <div className="space-y-3">
           {visibleClusters.map(c => (
-            <ClusterRow key={c.cluster_name} c={c} maxCount={maxClusterCount} compact={false} />
+            <ClusterRow key={c.cluster_name} c={c} maxCount={maxClusterCount} />
           ))}
         </div>
       ) : allTopics.length === 0 ? (
