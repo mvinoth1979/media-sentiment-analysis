@@ -30,11 +30,18 @@ def search_brands(
     user: dict = Depends(get_current_user),
 ):
     db = get_db()
-    roles = db.table("user_roles").select("agency_id, brand_id") \
-              .eq("user_id", user["user_id"]).execute().data
+    roles = user.get("roles", [])
+
+    # master_admin is a platform-wide superuser — return all brands
+    if any(r["role"] == "master_admin" for r in roles):
+        rows = db.table("brands").select("id, name, agency_id").execute().data
+        if q:
+            q_lower = q.lower()
+            rows = [r for r in rows if q_lower in r["name"].lower()]
+        return rows
 
     agency_ids = {r["agency_id"] for r in roles if r.get("agency_id")}
-    brand_ids = {r["brand_id"] for r in roles if r.get("brand_id")}
+    brand_ids  = {r["brand_id"]  for r in roles if r.get("brand_id")}
 
     rows_by_id: dict[str, dict] = {}
     if agency_ids:
