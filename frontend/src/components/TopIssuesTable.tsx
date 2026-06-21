@@ -136,6 +136,15 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
           <span className="text-[10px] text-gray-400">(All Sources)</span>
         </div>
 
+        {/* Column headers */}
+        <div className="flex items-center justify-between mb-1 pb-1 border-b border-gray-100 flex-none">
+          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Issue</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Mentions</span>
+            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide w-10 text-right">Sentiment</span>
+          </div>
+        </div>
+
         {compactLoading ? (
           <div className="space-y-2 flex-1 pt-1">
             {[1, 2, 3, 4, 5].map(i => (
