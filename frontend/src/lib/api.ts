@@ -23,8 +23,11 @@ export const fetchBrands = (q = "") =>
   api.get<{ id: string; name: string; agency_id: string }[]>(`/tenants/brands?q=${encodeURIComponent(q)}`)
      .then(r => r.data);
 
-export const fetchOverview = (brandId: string, days = 7) =>
-  api.get<import("./types").OverviewData>(`/dashboard/overview/${brandId}?days=${days}`)
+export const fetchOverview = (
+  brandId: string,
+  params: { days?: number; date_from?: string; date_to?: string } = { days: 7 }
+) =>
+  api.get<import("./types").OverviewData>(`/dashboard/overview/${brandId}`, { params })
      .then(r => r.data);
 
 export const fetchMentions = (brandId: string, params?: Record<string, string>) =>

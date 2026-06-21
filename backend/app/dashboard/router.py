@@ -77,15 +77,30 @@ def _article_to_item(a: dict) -> ArticleItem:
 @router.get("/overview/{brand_id}", response_model=OverviewResponse)
 def get_overview(
     brand_id: str,
-    days: int = Query(7, ge=1, le=90),
+    days: int = Query(7, ge=1, le=365),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
+    now = datetime.now(timezone.utc)
+    if date_from:
+        current_start = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+        current_end = datetime.fromisoformat(date_to.replace("Z", "+00:00")) if date_to else now
+        span = current_end - current_start
+        previous_start = current_start - span
+    else:
+        current_start = now - timedelta(days=days)
+        current_end = now
+        previous_start = now - timedelta(days=days * 2)
+
+    trend_days = max(1, int((current_end - current_start).days))
+
     kpi_raw = get_kpi_summary(brand_id)
     try:
-        trend_raw = query_sentiment_trend(brand_id, days)
+        trend_raw = query_sentiment_trend(brand_id, trend_days)
     except Exception:
         trend_raw = []
-    recent = get_articles(brand_id, limit=10)
+    recent = get_articles(brand_id, limit=10, date_from=current_start.isoformat(), date_to=current_end.isoformat())
 
     recent_score = calculate_perception_score([
         {
@@ -101,15 +116,12 @@ def get_overview(
     kw_counter: Counter = Counter()
     topic_counter: Counter = Counter()
 
-    all_articles = get_articles(brand_id, limit=500)
+    all_articles = get_articles(brand_id, limit=500, date_from=current_start.isoformat(), date_to=current_end.isoformat())
     for a in all_articles:
         kw_counter.update(a.get("keywords", []))
         topic_counter.update(a.get("topics", []))
 
-    now = datetime.now(timezone.utc)
-    current_start = now - timedelta(days=days)
-    previous_start = now - timedelta(days=days * 2)
-    current_window = _window_kpi(brand_id, current_start.isoformat(), now.isoformat())
+    current_window = _window_kpi(brand_id, current_start.isoformat(), current_end.isoformat())
     previous_window = _window_kpi(brand_id, previous_start.isoformat(), current_start.isoformat())
     wow_delta = _compute_wow_delta(current_window, previous_window)
 

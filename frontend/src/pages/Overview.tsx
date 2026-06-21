@@ -262,14 +262,24 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
   const [divOpen, setDivOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
 
+  // Date range picker state
+  const [days, setDays] = useState(7);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+
   function openDrill(filter: DrillFilter) {
     setDrilldown(filter);
     setActivePanel("mentions-drill");
   }
 
+  const queryParams = showCustom && customFrom && customTo
+    ? { date_from: customFrom, date_to: customTo }
+    : { days };
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["overview", brandId],
-    queryFn: () => fetchOverview(brandId),
+    queryKey: ["overview", brandId, queryParams],
+    queryFn: () => fetchOverview(brandId, queryParams),
     refetchInterval: (query) =>
       query.state.data?.pipeline_status === "running" ? 10_000 : 60_000,
   });
@@ -323,6 +333,46 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           <h2 className="text-xs font-semibold text-gray-800">
             {activePanel === "mentions-drill" && drilldown ? drilldown.label : PANEL_TITLE[activePanel]}
           </h2>
+          <div className="ml-auto flex items-center gap-1">
+            {[7, 30, 90].map(d => (
+              <button
+                key={d}
+                onClick={() => { setDays(d); setShowCustom(false); }}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                  !showCustom && days === d
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "text-gray-500 border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {d}d
+              </button>
+            ))}
+            <button
+              onClick={() => setShowCustom(v => !v)}
+              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-gray-500 border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              Custom
+            </button>
+            {showCustom && (
+              <div className="flex items-center gap-1 ml-1">
+                <input
+                  type="date"
+                  value={customFrom.slice(0, 10)}
+                  onChange={e => setCustomFrom(e.target.value + "T00:00:00Z")}
+                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                />
+                <span className="text-[10px] text-gray-400">→</span>
+                <input
+                  type="date"
+                  value={customTo.slice(0, 10)}
+                  onChange={e => setCustomTo(e.target.value + "T23:59:59Z")}
+                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Detail content */}
@@ -503,6 +553,47 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Date range picker */}
+          <div className="flex items-center gap-1">
+            {[7, 30, 90].map(d => (
+              <button
+                key={d}
+                onClick={() => { setDays(d); setShowCustom(false); }}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                  !showCustom && days === d
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "text-gray-500 border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {d}d
+              </button>
+            ))}
+            <button
+              onClick={() => setShowCustom(v => !v)}
+              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-gray-500 border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              Custom
+            </button>
+            {showCustom && (
+              <div className="flex items-center gap-1 ml-1">
+                <input
+                  type="date"
+                  value={customFrom.slice(0, 10)}
+                  onChange={e => setCustomFrom(e.target.value + "T00:00:00Z")}
+                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                />
+                <span className="text-[10px] text-gray-400">→</span>
+                <input
+                  type="date"
+                  value={customTo.slice(0, 10)}
+                  onChange={e => setCustomTo(e.target.value + "T23:59:59Z")}
+                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                />
+              </div>
+            )}
+          </div>
           {data.pipeline_status === "running" && (
             <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
               <span className="relative flex h-1.5 w-1.5">
