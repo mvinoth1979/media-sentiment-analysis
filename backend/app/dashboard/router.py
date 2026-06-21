@@ -786,69 +786,28 @@ def discover_and_save_competitors(
 
 # ── Issue Clusters (B4) ────────────────────────────────────────────────────────
 
-class _UF:
-    """Minimal union-find for topic co-occurrence merging."""
-    def __init__(self): self._p: dict[str, str] = {}
-    def find(self, x: str) -> str:
-        self._p.setdefault(x, x)
-        if self._p[x] != x:
-            self._p[x] = self.find(self._p[x])
-        return self._p[x]
-    def union(self, x: str, y: str) -> None:
-        rx, ry = self.find(x), self.find(y)
-        if rx != ry:
-            self._p[ry] = rx
-
 
 def _build_clusters(articles: list[dict], cutoff_7d: str) -> list[dict]:
-    """Group NLP topics into issue clusters via co-occurrence union-find.
+    """Group articles into issue clusters by issue_category.
 
-    Two topics belong to the same cluster when they co-appear in ≥2 articles.
-    Cluster label = the topic with the highest individual article count.
+    Uses issue_category (always an English taxonomy label, always populated)
+    as the primary grouping key. This is more reliable than the previous
+    topics co-occurrence approach, which broke for non-English articles where
+    LLMs returned topics in the article language instead of the English taxonomy.
     """
-    # topic → article indices
-    topic_arts: dict[str, list[int]] = {}
-    for i, a in enumerate(articles):
-        for t in (a.get("topics") or []):
-            if t:
-                topic_arts.setdefault(t, []).append(i)
+    cat_map: dict[str, list[dict]] = {}
+    for a in articles:
+        cat = (a.get("issue_category") or "other").strip() or "other"
+        cat_map.setdefault(cat, []).append(a)
 
-    if not topic_arts:
+    if not cat_map:
         return []
 
-    # co-occurrence counts (within each article, all topic pairs)
-    co_occ: Counter = Counter()
-    for a in articles:
-        topics = list({t for t in (a.get("topics") or []) if t})
-        for j in range(len(topics)):
-            for k in range(j + 1, len(topics)):
-                co_occ[tuple(sorted((topics[j], topics[k])))] += 1
-
-    # merge topics that co-appear in ≥2 articles
-    uf = _UF()
-    for (ta, tb), cnt in co_occ.items():
-        if cnt >= 2:
-            uf.union(ta, tb)
-
-    # group topics by cluster root
-    root_members: dict[str, list[str]] = {}
-    for t in topic_arts:
-        root = uf.find(t)
-        root_members.setdefault(root, []).append(t)
-
     clusters: list[dict] = []
-    for members in root_members.values():
-        # article_set: union of all articles mentioning any topic in this cluster
-        art_idx: set[int] = set()
-        for t in members:
-            art_idx.update(topic_arts.get(t, []))
-
-        cluster_name = max(members, key=lambda t: len(topic_arts.get(t, [])))
+    for cat, arts in cat_map.items():
         pos = neg = neu = recent = 0
         top_cands: list[tuple[float, dict]] = []
-
-        for idx in art_idx:
-            a = articles[idx]
+        for a in arts:
             label = a.get("sentiment_label", "neutral")
             if label == "positive":
                 pos += 1
@@ -860,7 +819,7 @@ def _build_clusters(articles: list[dict], cutoff_7d: str) -> list[dict]:
                 recent += 1
             top_cands.append((abs(a.get("sentiment_score") or 0.5), a))
 
-        total = len(art_idx)
+        total = len(arts)
         net_pct = round((pos - neg) / total * 100) if total else 0
         trend = "rising" if total > 0 and recent / total > 0.5 else "stable"
         top_arts = [
@@ -869,7 +828,7 @@ def _build_clusters(articles: list[dict], cutoff_7d: str) -> list[dict]:
             for _, a in sorted(top_cands, key=lambda x: x[0], reverse=True)[:3]
         ]
         clusters.append({
-            "cluster_name": cluster_name,
+            "cluster_name": cat,
             "article_count": total,
             "positive_count": pos,
             "negative_count": neg,
