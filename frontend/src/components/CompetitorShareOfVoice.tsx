@@ -114,7 +114,22 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
 
   return (
     <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
-      <div className="text-sm font-semibold text-gray-800 mb-3">Competitor Share of Voice</div>
+      <div className="flex items-center gap-1.5 mb-3">
+        <span className="text-sm font-semibold text-gray-800">Competitor Share of Voice</span>
+        <div className="relative group">
+          <button
+            onClick={e => e.stopPropagation()}
+            className="w-4 h-4 rounded-full bg-gray-100 text-gray-400 hover:text-gray-600 hover:bg-gray-200 flex items-center justify-center text-[10px] font-bold leading-none transition-colors"
+            aria-label="Coverage scope information"
+          >
+            i
+          </button>
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-lg bg-gray-900 px-3 py-2 text-[11px] text-gray-100 leading-snug shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20">
+            Based on YouTube and news portal coverage only. Twitter/X, Instagram, and Facebook are not yet monitored and are excluded from these figures.
+            <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900" />
+          </div>
+        </div>
+      </div>
 
       <div className="flex items-center gap-3">
         <div className="relative w-[110px] h-[110px] shrink-0">
@@ -151,7 +166,11 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
         </div>
       </div>
 
-      <div className="mt-3 flex items-start justify-between gap-3">
+      <p className="mt-2 text-[10px] text-gray-400 italic">
+        YouTube &amp; news coverage only — social media channels excluded.
+      </p>
+
+      <div className="mt-2 flex items-start justify-between gap-3">
         <p className="text-[10px] text-gray-400 leading-relaxed">
           {source === "configured"
             ? "Based on competitor mentions in brand coverage"

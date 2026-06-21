@@ -1,7 +1,30 @@
-from unittest.mock import patch
+import sys
+from types import ModuleType
+from unittest.mock import MagicMock, patch
 
 import pytest
 from app.config import get_settings
+
+# ---------------------------------------------------------------------------
+# The conftest patches "app.pipeline.scheduler.start_scheduler" which requires
+# both `app.pipeline` and `app.pipeline.scheduler` to be present in sys.modules
+# so that pkgutil.resolve_name can traverse the dotted path.
+#
+# Rather than importing the real scheduler (which has a deep chain of optional
+# dependencies — apscheduler, redis, boto3, influxdb_client … — not all
+# installed in the test virtualenv), we register a lightweight stub module that
+# exposes just the `start_scheduler` name the patch targets.
+# ---------------------------------------------------------------------------
+import app.pipeline  # noqa: E402 — sets app.pipeline in sys.modules
+
+if "app.pipeline.scheduler" not in sys.modules:
+    _sched_stub = ModuleType("app.pipeline.scheduler")
+    _sched_stub.start_scheduler = MagicMock()  # type: ignore[attr-defined]
+    sys.modules["app.pipeline.scheduler"] = _sched_stub
+    # Make the stub accessible as an attribute of the package object so that
+    # getattr(app.pipeline, 'scheduler') works (required by pkgutil.resolve_name)
+    import app.pipeline as _pipeline_pkg
+    _pipeline_pkg.scheduler = _sched_stub  # type: ignore[attr-defined]
 
 
 @pytest.fixture(autouse=True)
