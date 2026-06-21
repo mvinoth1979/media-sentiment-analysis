@@ -53,35 +53,42 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
         onClick={onClick}
         className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2 flex-none">
-          <span className="text-[11px] font-semibold text-gray-800">Review Sites</span>
-          <div className="flex items-center gap-1">
-            <span className="text-[13px] font-bold text-gray-900">{ratingLabel}</span>
-            <span className="text-[9px] text-gray-400">/5</span>
-            <StarRating rating={avg_rating} size="sm" />
-          </div>
-        </div>
+        {/* Title */}
+        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5 flex-none">
+          Review Sites
+        </span>
 
-        {/* Distribution — same amber bars as expanded panel */}
-        <div className="flex-1 min-h-0 space-y-1.5">
-          {distribution.map(d => (
-            <div key={d.stars} className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-600 shrink-0 w-3 text-right">{d.stars}</span>
-              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${d.pct}%` }} />
-              </div>
-              <span className="text-[10px] text-gray-500 w-8 text-right shrink-0 tabular-nums">{d.pct}%</span>
+        {/* Body: big rating left + bars right */}
+        <div className="flex gap-3 flex-1 min-h-0">
+
+          {/* Left — large rating block */}
+          <div className="flex flex-col items-center justify-center shrink-0 w-14">
+            <span className="text-[28px] font-bold text-gray-900 leading-none">{ratingLabel}</span>
+            <span className="text-[9px] text-gray-400 mt-0.5">/ 5</span>
+            <div className="mt-1.5">
+              <StarRating rating={avg_rating} size="sm" />
             </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        {total > 0 && (
-          <div className="flex-none pt-1.5 border-t border-gray-100 mt-1.5">
-            <span className="text-[9px] text-gray-400">{total.toLocaleString()} total reviews</span>
+            {total > 0 && (
+              <span className="text-[8px] text-gray-400 mt-1.5 text-center leading-tight">
+                {total.toLocaleString()}<br />reviews
+              </span>
+            )}
           </div>
-        )}
+
+          {/* Right — amber distribution bars */}
+          <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1.5">
+            {distribution.map(d => (
+              <div key={d.stars} className="flex items-center gap-1.5">
+                <span className="text-[10px] text-gray-500 shrink-0 w-3 text-right">{d.stars}</span>
+                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-400 rounded-full" style={{ width: `${d.pct}%` }} />
+                </div>
+                <span className="text-[10px] text-gray-500 w-8 text-right shrink-0 tabular-nums">{d.pct}%</span>
+              </div>
+            ))}
+          </div>
+
+        </div>
       </div>
     );
   }
