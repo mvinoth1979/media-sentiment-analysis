@@ -31,7 +31,7 @@ _INDIAN_STATES = (
 )
 
 
-_GEMINI_MODELS = [settings.gemini_model, "gemini-1.5-flash"]
+_GEMINI_MODELS = [settings.gemini_model, "gemini-1.5-flash-latest"]
 
 
 def _get_client():
