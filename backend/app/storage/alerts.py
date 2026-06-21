@@ -80,6 +80,36 @@ def _check_journalist_beat(brand_id: str, threshold: int) -> tuple[float, str] |
     return None
 
 
+# ── C3: Review cluster check ──────────────────────────────────────────────────
+
+def _check_review_cluster(brand_id: str, threshold: int) -> tuple[int, str] | None:
+    """Return (count, category_name) when any issue_category has >= threshold
+    negative articles in the last 14 days, picking the dominant category.
+    Returns None when no category meets the threshold.
+    """
+    db = get_db()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+    rows = (
+        db.table("articles")
+        .select("issue_category")
+        .eq("brand_id", brand_id)
+        .eq("sentiment_label", "negative")
+        .gte("collected_at", cutoff)
+        .not_.is_("issue_category", "null")
+        .execute()
+        .data
+    )
+    if not rows:
+        return None
+    counts = Counter(r["issue_category"] for r in rows if r.get("issue_category"))
+    if not counts:
+        return None
+    top_category, top_count = counts.most_common(1)[0]
+    if top_count >= threshold:
+        return int(top_count), top_category
+    return None
+
+
 # ── Main alert runner ─────────────────────────────────────────────────────────
 
 def check_and_fire_alerts(
@@ -131,6 +161,11 @@ def check_and_fire_alerts(
             if result:
                 current_value, extra_context = result
 
+        elif alert_type == "review_cluster":
+            result = _check_review_cluster(brand_id, int(threshold))
+            if result:
+                current_value, extra_context = float(result[0]), result[1]
+
         if current_value is not None:
             _send_alert_email(
                 cfg["notify_email"], brand_name, alert_type,
@@ -179,6 +214,15 @@ _ALERT_META: dict[str, dict] = {
             f"Journalist <strong>{ctx}</strong> has published "
             f"<strong style='color:#f87171'>{v:.0f} negative articles</strong> "
             f"about this brand in the last 30 days (threshold: {thr:.0f})"
+        ),
+    },
+    "review_cluster": {
+        "subject": "Review Cluster Alert",
+        "value_label": "Clustered negative reviews detected",
+        "detail_fn": lambda v, ctx, thr: (
+            f"Category <strong>{ctx}</strong> has accumulated "
+            f"<strong style='color:#f87171'>{v:.0f} negative mentions</strong> "
+            f"in the last 14 days (threshold: {thr:.0f})"
         ),
     },
 }
