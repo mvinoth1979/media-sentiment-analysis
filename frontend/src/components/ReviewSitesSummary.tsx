@@ -45,72 +45,40 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
 
   const { avg_rating, total, distribution, top_positive_topics, top_negative_topics } = data;
   const ratingLabel = avg_rating.toFixed(1);
-  const maxCount = Math.max(...distribution.map(d => d.count), 1);
 
-  /* ── Compact — reference-style table ── */
+  /* ── Compact — mirrors expanded distribution style ── */
   if (compact) {
-    /* Merge distribution rows + topic rows into a single list */
-    const distRows = distribution.map(d => ({
-      label: `${d.stars} Star${d.stars !== 1 ? "s" : ""}`,
-      count: d.count,
-      pct: d.pct,
-      isPos: d.stars >= 4,
-      isNeg: d.stars <= 2,
-    }));
-
     return (
       <div
         onClick={onClick}
         className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-1.5 flex-none">
+        <div className="flex items-center justify-between mb-2 flex-none">
           <span className="text-[11px] font-semibold text-gray-800">Review Sites</span>
           <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-gray-900">{ratingLabel}</span>
+            <span className="text-[13px] font-bold text-gray-900">{ratingLabel}</span>
             <span className="text-[9px] text-gray-400">/5</span>
             <StarRating rating={avg_rating} size="sm" />
           </div>
         </div>
 
-        {/* Column headers */}
-        <div className="flex items-center justify-between mb-1 flex-none border-b border-gray-100 pb-1">
-          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Rating</span>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Reviews</span>
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide w-10 text-right">Share</span>
-          </div>
-        </div>
-
-        {/* Distribution rows */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          {distRows.map(d => (
-            <div key={d.label} className="py-1.5 border-b border-gray-100 last:border-b-0">
-              <div className="flex items-center justify-between gap-1 mb-1">
-                <span className={`text-[11px] font-medium leading-none ${d.isPos ? "text-green-700" : d.isNeg ? "text-red-500" : "text-gray-600"}`}>
-                  {d.label}
-                </span>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[11px] text-gray-500 tabular-nums">{d.count}</span>
-                  <span className={`text-[11px] font-semibold tabular-nums w-10 text-right ${d.isPos ? "text-green-600" : d.isNeg ? "text-red-500" : "text-gray-500"}`}>
-                    {d.pct}%
-                  </span>
-                </div>
+        {/* Distribution — same amber bars as expanded panel */}
+        <div className="flex-1 min-h-0 space-y-1.5">
+          {distribution.map(d => (
+            <div key={d.stars} className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-600 shrink-0 w-3 text-right">{d.stars}</span>
+              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${d.pct}%` }} />
               </div>
-              {/* proportional bar */}
-              <div className="h-[3px] w-full bg-gray-100 rounded-full">
-                <div
-                  className={`h-full rounded-full ${d.isPos ? "bg-green-500" : d.isNeg ? "bg-red-400" : "bg-gray-300"}`}
-                  style={{ width: `${Math.min(100, Math.round((d.count / maxCount) * 100))}%` }}
-                />
-              </div>
+              <span className="text-[10px] text-gray-500 w-8 text-right shrink-0 tabular-nums">{d.pct}%</span>
             </div>
           ))}
         </div>
 
-        {/* Totals footer */}
+        {/* Footer */}
         {total > 0 && (
-          <div className="flex-none pt-1 border-t border-gray-100 mt-1">
+          <div className="flex-none pt-1.5 border-t border-gray-100 mt-1.5">
             <span className="text-[9px] text-gray-400">{total.toLocaleString()} total reviews</span>
           </div>
         )}

@@ -10,57 +10,7 @@ interface Props {
   onClick?: () => void;
 }
 
-/* ── Reference-style row: label + bar underneath + count + sentiment ── */
-function RefRow({
-  label,
-  count,
-  maxCount,
-  netPct,
-  isRising,
-}: {
-  label: string;
-  count: number;
-  maxCount: number;
-  netPct: number;
-  isRising?: boolean;
-}) {
-  const barPct = Math.min(100, Math.round((count / maxCount) * 100));
-  const isNeg = netPct < 0;
-  const sentLabel = isNeg ? `${netPct}%` : `+${netPct}%`;
-  const sentColor = isNeg ? "text-red-500" : "text-green-600";
-  const barColor = isNeg ? "bg-red-400" : "bg-green-500";
-
-  return (
-    <div className="py-1.5 border-b border-gray-100 last:border-b-0">
-      {/* label row */}
-      <div className="flex items-center justify-between gap-1 mb-1">
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="text-[11px] font-medium text-gray-800 truncate capitalize leading-none">
-            {label.replace(/_/g, " ")}
-          </span>
-          {isRising && (
-            <span className="text-[9px] text-amber-500 font-semibold shrink-0">↑</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-gray-500 tabular-nums">{count}</span>
-          <span className={`text-[11px] font-semibold tabular-nums w-10 text-right ${sentColor}`}>
-            {sentLabel}
-          </span>
-        </div>
-      </div>
-      {/* proportional bar */}
-      <div className="h-[3px] w-full bg-gray-100 rounded-full">
-        <div
-          className={`h-full rounded-full ${barColor}`}
-          style={{ width: `${barPct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ── Expanded-mode cluster row (unchanged style) ── */
+/* ── Expanded-mode cluster row ── */
 function ClusterRow({ c, maxCount }: { c: IssueCluster; maxCount: number }) {
   const barPct = Math.min(100, Math.round((c.article_count / maxCount) * 100));
   const isNeg = c.net_sentiment_pct < 0;
@@ -168,25 +118,12 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
   const hasClusters = clusters.length > 0;
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
-  /* ── Compact — reference-style table ── */
+  /* ── Compact — mirrors expanded ClusterRow design ── */
   if (compact) {
-    /* Build rows: clusters first, fall back to topics */
-    const allTopics = topicsData ?? [];
-    const topicRows = allTopics.map(t => {
-      const total = t.positive + t.neutral + t.negative || 1;
-      const net = Math.round(((t.positive - t.negative) / total) * 100);
-      return { label: t.topic, count: t.count, net, isRising: false };
-    });
-
-    const clusterRows = clusters.map(c => ({
-      label: c.cluster_name,
-      count: c.article_count,
-      net: c.net_sentiment_pct,
-      isRising: c.trend === "rising",
-    }));
-
-    const rows = hasClusters ? clusterRows.slice(0, 7) : topicRows.slice(0, 7);
-    const maxCount = rows[0]?.count ?? 1;
+    const compactRows = hasClusters ? clusters.slice(0, 6) : [];
+    const maxCount = Math.max(compactRows[0]?.article_count ?? 1, 1);
+    // Only block on clusters; topics loading is irrelevant for compact
+    const compactLoading = clustersLoading;
 
     return (
       <div
@@ -199,37 +136,45 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
           <span className="text-[10px] text-gray-400">(All Sources)</span>
         </div>
 
-        {/* Column headers */}
-        <div className="flex items-center justify-between mb-1 flex-none border-b border-gray-100 pb-1">
-          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Issue</span>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Mentions</span>
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide w-10 text-right">Sentiment</span>
-          </div>
-        </div>
-
-        {/* Rows */}
-        {isLoading ? (
+        {compactLoading ? (
           <div className="space-y-2 flex-1 pt-1">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="space-y-1">
                 <div className="h-2.5 bg-gray-100 rounded animate-pulse w-3/4" />
-                <div className="h-[3px] bg-gray-100 rounded animate-pulse w-1/2" />
+                <div className="h-1.5 bg-gray-100 rounded animate-pulse w-1/2" />
               </div>
             ))}
           </div>
-        ) : rows.length > 0 ? (
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {rows.map(r => (
-              <RefRow
-                key={r.label}
-                label={r.label}
-                count={r.count}
-                maxCount={maxCount}
-                netPct={r.net}
-                isRising={r.isRising}
-              />
-            ))}
+        ) : compactRows.length > 0 ? (
+          <div className="flex-1 min-h-0 overflow-hidden space-y-2">
+            {compactRows.map(c => {
+              const barPct = Math.min(100, Math.round((c.article_count / maxCount) * 100));
+              const isNeg = c.net_sentiment_pct < 0;
+              const netLabel = isNeg ? `${c.net_sentiment_pct}%` : `+${c.net_sentiment_pct}%`;
+              const barColor = isNeg ? "bg-red-400" : "bg-green-400";
+              const netColor = isNeg ? "text-red-500" : "text-green-600";
+              return (
+                <div key={c.cluster_name}>
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-[11px] text-gray-700 font-medium truncate capitalize">
+                        {c.cluster_name.replace(/_/g, " ")}
+                      </span>
+                      {c.trend === "rising" && (
+                        <span className="text-[9px] text-amber-500 font-semibold shrink-0">↑</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-gray-400">{formatCount(c.article_count)}</span>
+                      <span className={`text-[10px] font-semibold w-10 text-right ${netColor}`}>{netLabel}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-gray-100">
+                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barPct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
