@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     reddit_client_id: str = ""
     reddit_client_secret: str = ""
-    reddit_user_agent: str = "MediaSense:v1.0"
+    reddit_user_agent: str = "script:MediaSense:v1.0 (by u/Vinoth1979)"
 
     google_places_api_key: str = ""
 
