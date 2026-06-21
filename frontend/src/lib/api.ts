@@ -108,6 +108,8 @@ export const updateBrandConfig = (brandId: string, payload: {
   reddit_subreddits?: string[];
   keywords?: string[];
   languages?: string[];
+  google_reviews_enabled?: boolean;
+  google_places_id?: string;
 }) => api.put(`/tenants/brands/${brandId}/config`, payload).then(r => r.data);
 
 export const deleteBrand = (brandId: string) =>
