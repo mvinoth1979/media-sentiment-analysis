@@ -30,6 +30,7 @@ interface DrillFilter {
   sourceCategory?: string;
   issueCategory?: string;
   q?: string;
+  entity?: string;
 }
 
 const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
@@ -496,7 +497,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               <CompetitorShareOfVoice
                 brandId={brandId}
                 onEntityClick={(name) =>
-                  openDrill({ label: `Mentions: ${name}`, q: name })
+                  openDrill({ label: `Mentions: ${name}`, entity: name })
                 }
               />
             </div>
@@ -513,6 +514,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                 initialSourceCategory={drilldown.sourceCategory ?? ""}
                 initialIssueCategory={drilldown.issueCategory ?? ""}
                 initialQ={drilldown.q ?? ""}
+                initialEntity={drilldown.entity ?? ""}
                 selectable
               />
             </div>

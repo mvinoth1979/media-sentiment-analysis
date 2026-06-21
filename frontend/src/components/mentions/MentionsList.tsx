@@ -19,6 +19,7 @@ interface Props {
   initialSourceCategory?: string;
   initialIssueCategory?: string;
   initialQ?: string;
+  initialEntity?: string;
   selectable?: boolean;
   syncUrl?: boolean;
 }
@@ -76,6 +77,7 @@ export function MentionsList({
   initialSourceCategory = "",
   initialIssueCategory = "",
   initialQ = "",
+  initialEntity = "",
   selectable = false,
   syncUrl = false,
 }: Props) {
@@ -86,6 +88,7 @@ export function MentionsList({
   const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
   const [sourceCategory] = useState(initialSourceCategory);
   const [issueCategory] = useState(initialIssueCategory);
+  const [entity] = useState(initialEntity);
   const [editorialTone, setEditorialTone] = useState(() => syncUrl ? readParam("editorial_tone") : "");
   const [portalId, setPortalId]   = useState(initialPortalId);
   const [topic, setTopic]         = useState(initialTopic);
@@ -158,9 +161,10 @@ export function MentionsList({
   if (dateFrom)        params.date_from        = dateFrom;
   if (dateTo)          params.date_to          = dateTo;
   if (q)               params.q               = q;
+  if (entity)          params.entity          = entity;
 
   const { data: articles = [], isLoading, isFetching } = useQuery<ArticleItem[]>({
-    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, sourceCategory, issueCategory, editorialTone, portalId, topic, state, dateFrom, dateTo, q],
+    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, sourceCategory, issueCategory, editorialTone, portalId, topic, state, dateFrom, dateTo, q, entity],
     queryFn: () => fetchMentions(brandId, params),
     staleTime: 60_000,
     placeholderData: keepPreviousData,

@@ -57,7 +57,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                  q: str | None = None,
                  editorial_tone: str | None = None,
                  issue_category: str | None = None,
-                 source_category: str | None = None) -> list[dict]:
+                 source_category: str | None = None,
+                 entity: str | None = None) -> list[dict]:
     db = get_db()
     query = db.table("articles").select("*").eq("brand_id", brand_id)
     if sentiment:
@@ -84,6 +85,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
         query = query.lte("collected_at", date_to)
     if q:
         query = query.ilike("title", f"%{q}%")
+    if entity:
+        query = query.contains("entities", [entity])
     query = query.order("collected_at", desc=True).range(offset, offset + limit - 1)
     try:
         return query.execute().data
@@ -96,7 +99,8 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                                 date_from=date_from, date_to=date_to, q=q,
                                 editorial_tone=editorial_tone,
                                 issue_category=issue_category,
-                                source_category=source_category)
+                                source_category=source_category,
+                                entity=entity)
         return []
 
 

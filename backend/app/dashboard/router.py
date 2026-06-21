@@ -242,6 +242,7 @@ def get_mentions(
     editorial_tone: str | None = None,
     issue_category: str | None = None,
     source_category: str | None = None,
+    entity: str | None = None,
     _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
     articles = get_articles(brand_id, limit=limit, offset=offset,
@@ -251,7 +252,8 @@ def get_mentions(
                             date_from=date_from, date_to=date_to, q=q,
                             editorial_tone=editorial_tone,
                             issue_category=issue_category,
-                            source_category=source_category)
+                            source_category=source_category,
+                            entity=entity)
     return [_article_to_item(a) for a in articles]
 
 
