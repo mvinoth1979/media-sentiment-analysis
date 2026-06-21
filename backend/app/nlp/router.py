@@ -53,7 +53,7 @@ def analyse_article(article: dict) -> NLPResult | None:
         text, language, source_type, title=title, body=body
     )
     if result is None and gemini_limited and groq_limited:
-        log.warning("Both Gemini and Groq rate-limited — opening NLP circuit breaker for %ds",
+        log.warning("All NLP providers rate-limited (gemini-2.5-flash → gemini-1.5-flash → groq) — opening circuit breaker for %ds",
                      COOLDOWN_SECONDS)
         trip()
 

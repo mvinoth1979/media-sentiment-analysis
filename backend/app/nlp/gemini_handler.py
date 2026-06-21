@@ -31,6 +31,9 @@ _INDIAN_STATES = (
 )
 
 
+_GEMINI_MODELS = [settings.gemini_model, "gemini-1.5-flash"]
+
+
 def _get_client():
     global _client
     if _client is None:
@@ -180,25 +183,27 @@ def discover_competitors(brand_name: str, keywords: list[str], entities: list[st
         keywords=", ".join(keywords[:10]),
         entity_list=entity_list,
     )
-    for attempt in range(3):
-        try:
-            response = _get_client().models.generate_content(
-                model=settings.gemini_model,
-                contents=prompt,
-            )
-            raw = _strip_fences(response.text.strip())
-            data = json.loads(raw)
-            competitors = [str(c).strip() for c in data.get("competitors", []) if c]
-            return competitors[:5]
-        except Exception as e:
-            err = str(e)
-            if "404" in err:
-                log.error("Gemini model '%s' not found (404) — set GEMINI_MODEL env var to a valid model name", settings.gemini_model)
-                break
-            if "429" in err or "rate" in err.lower():
-                time.sleep(2 ** attempt * 5)
-                continue
-            break
+    for model in _GEMINI_MODELS:
+        for attempt in range(3):
+            try:
+                response = _get_client().models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+                raw = _strip_fences(response.text.strip())
+                data = json.loads(raw)
+                competitors = [str(c).strip() for c in data.get("competitors", []) if c]
+                return competitors[:5]
+            except Exception as e:
+                err = str(e)
+                if "404" in err:
+                    log.warning("Gemini model '%s' not found (404), trying next model", model)
+                    break  # next model
+                if "429" in err or "rate" in err.lower():
+                    time.sleep(2 ** attempt * 5)
+                    continue
+                log.warning("Gemini competitor discovery error (%s, attempt %d): %s", model, attempt + 1, err[:200])
+                break  # next model
     return []
 
 
@@ -237,43 +242,44 @@ def analyse_with_gemini(
         )
 
     rate_limited = False
-    for attempt in range(3):
-        try:
-            response = _get_client().models.generate_content(
-                model=settings.gemini_model,
-                contents=prompt,
-            )
-            raw = _strip_fences(response.text.strip())
-            data = json.loads(raw)
+    for model in _GEMINI_MODELS:
+        for attempt in range(3):
+            try:
+                response = _get_client().models.generate_content(
+                    model=model,
+                    contents=prompt,
+                )
+                raw = _strip_fences(response.text.strip())
+                data = json.loads(raw)
 
-            hs = _clip(data.get("headline_sentiment_score")) if use_structured else None
-            bs = _clip(data.get("body_sentiment_score")) if use_structured else None
+                hs = _clip(data.get("headline_sentiment_score")) if use_structured else None
+                bs = _clip(data.get("body_sentiment_score")) if use_structured else None
 
-            return NLPResult(
-                sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
-                sentiment_label=_parse_label(data["sentiment_label"]),
-                entities=data.get("entities", []),
-                topics=data.get("topics", []),
-                keywords=data.get("keywords", []),
-                states_mentioned=data.get("states_mentioned", []),
-                model_used=settings.gemini_model,
-                confidence=float(data.get("confidence", 0.0)),
-                source_type=source_type,
-                headline_sentiment_score=hs,
-                body_sentiment_score=bs,
-                editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
-                issue_category=_parse_category(data.get("issue_category", "other")),
-                creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
-            ), False
-        except Exception as e:
-            err = str(e)
-            if "404" in err:
-                log.error("Gemini model '%s' not found (404) — set GEMINI_MODEL env var to a valid model name", settings.gemini_model)
-                return None, False
-            if "429" in err or "rate" in err.lower():
-                rate_limited = True
-                time.sleep(2 ** attempt * 5)
-                continue
-            log.warning("Gemini error (attempt %d): %s", attempt + 1, err[:200])
-            return None, False
+                return NLPResult(
+                    sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
+                    sentiment_label=_parse_label(data["sentiment_label"]),
+                    entities=data.get("entities", []),
+                    topics=data.get("topics", []),
+                    keywords=data.get("keywords", []),
+                    states_mentioned=data.get("states_mentioned", []),
+                    model_used=model,
+                    confidence=float(data.get("confidence", 0.0)),
+                    source_type=source_type,
+                    headline_sentiment_score=hs,
+                    body_sentiment_score=bs,
+                    editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
+                    issue_category=_parse_category(data.get("issue_category", "other")),
+                    creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
+                ), False
+            except Exception as e:
+                err = str(e)
+                if "404" in err:
+                    log.warning("Gemini model '%s' not found (404), falling back to next model", model)
+                    break  # next model
+                if "429" in err or "rate" in err.lower():
+                    rate_limited = True
+                    time.sleep(2 ** attempt * 5)
+                    continue
+                log.warning("Gemini error (%s, attempt %d): %s", model, attempt + 1, err[:200])
+                break  # non-retryable error — try next model
     return None, rate_limited
