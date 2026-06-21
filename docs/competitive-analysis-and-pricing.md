@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-21 (Phase 2.1 Reddit live; Phase 3.2 structured issue taxonomy + YouTube creator vs audience split)
+> **Last updated:** 2026-06-21 (drill-down mentions; date range picker; entity SoV filter; Google Reviews + Reddit pipeline fix; Gemini 3.5-flash)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -69,6 +69,11 @@
 | **Editorial Tone analytics (Tier 1)** | ✅ Live | Recharts donut (factual/positive_frame/negative_frame/critical) + 4-row % bars; 8-week ISO trend; compact + expanded modes. `/dashboard/tone-breakdown/{brand_id}` endpoint. |
 | **Divergent Headlines panel (Tier 1)** | ✅ Live | Top articles where headline sentiment diverges sharply from body sentiment (|diff| ≥ 0.4). `/dashboard/divergence-summary/{brand_id}` endpoint. |
 | **Channel Settings page** | ✅ Live | Edit YouTube + Reddit config for existing brands (wizard is create-only). `GET/PUT /brands/{id}/config` endpoints. "Channel Settings" in sidebar (adminOnly). |
+| **Drill-down mentions from 4 widgets** | ✅ Live | Review Sites themes, Source donut categories, Top Issues clusters/categories, Competitor SoV entities — all clickable. Opens filtered MentionsList panel with DrillFilter (topic / sourceCategory / issueCategory / entity). |
+| **Dashboard date range picker** | ✅ Live | Overview header: 7d / 30d / 90d preset buttons + Custom From→To date inputs. Backend `get_overview` accepts `date_from` / `date_to` ISO params; days ceiling raised to 365. React Query key includes range so refetch is automatic on change. |
+| **Google Business Reviews** | ✅ Live (pending Advanced plan) | Collector enabled; Places ID auto-resolved from brand name on first run and saved to brand_configs. Requires Google Places API (New) **Advanced** SKU enabled in Cloud Console — Essentials plan omits the `reviews` field. Diagnostic logging added for 403/400/missing-reviews key. |
+| **Reddit + Google Reviews scheduler fix** | ✅ Live | Critical bug fixed: scheduler.py was silently dropping `google_reviews_enabled`, `google_places_id`, `reddit_enabled`, `reddit_subreddits` from the Redis worker config dict — both channels never ran despite Supabase flags being set. |
+| **Competitor SoV entity filter** | ✅ Live | Clicking entity in SoV widget filters mentions by `entities[]` array containment (`.contains("entities", [name])`) instead of fuzzy title ilike search. Full stack: postgres, /dashboard/mentions endpoint, MentionsList `initialEntity` prop. |
 | Mobile responsive UI | ✅ Live | |
 | **Compact single-screen dashboard (no scroll)** | ✅ Live | All 9 sections fit in one viewport — `h-screen overflow-hidden` root layout; `flex-[N] min-h-0` proportional row heights; compact prop variants for all section components |
 | **Click-to-detail panel navigation** | ✅ Live | Every dashboard section and KPI card is clickable — opens a full second-screen detail with breadcrumb `← Executive Overview | [Section Name]`; back navigation returns to compact grid |
