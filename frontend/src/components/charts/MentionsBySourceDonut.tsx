@@ -10,6 +10,7 @@ interface Props {
   dateTo?: string;
   compact?: boolean;
   onClick?: () => void;
+  onSourceClick?: (category: string, label: string) => void;
 }
 
 interface SourceTooltipProps { active?: boolean; payload?: Array<{ payload: SourceCategoryPoint }> }
@@ -40,7 +41,7 @@ function SourceTooltip({ active, payload }: SourceTooltipProps) {
   );
 }
 
-export function MentionsBySourceDonut({ brandId, dateFrom, dateTo, compact, onClick }: Props) {
+export function MentionsBySourceDonut({ brandId, dateFrom, dateTo, compact, onClick, onSourceClick }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ["source-categories", brandId, dateFrom, dateTo],
     queryFn: () => fetchSourceCategories(brandId, { date_from: dateFrom, date_to: dateTo }),
@@ -158,7 +159,11 @@ export function MentionsBySourceDonut({ brandId, dateFrom, dateTo, compact, onCl
               ? tierBadge(0)
               : tierBadge(3);
             return (
-              <div key={cat.category} className="flex items-center gap-2 text-xs">
+              <div
+                key={cat.category}
+                className={`flex items-center gap-2 text-xs rounded px-1 -mx-1 py-0.5 ${onSourceClick ? "cursor-pointer hover:bg-gray-50" : ""}`}
+                onClick={onSourceClick ? () => onSourceClick(cat.category, cat.label) : undefined}
+              >
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: cat.color }}

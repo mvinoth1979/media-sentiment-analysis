@@ -8,6 +8,8 @@ interface Props {
   brandId: string;
   compact?: boolean;
   onClick?: () => void;
+  onClusterClick?: (clusterName: string) => void;
+  onCategoryClick?: (category: string) => void;
 }
 
 /* ── Expanded-mode cluster row ── */
@@ -92,7 +94,7 @@ function CategoryRow({ c, maxCount }: { c: IssueCategoryItem; maxCount: number }
   );
 }
 
-export function TopIssuesTable({ brandId, compact, onClick }: Props) {
+export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCategoryClick }: Props) {
   const [viewMode, setViewMode] = useState<"clusters" | "categories">("clusters");
 
   const { data: topicsData, isLoading: topicsLoading } = useQuery({
@@ -238,7 +240,13 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
         categoryItems.length > 0 ? (
           <div className="space-y-3">
             {categoryItems.map(c => (
-              <CategoryRow key={c.category} c={c} maxCount={maxCatCount} />
+              <div
+                key={c.category}
+                className={onCategoryClick ? "cursor-pointer rounded hover:bg-blue-50 px-1 -mx-1" : ""}
+                onClick={onCategoryClick ? (e) => { e.stopPropagation(); onCategoryClick(c.category); } : undefined}
+              >
+                <CategoryRow c={c} maxCount={maxCatCount} />
+              </div>
             ))}
           </div>
         ) : (
@@ -249,7 +257,13 @@ export function TopIssuesTable({ brandId, compact, onClick }: Props) {
       ) : hasClusters ? (
         <div className="space-y-3">
           {visibleClusters.map(c => (
-            <ClusterRow key={c.cluster_name} c={c} maxCount={maxClusterCount} />
+            <div
+              key={c.cluster_name}
+              className={onClusterClick ? "cursor-pointer rounded hover:bg-blue-50 px-1 -mx-1" : ""}
+              onClick={onClusterClick ? (e) => { e.stopPropagation(); onClusterClick(c.cluster_name); } : undefined}
+            >
+              <ClusterRow c={c} maxCount={maxClusterCount} />
+            </div>
           ))}
         </div>
       ) : allTopics.length === 0 ? (

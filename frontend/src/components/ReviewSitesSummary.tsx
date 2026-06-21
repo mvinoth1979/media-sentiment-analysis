@@ -6,6 +6,7 @@ interface Props {
   brandId: string;
   compact?: boolean;
   onClick?: () => void;
+  onThemeClick?: (topic: string) => void;
 }
 
 function StarRating({ rating, max = 5, size = "md" }: { rating: number; max?: number; size?: "sm" | "md" }) {
@@ -33,7 +34,7 @@ const FALLBACK: ReviewSummaryData = {
   top_negative_topics: [],
 };
 
-export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
+export function ReviewSitesSummary({ brandId, compact, onClick, onThemeClick }: Props) {
   const [data, setData] = useState<ReviewSummaryData>(FALLBACK);
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
@@ -138,7 +139,11 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
           <div className="space-y-1.5">
             {top_positive_topics.length > 0
               ? top_positive_topics.slice(0, 5).map(t => (
-                  <div key={t.label} className="flex items-center justify-between gap-2">
+                  <div
+                    key={t.label}
+                    className={`flex items-center justify-between gap-2 rounded px-1 -mx-1 ${onThemeClick ? "cursor-pointer hover:bg-green-50" : ""}`}
+                    onClick={onThemeClick ? (e) => { e.stopPropagation(); onThemeClick(t.label); } : undefined}
+                  >
                     <span className="text-[12px] text-gray-600 truncate">{t.label}</span>
                     <span className="text-[12px] font-semibold text-green-600 shrink-0">{t.pct}%</span>
                   </div>
@@ -154,7 +159,11 @@ export function ReviewSitesSummary({ brandId, compact, onClick }: Props) {
           <div className="space-y-1.5">
             {top_negative_topics.length > 0
               ? top_negative_topics.slice(0, 5).map(t => (
-                  <div key={t.label} className="flex items-center justify-between gap-2">
+                  <div
+                    key={t.label}
+                    className={`flex items-center justify-between gap-2 rounded px-1 -mx-1 ${onThemeClick ? "cursor-pointer hover:bg-red-50" : ""}`}
+                    onClick={onThemeClick ? (e) => { e.stopPropagation(); onThemeClick(t.label); } : undefined}
+                  >
                     <span className="text-[12px] text-gray-600 truncate">{t.label}</span>
                     <span className="text-[12px] font-semibold text-red-500 shrink-0">{t.pct}%</span>
                   </div>

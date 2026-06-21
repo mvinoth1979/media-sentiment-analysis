@@ -21,7 +21,16 @@ type ActivePanel =
   | "mentions" | "mentions-positive" | "mentions-negative" | "mentions-neutral"
   | "sentiment-trend" | "mentions-donut" | "top-headlines"
   | "review-sites" | "top-issues" | "sentiment-by-source"
-  | "competitor-sov" | "alerts" | "state-map";
+  | "competitor-sov" | "alerts" | "state-map"
+  | "mentions-drill";
+
+interface DrillFilter {
+  label: string;
+  topic?: string;
+  sourceCategory?: string;
+  issueCategory?: string;
+  q?: string;
+}
 
 const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
   "mentions":           "All Mentions",
@@ -37,6 +46,7 @@ const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
   "competitor-sov":     "Competitor Share of Voice",
   "alerts":             "Alerts & Risks",
   "state-map":          "State-level Sentiment",
+  "mentions-drill":     "Filtered Mentions",
 };
 
 interface Props {
@@ -247,9 +257,15 @@ function AlertsRiskCards({
 
 export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated }: Props) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [drilldown, setDrilldown] = useState<DrillFilter | null>(null);
   const [divergenceData, setDivergenceData] = useState<DivergenceSummaryData | null>(null);
   const [divOpen, setDivOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
+
+  function openDrill(filter: DrillFilter) {
+    setDrilldown(filter);
+    setActivePanel("mentions-drill");
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["overview", brandId],
@@ -304,7 +320,9 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             Executive Overview
           </button>
           <span className="text-gray-200">|</span>
-          <h2 className="text-xs font-semibold text-gray-800">{PANEL_TITLE[activePanel]}</h2>
+          <h2 className="text-xs font-semibold text-gray-800">
+            {activePanel === "mentions-drill" && drilldown ? drilldown.label : PANEL_TITLE[activePanel]}
+          </h2>
         </div>
 
         {/* Detail content */}
@@ -382,7 +400,12 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           )}
           {activePanel === "mentions-donut" && (
             <div className="max-w-lg">
-              <MentionsBySourceDonut brandId={brandId} />
+              <MentionsBySourceDonut
+                brandId={brandId}
+                onSourceClick={(category, label) =>
+                  openDrill({ label: `Source: ${label}`, sourceCategory: category })
+                }
+              />
             </div>
           )}
           {activePanel === "top-headlines" && (
@@ -392,12 +415,25 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           )}
           {activePanel === "review-sites" && (
             <div className="max-w-lg">
-              <ReviewSitesSummary brandId={brandId} />
+              <ReviewSitesSummary
+                brandId={brandId}
+                onThemeClick={(topic) =>
+                  openDrill({ label: `Theme: ${topic}`, topic })
+                }
+              />
             </div>
           )}
           {activePanel === "top-issues" && (
             <div className="max-w-lg">
-              <TopIssuesTable brandId={brandId} />
+              <TopIssuesTable
+                brandId={brandId}
+                onClusterClick={(name) =>
+                  openDrill({ label: `Issue: ${name.replace(/_/g, " ")}`, issueCategory: name })
+                }
+                onCategoryClick={(cat) =>
+                  openDrill({ label: `Category: ${cat.replace(/_/g, " ")}`, issueCategory: cat })
+                }
+              />
             </div>
           )}
           {activePanel === "sentiment-by-source" && (
@@ -407,7 +443,28 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           )}
           {activePanel === "competitor-sov" && (
             <div className="max-w-md">
-              <CompetitorShareOfVoice brandId={brandId} />
+              <CompetitorShareOfVoice
+                brandId={brandId}
+                onEntityClick={(name) =>
+                  openDrill({ label: `Mentions: ${name}`, q: name })
+                }
+              />
+            </div>
+          )}
+          {activePanel === "mentions-drill" && drilldown && (
+            <div ref={mentionsRef}>
+              <MentionsList
+                brandId={brandId}
+                brandName={brandName}
+                portals={data.top_sources.map(s => s.portal_id)}
+                topics={data.top_topics}
+                states={data.state_breakdown.map(s => s.state)}
+                initialTopic={drilldown.topic ?? ""}
+                initialSourceCategory={drilldown.sourceCategory ?? ""}
+                initialIssueCategory={drilldown.issueCategory ?? ""}
+                initialQ={drilldown.q ?? ""}
+                selectable
+              />
             </div>
           )}
           {activePanel === "alerts" && (

@@ -8,6 +8,7 @@ interface Props {
   brandName?: string;
   compact?: boolean;
   onClick?: () => void;
+  onEntityClick?: (name: string) => void;
 }
 
 interface TooltipEntry { payload: SoVEntry }
@@ -29,7 +30,7 @@ const FALLBACK_ENTRIES: SoVEntry[] = [
   { name: "Brand", count: 0, pct: 100, color: "#3b82f6", is_brand: true },
 ];
 
-export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
+export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClick }: Props) {
   const [data, setData] = useState<CompetitorSoVData | null>(null);
   const [discovering, setDiscovering] = useState(false);
   const [discovered, setDiscovered] = useState<string[] | null>(null);
@@ -155,7 +156,11 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick }: Props) {
 
         <div className="flex-1 space-y-1.5">
           {entries.map(d => (
-            <div key={d.name} className="flex items-center justify-between gap-2">
+            <div
+              key={d.name}
+              className={`flex items-center justify-between gap-2 rounded px-1 -mx-1 py-0.5 ${onEntityClick ? "cursor-pointer hover:bg-blue-50" : ""}`}
+              onClick={onEntityClick ? (e) => { e.stopPropagation(); onEntityClick(d.name); } : undefined}
+            >
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
                 <span className="text-xs text-gray-600 truncate">{d.name}</span>

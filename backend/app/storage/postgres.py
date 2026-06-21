@@ -41,13 +41,23 @@ def save_article(article: dict, nlp: dict) -> str | None:
     return article_id
 
 
+_SOURCE_CATEGORY_MAP: dict[str, list[str]] = {
+    "youtube":      ["youtube_video", "youtube_comment"],
+    "reddit":       ["reddit_post", "reddit_comment"],
+    "news":         ["news"],
+    "google_review": ["google_review"],
+}
+
+
 def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                  sentiment: str | None = None, language: str | None = None,
                  portal_id: str | None = None, topic: str | None = None,
                  state: str | None = None, source_type: str | None = None,
                  date_from: str | None = None, date_to: str | None = None,
                  q: str | None = None,
-                 editorial_tone: str | None = None) -> list[dict]:
+                 editorial_tone: str | None = None,
+                 issue_category: str | None = None,
+                 source_category: str | None = None) -> list[dict]:
     db = get_db()
     query = db.table("articles").select("*").eq("brand_id", brand_id)
     if sentiment:
@@ -60,8 +70,12 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
         query = query.contains("topics", [topic])
     if state:
         query = query.contains("states_mentioned", [state])
-    if source_type:
+    if source_category and source_category in _SOURCE_CATEGORY_MAP:
+        query = query.in_("source_type", _SOURCE_CATEGORY_MAP[source_category])
+    elif source_type:
         query = query.eq("source_type", source_type)
+    if issue_category:
+        query = query.eq("issue_category", issue_category)
     if editorial_tone:
         query = query.eq("editorial_tone", editorial_tone)
     if date_from:
@@ -80,7 +94,9 @@ def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
                                 portal_id=portal_id, topic=topic, state=None,
                                 source_type=source_type,
                                 date_from=date_from, date_to=date_to, q=q,
-                                editorial_tone=editorial_tone)
+                                editorial_tone=editorial_tone,
+                                issue_category=issue_category,
+                                source_category=source_category)
         return []
 
 

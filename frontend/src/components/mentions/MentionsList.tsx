@@ -16,6 +16,9 @@ interface Props {
   initialTopic?: string;
   initialState?: string;
   initialSentiment?: string;
+  initialSourceCategory?: string;
+  initialIssueCategory?: string;
+  initialQ?: string;
   selectable?: boolean;
   syncUrl?: boolean;
 }
@@ -70,6 +73,9 @@ export function MentionsList({
   initialTopic = "",
   initialState = "",
   initialSentiment,
+  initialSourceCategory = "",
+  initialIssueCategory = "",
+  initialQ = "",
   selectable = false,
   syncUrl = false,
 }: Props) {
@@ -78,14 +84,16 @@ export function MentionsList({
   const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : (initialSentiment ?? ""));
   const [language, setLanguage]   = useState(() => syncUrl ? readParam("language") : "");
   const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
+  const [sourceCategory, setSourceCategory] = useState(initialSourceCategory);
+  const [issueCategory, setIssueCategory] = useState(initialIssueCategory);
   const [editorialTone, setEditorialTone] = useState(() => syncUrl ? readParam("editorial_tone") : "");
   const [portalId, setPortalId]   = useState(initialPortalId);
   const [topic, setTopic]         = useState(initialTopic);
   const [state, setState]         = useState(() => syncUrl ? readParam("state") : initialState);
   const [dateFrom, setDateFrom]   = useState(() => syncUrl ? readParam("date_from") : "");
   const [dateTo, setDateTo]       = useState(() => syncUrl ? readParam("date_to") : "");
-  const [qDraft, setQDraft]       = useState(() => syncUrl ? readParam("q") : "");
-  const [q, setQ]                 = useState(() => syncUrl ? readParam("q") : "");
+  const [qDraft, setQDraft]       = useState(() => syncUrl ? readParam("q") : initialQ);
+  const [q, setQ]                 = useState(() => syncUrl ? readParam("q") : initialQ);
   const [selected, setSelected]   = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -127,7 +135,7 @@ export function MentionsList({
   // Reset discovered page range when filters change
   useEffect(() => {
     setMaxKnownPage(0);
-  }, [sentiment, language, sourceType, editorialTone, portalId, topic, state, dateFrom, dateTo, q]);
+  }, [sentiment, language, sourceType, sourceCategory, issueCategory, editorialTone, portalId, topic, state, dateFrom, dateTo, q]);
 
   // React to "View All" clicks from TopHeadlines — apply sentiment filter externally
   useEffect(() => {
@@ -138,25 +146,27 @@ export function MentionsList({
   }, [initialSentiment]);
 
   const params: Record<string, string> = { limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) };
-  if (sentiment)     params.sentiment      = sentiment;
-  if (language)      params.language       = language;
-  if (sourceType)    params.source_type    = sourceType;
-  if (editorialTone) params.editorial_tone = editorialTone;
-  if (portalId)      params.portal_id      = portalId;
-  if (topic)         params.topic          = topic;
-  if (state)         params.state          = state;
-  if (dateFrom)      params.date_from      = dateFrom;
-  if (dateTo)        params.date_to        = dateTo;
-  if (q)             params.q              = q;
+  if (sentiment)       params.sentiment        = sentiment;
+  if (language)        params.language         = language;
+  if (sourceCategory)  params.source_category  = sourceCategory;
+  else if (sourceType) params.source_type      = sourceType;
+  if (issueCategory)   params.issue_category   = issueCategory;
+  if (editorialTone)   params.editorial_tone   = editorialTone;
+  if (portalId)        params.portal_id        = portalId;
+  if (topic)           params.topic            = topic;
+  if (state)           params.state            = state;
+  if (dateFrom)        params.date_from        = dateFrom;
+  if (dateTo)          params.date_to          = dateTo;
+  if (q)               params.q               = q;
 
   const { data: articles = [], isLoading, isFetching } = useQuery<ArticleItem[]>({
-    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, editorialTone, portalId, topic, state, dateFrom, dateTo, q],
+    queryKey: ["mentions", brandId, page, sentiment, language, sourceType, sourceCategory, issueCategory, editorialTone, portalId, topic, state, dateFrom, dateTo, q],
     queryFn: () => fetchMentions(brandId, params),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
-  const hasFilters = !!(sentiment || language || sourceType || editorialTone || portalId || topic || state || dateFrom || dateTo || q);
+  const hasFilters = !!(sentiment || language || sourceType || sourceCategory || issueCategory || editorialTone || portalId || topic || state || dateFrom || dateTo || q);
 
   // Track how many pages we know exist (grows as user navigates forward)
   // Must be after useQuery so articles/isLoading are in scope
