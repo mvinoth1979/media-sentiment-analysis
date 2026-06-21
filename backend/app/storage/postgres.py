@@ -6,6 +6,9 @@ def get_db() -> Client:
     return create_client(settings.supabase_url, settings.supabase_service_role_key)
 
 
+_REVIEW_TRIGGER_CATEGORIES = frozenset({"crisis_controversy", "regulatory_compliance"})
+
+
 def save_article(article: dict, nlp: dict) -> str | None:
     db = get_db()
     row = {**article, **nlp}
@@ -13,7 +16,29 @@ def save_article(article: dict, nlp: dict) -> str | None:
         row.pop(field, None)
     row.setdefault("source_platform", "news")
     result = db.table("articles").upsert(row, on_conflict="brand_id,content_hash").execute()
-    return result.data[0]["id"] if result.data else None
+    article_id = result.data[0]["id"] if result.data else None
+
+    # Auto-enqueue for human review when NLP confidence is low AND issue is sensitive.
+    # A missing confidence value is treated as high-confidence (no enqueue).
+    if article_id is not None:
+        confidence = nlp.get("confidence")
+        issue_cat = nlp.get("issue_category") or ""
+        if (
+            confidence is not None
+            and float(confidence) < 0.5
+            and issue_cat in _REVIEW_TRIGGER_CATEGORIES
+        ):
+            try:
+                db.table("human_review_queue").insert({
+                    "brand_id": article.get("brand_id"),
+                    "article_id": article_id,
+                    "reason": f"low_confidence_{issue_cat}",
+                    "status": "pending",
+                }).execute()
+            except Exception:
+                pass  # queue insertion failure must never break article ingestion
+
+    return article_id
 
 
 def get_articles(brand_id: str, limit: int = 50, offset: int = 0,
