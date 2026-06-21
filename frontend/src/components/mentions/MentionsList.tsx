@@ -84,8 +84,8 @@ export function MentionsList({
   const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : (initialSentiment ?? ""));
   const [language, setLanguage]   = useState(() => syncUrl ? readParam("language") : "");
   const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
-  const [sourceCategory, setSourceCategory] = useState(initialSourceCategory);
-  const [issueCategory, setIssueCategory] = useState(initialIssueCategory);
+  const [sourceCategory] = useState(initialSourceCategory);
+  const [issueCategory] = useState(initialIssueCategory);
   const [editorialTone, setEditorialTone] = useState(() => syncUrl ? readParam("editorial_tone") : "");
   const [portalId, setPortalId]   = useState(initialPortalId);
   const [topic, setTopic]         = useState(initialTopic);
