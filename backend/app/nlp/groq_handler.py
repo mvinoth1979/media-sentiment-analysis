@@ -10,6 +10,10 @@ log = logging.getLogger(__name__)
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
 _VALID_TONES  = {"factual", "positive_frame", "negative_frame", "critical"}
+_VALID_CREATOR_TYPES = {
+    "journalist", "reviewer", "influencer", "customer",
+    "industry_expert", "activist", "competitor_affiliate", "unknown",
+}
 _VALID_CATEGORIES = {
     "financial_performance", "regulatory_compliance", "product_quality",
     "leadership_governance", "crisis_controversy", "awards_recognition",
@@ -50,6 +54,11 @@ def _parse_tone(tone: str) -> str:
 def _parse_category(cat: str) -> str:
     normalized = cat.lower().strip().replace(" ", "_")
     return normalized if normalized in _VALID_CATEGORIES else "other"
+
+
+def _parse_creator_type(ct: str) -> str:
+    normalized = ct.lower().strip().replace(" ", "_")
+    return normalized if normalized in _VALID_CREATOR_TYPES else "unknown"
 
 
 def _clip(v) -> float | None:
@@ -115,6 +124,7 @@ Return JSON: {{"sentiment_score": float -1 to 1, "sentiment_label": "positive"|"
 "entities": [strings], "topics": [strings], "keywords": [strings],
 "states_mentioned": [Indian state/UT names from text — use only: {states}. Empty list if none.],
 "issue_category": "financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other",
+"creator_type": "journalist"|"reviewer"|"influencer"|"customer"|"industry_expert"|"activist"|"competitor_affiliate"|"unknown" (for youtube_video: classify creator; use "unknown" for all non-video sources),
 "confidence": float 0-1}}
 
 Language: {language}
@@ -174,10 +184,12 @@ def analyse_with_groq(
             states_mentioned=data.get("states_mentioned", []),
             model_used="groq-llama-3.1-8b-instant",
             confidence=float(data.get("confidence", 0.0)),
+            source_type=source_type,
             headline_sentiment_score=hs,
             body_sentiment_score=bs,
             editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
             issue_category=_parse_category(data.get("issue_category", "other")),
+            creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
         ), False
     except Exception as e:
         log.error("Groq error: %s — %s", type(e).__name__, str(e)[:300])

@@ -442,6 +442,13 @@ export function MentionsList({
                         </span>
                       </div>
                     )}
+                    {a.source_type === "youtube_video" && a.creator_type && a.creator_type !== "unknown" && (
+                      <div className="mt-0.5">
+                        <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded capitalize">
+                          {a.creator_type.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    )}
                     {a.source_type === "youtube_comment" && (a.reach_metadata?.like_count ?? 0) > 0 && (
                       <div className="mt-0.5">
                         <span className="text-[9px] text-gray-500">

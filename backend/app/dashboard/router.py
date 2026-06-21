@@ -67,6 +67,8 @@ def _article_to_item(a: dict) -> ArticleItem:
         sentiment_divergence=bool(a.get("sentiment_divergence")),
         is_regulatory_source=bool(a.get("is_regulatory_source")),
         issue_category=a.get("issue_category") or "other",
+        # Item 9: YouTube creator type classification
+        creator_type=a.get("creator_type") or None,
     )
 
 

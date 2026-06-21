@@ -8,6 +8,10 @@ from app.nlp.schemas import NLPResult
 _client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
 _VALID_TONES  = {"factual", "positive_frame", "negative_frame", "critical"}
+_VALID_CREATOR_TYPES = {
+    "journalist", "reviewer", "influencer", "customer",
+    "industry_expert", "activist", "competitor_affiliate", "unknown",
+}
 _VALID_CATEGORIES = {
     "financial_performance", "regulatory_compliance", "product_quality",
     "leadership_governance", "crisis_controversy", "awards_recognition",
@@ -48,6 +52,11 @@ def _parse_tone(tone: str) -> str:
 def _parse_category(cat: str) -> str:
     normalized = cat.lower().strip().replace(" ", "_")
     return normalized if normalized in _VALID_CATEGORIES else "other"
+
+
+def _parse_creator_type(ct: str) -> str:
+    normalized = ct.lower().strip().replace(" ", "_")
+    return normalized if normalized in _VALID_CREATOR_TYPES else "unknown"
 
 
 def _clip(v) -> float | None:
@@ -126,6 +135,7 @@ Return ONLY valid JSON with this exact schema:
   "keywords": [<up to 8 significant keywords>],
   "states_mentioned": [<Indian states or UTs explicitly named or clearly implied by a city/region in the text. Use only full official state names from this list: {states}. Empty list if none found.>],
   "issue_category": <one of: "financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other">,
+  "creator_type": <for youtube_video: "journalist"|"reviewer"|"influencer"|"customer"|"industry_expert"|"activist"|"competitor_affiliate"|"unknown". Use "unknown" for all non-video sources.>,
   "confidence": <float 0.0 to 1.0>
 }}
 
@@ -234,10 +244,12 @@ def analyse_with_gemini(
                 states_mentioned=data.get("states_mentioned", []),
                 model_used="gemini-2.0-flash",
                 confidence=float(data.get("confidence", 0.0)),
+                source_type=source_type,
                 headline_sentiment_score=hs,
                 body_sentiment_score=bs,
                 editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
                 issue_category=_parse_category(data.get("issue_category", "other")),
+                creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
             ), False
         except Exception as e:
             if "429" in str(e) or "rate" in str(e).lower():
