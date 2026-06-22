@@ -1,10 +1,16 @@
 import csv
 import io
+import json as _json
+import logging
+import re
+import time
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
+
+log = logging.getLogger(__name__)
 from app.auth.dependencies import require_brand_role, require_role, READ_ROLES, WRITE_ROLES
 from app.storage.postgres import (
     get_articles, get_kpi_summary, get_db, delete_articles,
@@ -34,6 +40,7 @@ from app.dashboard.schemas import (
     IssueCategoryItem, IssueCategoriesResponse,
     ReviewQueueItem, ReviewQueueResponse, ReviewQueuePatchRequest,
     VideoRiskItem, BrandRiskScoresResponse,
+    AISummaryResponse,
 )
 
 router = APIRouter()
@@ -1348,3 +1355,123 @@ def get_brand_risk_scores(
     # Sort by absolute risk score descending and keep top 10
     videos.sort(key=lambda v: abs(v.risk_score), reverse=True)
     return BrandRiskScoresResponse(videos=videos[:10], brand_id=brand_id, period_days=days)
+
+
+# ── AI Executive Summary ──────────────────────────────────────────────────────
+
+_AI_SUMMARY_CACHE: dict = {}
+_AI_SUMMARY_TTL = 3600  # 1 hour
+
+
+@router.get("/ai-summary/{brand_id}", response_model=AISummaryResponse)
+def get_ai_summary(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=90),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cache_key = f"{brand_id}:{days}:{date_from}:{date_to}"
+    now = time.time()
+    if cache_key in _AI_SUMMARY_CACHE and _AI_SUMMARY_CACHE[cache_key]["expires_at"] > now:
+        return AISummaryResponse(**_AI_SUMMARY_CACHE[cache_key]["data"])
+
+    current_end = datetime.now(timezone.utc)
+    if date_from:
+        current_start = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+        current_end = datetime.fromisoformat(date_to.replace("Z", "+00:00")) if date_to else current_end
+    else:
+        current_start = current_end - timedelta(days=days)
+
+    all_articles = get_articles(
+        brand_id, limit=300,
+        date_from=current_start.isoformat(),
+        date_to=current_end.isoformat(),
+    )
+
+    if not all_articles:
+        result = {
+            "what_changed": "No articles collected in this period. Run the pipeline to start gathering coverage.",
+            "why": "The pipeline has not yet processed articles for the selected date range.",
+            "actions": ["Trigger a pipeline run", "Verify brand keywords are configured", "Check portal RSS feeds are accessible"],
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
+        return AISummaryResponse(**result)
+
+    total = len(all_articles)
+    neg = sum(1 for a in all_articles if a.get("sentiment_label") == "negative")
+    pos = sum(1 for a in all_articles if a.get("sentiment_label") == "positive")
+    neg_pct = round(neg / total * 100, 1) if total else 0
+    pos_pct = round(pos / total * 100, 1) if total else 0
+
+    issue_counter: Counter = Counter(
+        a.get("issue_category", "other")
+        for a in all_articles
+        if a.get("issue_category") and a.get("issue_category") != "other"
+    )
+    top_issues = [cat.replace("_", " ") for cat, _ in issue_counter.most_common(3)]
+
+    neg_articles = sorted(
+        [a for a in all_articles if a.get("sentiment_label") == "negative"],
+        key=lambda a: a.get("reach_score") or 0,
+        reverse=True,
+    )[:3]
+    neg_headlines = [a.get("title", "")[:80] for a in neg_articles]
+
+    prompt = (
+        f"You are a brand reputation analyst. Provide an executive summary for a brand's media coverage.\n\n"
+        f"Data for the last {days} days:\n"
+        f"- Total articles: {total}\n"
+        f"- Positive: {pos} ({pos_pct}%)\n"
+        f"- Negative: {neg} ({neg_pct}%)\n"
+        f"- Top issue categories: {', '.join(top_issues) if top_issues else 'general coverage'}\n"
+        f"- Sample negative headlines: {'; '.join(neg_headlines) if neg_headlines else 'none'}\n\n"
+        "Respond in JSON only — no markdown, no explanation:\n"
+        '{"what_changed": "One clear sentence about the dominant sentiment shift or trend.", '
+        '"why": "One clear sentence on the root cause driving this change.", '
+        '"actions": ["Concise action 1 (max 8 words)", "Concise action 2", "Concise action 3"]}'
+    )
+
+    try:
+        from app.nlp.gemini_handler import _get_client, _GEMINI_MODELS, _strip_fences
+        client = _get_client()
+        for model in _GEMINI_MODELS:
+            try:
+                response = client.models.generate_content(model=model, contents=prompt)
+                raw = _strip_fences(response.text.strip())
+                match = re.search(r"\{.*\}", raw, re.DOTALL)
+                if not match:
+                    continue
+                parsed = _json.loads(match.group())
+                result = {
+                    "what_changed": str(parsed.get("what_changed", "")).strip() or f"Negative sentiment at {neg_pct}% of {total} articles.",
+                    "why": str(parsed.get("why", "")).strip() or f"Coverage driven by {top_issues[0] if top_issues else 'general news'}.",
+                    "actions": [str(a).strip() for a in parsed.get("actions", []) if a][:3] or ["Review coverage", "Monitor trends", "Engage stakeholders"],
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                }
+                _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
+                return AISummaryResponse(**result)
+            except Exception as e:
+                err = str(e)
+                if "404" in err:
+                    continue
+                log.warning("AI summary Gemini error (%s): %s", model, err[:150])
+                break
+    except Exception as e:
+        log.warning("AI summary generation failed: %s", e)
+
+    # Fallback: data-driven summary without LLM
+    trend_word = "rising" if neg_pct > 30 else "stable" if neg_pct > 15 else "positive"
+    result = {
+        "what_changed": f"Negative coverage is {trend_word} at {neg_pct}% across {total} articles in {days} days.",
+        "why": f"Primary issue areas: {', '.join(top_issues[:2]) if top_issues else 'general coverage'}.",
+        "actions": [
+            "Review high-impact negative articles",
+            f"Address {top_issues[0].title() if top_issues else 'key concerns'} proactively",
+            "Monitor coverage daily for escalation signals",
+        ],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
+    return AISummaryResponse(**result)

@@ -210,4 +210,15 @@ export const fetchIssueCategories = (brandId: string, days = 30) =>
     .get<import("./types").IssueCategoriesData>(`/dashboard/issue-categories/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export const fetchAiSummary = (
+  brandId: string,
+  params: { days?: number; date_from?: string; date_to?: string } = { days: 7 }
+) =>
+  api
+    .get<{ what_changed: string; why: string; actions: string[]; generated_at: string }>(
+      `/dashboard/ai-summary/${brandId}`,
+      { params }
+    )
+    .then(r => r.data);
+
 export default api;

@@ -412,3 +412,12 @@ class BrandRiskScoresResponse(BaseModel):
     videos: list[VideoRiskItem]
     brand_id: str
     period_days: int = 30
+
+
+# ── AI Executive Summary ──────────────────────────────────────────────────────
+
+class AISummaryResponse(BaseModel):
+    what_changed: str
+    why: str
+    actions: list[str]
+    generated_at: str

@@ -14,6 +14,8 @@ import { CompetitorShareOfVoice } from "../components/CompetitorShareOfVoice";
 import { EditorialToneChart } from "../components/EditorialToneChart";
 import { YouTubeSentimentSplit } from "../components/YouTubeSentimentSplit";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
+import { AIExecutiveSummary } from "../components/AIExecutiveSummary";
+import { ReputationRiskGauge } from "../components/ReputationRiskGauge";
 import { formatCount } from "../lib/utils";
 
 type ActivePanel =
@@ -541,30 +543,37 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
     );
   }
 
-  // ── Compact single-screen overview ──────────────────────────────────────────
-  return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-50 p-2 gap-1.5">
+  const riskScore = Math.round(100 - kpi.perception_score);
+  const topIssue = data.top_topics?.[0] ?? undefined;
 
-      {/* ── Page header ─────────────────────────────────────────── flex-none */}
-      <div className="flex items-center justify-between flex-none">
-        <div>
-          <h1 className="text-sm font-bold text-gray-900 leading-tight">Executive Overview</h1>
-          <p className="text-[10px] text-gray-500">
-            Real-time brand sentiment across digital and news ecosystem
-            {data.last_processed_at && ` · Updated ${formatLastProcessed(data.last_processed_at)}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Date range picker */}
-          <div className="flex items-center gap-1">
+  // ── 3-screen parallax scroll overview ────────────────────────────────────────
+  return (
+    <div
+      className="h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth"
+      style={{ scrollbarWidth: "none" }}
+    >
+
+      {/* ══════════════════ SCREEN 1 ══════════════════════════════════════════ */}
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+
+        {/* ── Header ───────────────────────────────────────────────── flex-none */}
+        <div className="flex items-center justify-between flex-none">
+          <div>
+            <h1 className="text-sm font-bold text-white leading-tight">Executive Overview</h1>
+            <p className="text-[10px] text-white/40">
+              Real-time reputation intelligence across all digital media
+              {data.last_processed_at && ` · Updated ${formatLastProcessed(data.last_processed_at)}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
             {[7, 30, 90].map(d => (
               <button
                 key={d}
                 onClick={() => { setDays(d); setShowCustom(false); }}
                 className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
                   !showCustom && days === d
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-gray-500 border-gray-200 hover:border-gray-300"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "text-white/40 border-white/15 hover:border-white/30 hover:text-white/70"
                 }`}
               >
                 {d}d
@@ -573,95 +582,175 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <button
               onClick={() => setShowCustom(v => !v)}
               className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-gray-500 border-gray-200 hover:border-gray-300"
+                showCustom ? "bg-blue-600 text-white border-blue-600" : "text-white/40 border-white/15 hover:border-white/30 hover:text-white/70"
               }`}
             >
               Custom
             </button>
             {showCustom && (
-              <div className="flex items-center gap-1 ml-1">
+              <div className="flex items-center gap-1">
                 <input
                   type="date"
                   value={customFrom.slice(0, 10)}
                   onChange={e => setCustomFrom(e.target.value + "T00:00:00Z")}
-                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                  className="text-[10px] bg-white/5 border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
-                <span className="text-[10px] text-gray-400">→</span>
+                <span className="text-[10px] text-white/30">→</span>
                 <input
                   type="date"
                   value={customTo.slice(0, 10)}
                   onChange={e => setCustomTo(e.target.value + "T23:59:59Z")}
-                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                  className="text-[10px] bg-white/5 border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
               </div>
             )}
-          </div>
-          {data.pipeline_status === "running" && (
-            <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
+            {data.pipeline_status === "running" && (
+              <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/30 rounded-full px-2 py-0.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
+                </span>
+                Pipeline running
               </span>
-              Pipeline running
+            )}
+            <button
+              onClick={() => setActivePanel("state-map")}
+              className="text-[10px] text-white/40 hover:text-white/70 border border-white/15 rounded px-2 py-0.5 hover:border-white/30 transition-colors"
+            >
+              State Map
+            </button>
+          </div>
+        </div>
+
+        {/* ── Row 1: KPI cards ──────────────────────────────────────── flex-none */}
+        <div className="grid grid-cols-5 gap-2 flex-none">
+          <KPICard compact label="Total Mentions"    value={formatCount(kpi.total)}       delta={kpi.mentions_delta_pct}   deltaUnit="%" sub="vs last period" icon="📰" accentColor="blue"   onClick={() => setActivePanel("mentions")} />
+          <KPICard compact label="Positive Mentions" value={formatCount(kpi.positive)}    pct={kpi.positive_pct}                                                       icon="😊" accentColor="green"  onClick={() => setActivePanel("mentions-positive")} />
+          <KPICard compact label="Neutral Mentions"  value={formatCount(kpi.neutral)}     pct={kpi.neutral_pct}                                                        icon="😐" accentColor="gray"   onClick={() => setActivePanel("mentions-neutral")} />
+          <KPICard compact label="Negative Mentions" value={formatCount(kpi.negative)}    pct={kpi.negative_pct}                                                       icon="😟" accentColor="red"    onClick={() => setActivePanel("mentions-negative")} />
+          <KPICard compact label="Reputation Index"  value={`${kpi.perception_score.toFixed(0)} / 100`} delta={kpi.perception_score_delta} deltaUnit=" pts"          icon="📊" accentColor="purple" onClick={() => setActivePanel("alerts")} />
+        </div>
+
+        {/* ── Row 2: AI Executive Summary (58%) | Sentiment Trend (42%) ── flex-none */}
+        <div className="grid grid-cols-12 gap-2 flex-none">
+          <div className="col-span-7 min-w-0">
+            <AIExecutiveSummary brandId={brandId} queryParams={queryParams} />
+          </div>
+          <div className="col-span-5 min-w-0">
+            <SentimentTrendChart brandId={brandId} compact onClick={() => setActivePanel("sentiment-trend")} />
+          </div>
+        </div>
+
+        {/* ── Row 3: Mentions by Source | Top Headlines ─────────────── flex-1 */}
+        <div className="grid grid-cols-12 gap-2 flex-1 min-h-0">
+          <div className="col-span-5 min-h-0">
+            <MentionsBySourceDonut
+              brandId={brandId}
+              compact
+              onClick={() => setActivePanel("mentions-donut")}
+              onSourceClick={(category, label) => openDrill({ label: `Source: ${label}`, sourceCategory: category })}
+            />
+          </div>
+          <div className="col-span-7 min-h-0">
+            <TopHeadlines brandId={brandId} compact onClick={() => setActivePanel("top-headlines")} />
+          </div>
+        </div>
+
+        {/* ── Scroll hint ───────────────────────────────────────────── flex-none */}
+        <div className="flex justify-center flex-none pb-0.5">
+          <div className="flex flex-col items-center gap-0.5 opacity-30">
+            <span className="text-[9px] text-white/60">scroll for more</span>
+            <svg className="w-3 h-3 text-white/60 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════ SCREEN 2 ══════════════════════════════════════════ */}
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+
+        {/* ── Row 3: Review Sites | Top Issues | Sentiment by Source ─── flex-[3] */}
+        <div className="grid grid-cols-3 gap-2 flex-[3] min-h-0">
+          <div className="min-h-0">
+            <ReviewSitesSummary
+              brandId={brandId}
+              compact
+              onClick={() => setActivePanel("review-sites")}
+              onThemeClick={(topic) => openDrill({ label: `Theme: ${topic}`, topic })}
+            />
+          </div>
+          <div className="min-h-0">
+            <TopIssuesTable
+              brandId={brandId}
+              compact
+              onClick={() => setActivePanel("top-issues")}
+              onClusterClick={(name) => openDrill({ label: `Issue: ${name.replace(/_/g, " ")}`, issueCategory: name })}
+              onCategoryClick={(cat) => openDrill({ label: `Category: ${cat.replace(/_/g, " ")}`, issueCategory: cat })}
+            />
+          </div>
+          <div className="min-h-0">
+            <SentimentBySourceTable brandId={brandId} compact onClick={() => setActivePanel("sentiment-by-source")} />
+          </div>
+        </div>
+
+        {/* ── Row 4: Competitor SoV | Risk Gauge | Alerts ──────────────── flex-[3] */}
+        <div className="grid grid-cols-3 gap-2 flex-[3] min-h-0">
+          <div className="min-h-0">
+            <CompetitorShareOfVoice
+              brandId={brandId}
+              compact
+              onClick={() => setActivePanel("competitor-sov")}
+              onEntityClick={(name) => openDrill({ label: `Mentions: ${name}`, entity: name })}
+            />
+          </div>
+          <div className="min-h-0">
+            <ReputationRiskGauge
+              score={riskScore}
+              negativePct={kpi.negative_pct}
+              mentionsDelta={kpi.mentions_delta_pct ?? null}
+              topIssue={topIssue}
+              compact
+            />
+          </div>
+          <div className="min-h-0 cursor-pointer" onClick={() => setActivePanel("alerts")}>
+            <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} compact />
+          </div>
+        </div>
+
+        {/* ── Footer bar ──────────────────────────────────────────────── flex-none */}
+        <div className="flex items-center justify-between flex-none border-t border-white/5 pt-1.5">
+          <span className="text-[9px] text-white/25">All times are in IST</span>
+          <span className="text-[9px] text-white/25">
+            Data aggregated from news portals, YouTube, review sites &amp; social platforms
+          </span>
+          {data.last_processed_at && (
+            <span className="text-[9px] text-white/25">
+              Last updated: {new Date(data.last_processed_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
-          <button
-            onClick={() => setActivePanel("state-map")}
-            className="text-[10px] text-gray-400 hover:text-gray-700 border border-gray-200 rounded px-2 py-0.5 hover:border-gray-300 transition-colors"
-          >
-            State Map
-          </button>
-          <button
-            onClick={() => setActivePanel("mentions")}
-            className="text-[10px] text-blue-600 hover:text-blue-700 border border-blue-200 rounded px-2 py-0.5 hover:border-blue-300 transition-colors"
-          >
-            All Mentions
-          </button>
         </div>
       </div>
 
-      {/* ── Row 1: KPI cards ────────────────────────────────────── flex-none */}
-      <div className="grid grid-cols-5 gap-1.5 flex-none">
-        <KPICard compact label="Total Mentions"    value={formatCount(kpi.total)}       delta={kpi.mentions_delta_pct}   deltaUnit="%" sub="vs last period" icon="📰" accentColor="blue"   onClick={() => setActivePanel("mentions")} />
-        <KPICard compact label="Positive Mentions" value={formatCount(kpi.positive)}    pct={kpi.positive_pct}                                                       icon="😊" accentColor="green"  onClick={() => setActivePanel("mentions-positive")} />
-        <KPICard compact label="Neutral Mentions"  value={formatCount(kpi.neutral)}     pct={kpi.neutral_pct}                                                        icon="😐" accentColor="gray"   onClick={() => setActivePanel("mentions-neutral")} />
-        <KPICard compact label="Negative Mentions" value={formatCount(kpi.negative)}    pct={kpi.negative_pct}                                                       icon="😟" accentColor="red"    onClick={() => setActivePanel("mentions-negative")} />
-        <KPICard compact label="Reputation Index"  value={`${kpi.perception_score.toFixed(0)} / 100`} delta={kpi.perception_score_delta} deltaUnit=" pts"          icon="📊" accentColor="purple" onClick={() => setActivePanel("alerts")} />
-      </div>
-
-      {/* ── Row 2: Sentiment Trend | Donut | Headlines ──────────── flex-[3] */}
-      <div className="grid grid-cols-12 gap-1.5 flex-[3] min-h-0">
-        <div className="col-span-5 min-h-0">
-          <SentimentTrendChart brandId={brandId} compact onClick={() => setActivePanel("sentiment-trend")} />
+      {/* ══════════════════ SCREEN 3 ══════════════════════════════════════════ */}
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-gray-50 shrink-0">
+        {/* Header strip */}
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-gray-200 flex-none">
+          <h2 className="text-sm font-semibold text-gray-800">All Mentions</h2>
+          <span className="text-[10px] text-gray-400">— scroll up to return to overview</span>
+          <div ref={mentionsRef} />
         </div>
-        <div className="col-span-3 min-h-0">
-          <MentionsBySourceDonut brandId={brandId} compact onClick={() => setActivePanel("mentions-donut")} />
-        </div>
-        <div className="col-span-4 min-h-0">
-          <TopHeadlines brandId={brandId} compact onClick={() => setActivePanel("top-headlines")} />
-        </div>
-      </div>
-
-      {/* ── Row 3: Review Sites | Top Issues | Sentiment by Source ─ flex-[3] */}
-      <div className="grid grid-cols-3 gap-1.5 flex-[3] min-h-0">
-        <div className="min-h-0">
-          <ReviewSitesSummary brandId={brandId} compact onClick={() => setActivePanel("review-sites")} />
-        </div>
-        <div className="min-h-0">
-          <TopIssuesTable brandId={brandId} compact onClick={() => setActivePanel("top-issues")} />
-        </div>
-        <div className="min-h-0">
-          <SentimentBySourceTable brandId={brandId} compact onClick={() => setActivePanel("sentiment-by-source")} />
-        </div>
-      </div>
-
-      {/* ── Row 4: Competitor SoV | Alerts ──────────────────────── flex-[2] */}
-      <div className="grid grid-cols-3 gap-1.5 flex-[2] min-h-0">
-        <div className="min-h-0">
-          <CompetitorShareOfVoice brandId={brandId} compact onClick={() => setActivePanel("competitor-sov")} />
-        </div>
-        <div className="col-span-2 min-h-0 cursor-pointer" onClick={() => setActivePanel("alerts")}>
-          <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} compact />
+        {/* Full MentionsList embedded */}
+        <div className="flex-1 min-h-0 overflow-auto p-4">
+          <MentionsList
+            brandId={brandId}
+            brandName={brandName}
+            portals={data.top_sources.map(s => s.portal_id)}
+            topics={data.top_topics}
+            states={data.state_breakdown.map(s => s.state)}
+            selectable
+            syncUrl
+          />
         </div>
       </div>
 
