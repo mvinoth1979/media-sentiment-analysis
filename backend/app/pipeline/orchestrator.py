@@ -141,6 +141,48 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         else:
             log.info("Google Reviews skipped for brand %s (google_reviews_enabled=%s)", brand_id[:8], config.get("google_reviews_enabled"))
 
+        if config.get("trustpilot_enabled", False):
+            try:
+                from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
+                tp_raw = collect_trustpilot_for_brand(brand, config)
+                tp_new = filter_new_articles(tp_raw, brand_id)
+                tp_new = [a for a in tp_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(tp_new)
+                stats["collected"] += len(tp_raw)
+            except Exception as e:
+                log.error("Trustpilot collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("Trustpilot skipped for brand %s (trustpilot_enabled=%s)", brand_id[:8], config.get("trustpilot_enabled"))
+
+        if config.get("mouthshut_enabled", False):
+            try:
+                from app.ingestion.mouthshut_collector import collect_mouthshut_for_brand
+                ms_raw = collect_mouthshut_for_brand(brand, config)
+                ms_new = filter_new_articles(ms_raw, brand_id)
+                ms_new = [a for a in ms_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(ms_new)
+                stats["collected"] += len(ms_raw)
+            except Exception as e:
+                log.error("MouthShut collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("MouthShut skipped for brand %s", brand_id[:8])
+
+        if config.get("justdial_enabled", False):
+            try:
+                from app.ingestion.justdial_collector import collect_justdial_for_brand
+                jd_raw = collect_justdial_for_brand(brand, config)
+                jd_new = filter_new_articles(jd_raw, brand_id)
+                jd_new = [a for a in jd_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(jd_new)
+                stats["collected"] += len(jd_raw)
+            except Exception as e:
+                log.error("JustDial collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("JustDial skipped for brand %s", brand_id[:8])
+
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)
             return stats

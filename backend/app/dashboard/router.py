@@ -192,10 +192,18 @@ _SOURCE_TYPE_CATEGORY: dict[str, str] = {
     "news": "news", "rss": "news",
     "youtube_video": "youtube", "youtube_comment": "youtube",
     "blog": "blog", "portal": "blog",
-    "google_review": "google_review",
+    "google_review":      "review_site",
+    "trustpilot_review":  "review_site",
+    "mouthshut_review":   "review_site",
+    "justdial_review":    "review_site",
+    "ambitionbox_review": "review_site",
+    "amazon_review":      "review_site",
+    "flipkart_review":    "review_site",
+    "glassdoor_review":   "review_site",
+    "indiamart_review":   "review_site",
     "reddit_post": "reddit_post", "reddit_comment": "reddit_post", "forum": "reddit_post",
 }
-_SOURCE_CATEGORIES = ("news", "youtube", "blog", "google_review", "reddit_post")
+_SOURCE_CATEGORIES = ("news", "youtube", "blog", "review_site", "reddit_post")
 
 
 def _compute_by_source_type(
@@ -222,7 +230,7 @@ def _compute_by_source_type(
         neg_pct = round(neg / count * 100, 1) if count else 0.0
         delta_pct = round((count - prev_count) / prev_count * 100, 1) if prev_count else None
         avg_rating: float | None = None
-        if cat == "google_review" and count:
+        if cat == "review_site" and count:
             score_sum = sum(float(a.get("sentiment_score") or 0) for a in curr_arts)
             avg_score = score_sum / count
             avg_rating = round((avg_score + 1) / 2 * 4 + 1, 1)

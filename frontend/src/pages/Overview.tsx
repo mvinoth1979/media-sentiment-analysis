@@ -842,7 +842,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           <div ref={mentionsRef} />
         </div>
 
-        {/* 2-col layout: Left (News + Reviews) | Right (Competitor + Journey) */}
+        {/* 3-col layout: Left (News + Reviews) | Centre (Competitor + Journey) | Right (Virality) */}
         <div className="flex gap-3 p-3 flex-1 min-h-0">
           {/* Left column — News & Reviews stacked */}
           <div className="flex-[5] flex flex-col gap-3 min-h-0 min-w-0">
@@ -864,7 +864,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             </div>
           </div>
 
-          {/* Right column — Competitor Comparison + Drill-Down Journey */}
+          {/* Centre column — Competitor Comparison + Drill-Down Journey */}
           <div className="flex-[4] flex flex-col gap-3 min-h-0 min-w-0">
             <div className="flex-[4] min-h-0">
               <CompetitorComparison
@@ -876,6 +876,11 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <div className="flex-[1] min-h-0" style={{ minHeight: "100px" }}>
               <DrillDownJourneyExample />
             </div>
+          </div>
+
+          {/* Right column — Virality Alerts (full height) */}
+          <div className="flex-[2] min-h-0 min-w-0">
+            <ViralityAlertsPanel brandId={brandId} days={days} />
           </div>
         </div>
       </div>

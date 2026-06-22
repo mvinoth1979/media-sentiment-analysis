@@ -17,7 +17,7 @@ function StarRating({ value }: { value: number }) {
 }
 
 export function ReviewSiteAnalysisPanel({ brandId, bySourceType }: Props) {
-  const reviews = bySourceType.google_review ?? { count: 0, delta_pct: null, negative_pct: 0, avg_rating: null };
+  const reviews = bySourceType.review_site ?? { count: 0, delta_pct: null, negative_pct: 0, avg_rating: null };
 
   return (
     <div className="h-full flex flex-col bg-[#1a2744] border border-white/10 rounded-xl overflow-hidden min-h-0">

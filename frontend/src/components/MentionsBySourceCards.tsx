@@ -71,7 +71,7 @@ const CARDS: CardDef[] = [
   { key: "news",         label: "News & RSS",     icon: <NewsIcon />,    accent: "text-red-400 bg-red-500/10" },
   { key: "youtube",      label: "YouTube",         icon: <YoutubeIcon />, accent: "text-red-500 bg-red-600/10" },
   { key: "blog",         label: "Blogs & Portals", icon: <BlogIcon />,    accent: "text-emerald-400 bg-emerald-500/10" },
-  { key: "google_review",label: "Review Sites",    icon: <StarIcon />,    accent: "text-amber-400 bg-amber-500/10" },
+  { key: "review_site",  label: "Review Sites",    icon: <StarIcon />,    accent: "text-amber-400 bg-amber-500/10" },
   { key: "reddit_post",  label: "Forums",          icon: <ForumIcon />,   accent: "text-indigo-400 bg-indigo-500/10" },
 ];
 
@@ -82,7 +82,7 @@ export function MentionsBySourceCards({ data }: Props) {
       <div className="grid grid-cols-5 gap-2 flex-1 min-h-0">
         {CARDS.map(card => {
           const stat: SourceTypeStat = data[card.key] ?? { count: 0, delta_pct: null, negative_pct: 0, avg_rating: null, sparkline: [] };
-          const isReview = card.key === "google_review";
+          const isReview = card.key === "review_site";
           return (
             <div
               key={card.key}
