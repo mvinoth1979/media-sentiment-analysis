@@ -116,6 +116,12 @@ export const updateBrandConfig = (brandId: string, payload: {
   languages?: string[];
   google_reviews_enabled?: boolean;
   google_places_id?: string;
+  trustpilot_enabled?: boolean;
+  trustpilot_domain?: string;
+  mouthshut_enabled?: boolean;
+  mouthshut_slug?: string;
+  justdial_enabled?: boolean;
+  justdial_listing_url?: string;
 }) => api.put(`/tenants/brands/${brandId}/config`, payload).then(r => r.data);
 
 export const deleteBrand = (brandId: string) =>

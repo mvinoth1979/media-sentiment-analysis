@@ -19,6 +19,13 @@ class BrandConfigUpdate(BaseModel):
     reddit_subreddits: list[str] | None = None
     google_places_id: str | None = None
     google_reviews_enabled: bool | None = None
+    # Review sites — Phase A
+    trustpilot_enabled: bool | None = None
+    trustpilot_domain: str | None = None
+    mouthshut_enabled: bool | None = None
+    mouthshut_slug: str | None = None
+    justdial_enabled: bool | None = None
+    justdial_listing_url: str | None = None
 
 
 @router.get("/me")
