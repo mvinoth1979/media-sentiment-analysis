@@ -8,6 +8,7 @@ import { SourceBreakdown } from "./pages/SourceBreakdown";
 import { TopicsView } from "./pages/TopicsView";
 import { UserManagement } from "./pages/UserManagement";
 import { JournalistCoverage } from "./pages/JournalistCoverage";
+import { MentionsMonitor } from "./pages/MentionsMonitor";
 import { BrandConfig } from "./pages/BrandConfig";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { Sidebar } from "./components/Sidebar";
@@ -126,7 +127,8 @@ function App() {
           )}
           {tab === "sources"     && <SourceBreakdown brandId={brand.id} />}
           {tab === "topics"      && <TopicsView brandId={brand.id} />}
-          {tab === "journalists" && <JournalistCoverage brandId={brand.id} brandName={brand.name} />}
+          {tab === "journalists"      && <JournalistCoverage brandId={brand.id} brandName={brand.name} />}
+          {tab === "mentions-monitor" && <MentionsMonitor brandId={brand.id} brandName={brand.name} />}
           {tab === "brand-config" && isAdmin && (
             <BrandConfig brandId={brand.id} brandName={brand.name} />
           )}

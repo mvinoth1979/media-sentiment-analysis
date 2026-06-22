@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-export type Tab = "overview" | "sources" | "topics" | "users" | "journalists" | "brand-config" | "review-queue";
+export type Tab = "overview" | "sources" | "topics" | "users" | "journalists" | "brand-config" | "review-queue" | "mentions-monitor";
 
 interface NavItem {
   id: string;
@@ -92,7 +92,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <NavIcon d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />,
   },
   {
-    id: "mentions-monitor", tab: "journalists", label: "Mentions Monitor",
+    id: "mentions-monitor", tab: "mentions-monitor", label: "Mentions Monitor",
     icon: <NavIcon d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732zM12 12a4 4 0 11-8 0 4 4 0 018 0z" />,
   },
   {
