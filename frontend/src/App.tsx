@@ -24,6 +24,15 @@ function App() {
   const [userEmail, setUserEmail]     = useState("");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+  // Date range — single source of truth, passed to Sidebar (display) + Overview (query)
+  const [days, setDays]               = useState(7);
+  const [customFrom, setCustomFrom]   = useState("");
+  const [customTo, setCustomTo]       = useState("");
+  const [showCustom, setShowCustom]   = useState(false);
+
+  function handleDaysChange(d: number) { setDays(d); setShowCustom(false); }
+  function handleCustomToggle() { setShowCustom(v => !v); }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -73,6 +82,14 @@ function App() {
         onBrandChange={() => setBrand(null)}
         isAdmin={isAdmin}
         lastUpdated={lastUpdated}
+        days={days}
+        customFrom={customFrom}
+        customTo={customTo}
+        showCustom={showCustom}
+        onDaysChange={handleDaysChange}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+        onCustomToggle={handleCustomToggle}
       />
 
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -97,6 +114,14 @@ function App() {
               isAdmin={isAdmin}
               userEmail={userEmail}
               onLastUpdated={setLastUpdated}
+              days={days}
+              customFrom={customFrom}
+              customTo={customTo}
+              showCustom={showCustom}
+              onDaysChange={handleDaysChange}
+              onCustomFromChange={setCustomFrom}
+              onCustomToChange={setCustomTo}
+              onCustomToggle={handleCustomToggle}
             />
           )}
           {tab === "sources"     && <SourceBreakdown brandId={brand.id} />}

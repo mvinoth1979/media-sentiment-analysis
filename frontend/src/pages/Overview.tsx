@@ -66,6 +66,15 @@ interface Props {
   isAdmin?: boolean;
   userEmail?: string;
   onLastUpdated?: (iso: string | null) => void;
+  // Date range — lifted to App.tsx, passed down
+  days: number;
+  customFrom: string;
+  customTo: string;
+  showCustom: boolean;
+  onDaysChange: (d: number) => void;
+  onCustomFromChange: (v: string) => void;
+  onCustomToChange: (v: string) => void;
+  onCustomToggle: () => void;
 }
 
 const ALERT_TYPE_LABELS: Record<string, string> = {
@@ -266,18 +275,12 @@ function AlertsRiskCards({
   );
 }
 
-export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated }: Props) {
+export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated, days, customFrom, customTo, showCustom, onDaysChange, onCustomFromChange, onCustomToChange, onCustomToggle }: Props) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [drilldown, setDrilldown] = useState<DrillFilter | null>(null);
   const [divergenceData, setDivergenceData] = useState<DivergenceSummaryData | null>(null);
   const [divOpen, setDivOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
-
-  // Date range picker state
-  const [days, setDays] = useState(7);
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const [showCustom, setShowCustom] = useState(false);
 
   function openDrill(filter: DrillFilter) {
     setDrilldown(filter);
@@ -348,7 +351,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             {[7, 30, 90].map(d => (
               <button
                 key={d}
-                onClick={() => { setDays(d); setShowCustom(false); }}
+                onClick={() => { onDaysChange(d); }}
                 className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
                   !showCustom && days === d
                     ? "bg-indigo-600 text-white border-indigo-600"
@@ -359,7 +362,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               </button>
             ))}
             <button
-              onClick={() => setShowCustom(v => !v)}
+              onClick={onCustomToggle}
               className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
                 showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-white/40 border-white/15 hover:border-white/30"
               }`}
@@ -371,14 +374,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                 <input
                   type="date"
                   value={customFrom.slice(0, 10)}
-                  onChange={e => setCustomFrom(e.target.value + "T00:00:00Z")}
+                  onChange={e => onCustomFromChange(e.target.value + "T00:00:00Z")}
                   className="text-[10px] bg-[#0d1626] border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
                 <span className="text-[10px] text-white/35">→</span>
                 <input
                   type="date"
                   value={customTo.slice(0, 10)}
-                  onChange={e => setCustomTo(e.target.value + "T23:59:59Z")}
+                  onChange={e => onCustomToChange(e.target.value + "T23:59:59Z")}
                   className="text-[10px] bg-[#0d1626] border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
               </div>
@@ -577,7 +580,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             {[7, 30, 90].map(d => (
               <button
                 key={d}
-                onClick={() => { setDays(d); setShowCustom(false); }}
+                onClick={() => onDaysChange(d)}
                 className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
                   !showCustom && days === d
                     ? "bg-blue-600 text-white border-blue-600"
@@ -588,7 +591,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               </button>
             ))}
             <button
-              onClick={() => setShowCustom(v => !v)}
+              onClick={onCustomToggle}
               className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
                 showCustom ? "bg-blue-600 text-white border-blue-600" : "text-white/40 border-white/15 hover:border-white/30 hover:text-white/70"
               }`}
@@ -600,14 +603,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                 <input
                   type="date"
                   value={customFrom.slice(0, 10)}
-                  onChange={e => setCustomFrom(e.target.value + "T00:00:00Z")}
+                  onChange={e => onCustomFromChange(e.target.value + "T00:00:00Z")}
                   className="text-[10px] bg-white/5 border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
                 <span className="text-[10px] text-white/30">→</span>
                 <input
                   type="date"
                   value={customTo.slice(0, 10)}
-                  onChange={e => setCustomTo(e.target.value + "T23:59:59Z")}
+                  onChange={e => onCustomToChange(e.target.value + "T23:59:59Z")}
                   className="text-[10px] bg-white/5 border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
               </div>

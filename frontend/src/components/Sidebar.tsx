@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 
 export type Tab = "overview" | "sources" | "topics" | "users" | "journalists" | "brand-config" | "review-queue";
@@ -18,6 +19,31 @@ interface Props {
   onBrandChange: () => void;
   isAdmin: boolean;
   lastUpdated?: string | null;
+  // Date range
+  days: number;
+  customFrom: string;
+  customTo: string;
+  showCustom: boolean;
+  onDaysChange: (d: number) => void;
+  onCustomFromChange: (v: string) => void;
+  onCustomToChange: (v: string) => void;
+  onCustomToggle: () => void;
+}
+
+function formatDateLabel(days: number, customFrom: string, customTo: string, showCustom: boolean): string {
+  if (showCustom && customFrom && customTo) {
+    const fmt = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    return `${fmt(customFrom)} – ${fmt(customTo)}`;
+  }
+  if (days === 7)  return "Last 7 days";
+  if (days === 30) return "Last 30 days";
+  if (days === 90) return "Last 90 days";
+  return `Last ${days} days`;
+}
+
+function formatComparison(days: number, showCustom: boolean): string {
+  if (showCustom) return "custom range";
+  return `vs prior ${days} days`;
 }
 
 function NavIcon({ d }: { d: string }) {
@@ -87,7 +113,9 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export function Sidebar({ brand, activeTab, onTabChange, onBrandChange, isAdmin }: Props) {
+export function Sidebar({ brand, activeTab, onTabChange, onBrandChange, isAdmin, days, customFrom, customTo, showCustom, onDaysChange, onCustomFromChange, onCustomToChange, onCustomToggle }: Props) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   return (
     <aside className="w-56 shrink-0 flex flex-col bg-[#1a2744] h-screen overflow-hidden">
 
@@ -135,16 +163,79 @@ export function Sidebar({ brand, activeTab, onTabChange, onBrandChange, isAdmin 
 
       {/* Date range + Brand selector */}
       <div className="px-3 py-3 border-t border-white/10 space-y-2">
-        {/* Date range display */}
-        <div className="flex items-center justify-between bg-white/5 border border-white/8 rounded-lg px-3 py-2">
-          <div>
-            <div className="text-[9px] text-white/35 uppercase tracking-wider font-medium mb-0.5">Date Range</div>
-            <div className="text-[11px] font-semibold text-white/70">Last 7 days</div>
-            <div className="text-[9px] text-white/30 mt-0.5">vs prior 7 days</div>
-          </div>
-          <svg className="w-3 h-3 text-white/30 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+        {/* Date range widget */}
+        <div className="rounded-lg border border-white/8 overflow-hidden">
+          {/* Display row — click to toggle picker */}
+          <button
+            onClick={() => setPickerOpen(v => !v)}
+            className="w-full flex items-center justify-between bg-white/5 hover:bg-white/8 px-3 py-2 transition-colors"
+          >
+            <div className="text-left">
+              <div className="text-[9px] text-white/35 uppercase tracking-wider font-medium mb-0.5">Date Range</div>
+              <div className="text-[11px] font-semibold text-white/70">
+                {formatDateLabel(days, customFrom, customTo, showCustom)}
+              </div>
+              <div className="text-[9px] text-white/30 mt-0.5">
+                {formatComparison(days, showCustom)}
+              </div>
+            </div>
+            <svg
+              className={`w-3 h-3 text-white/30 shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Inline picker panel */}
+          {pickerOpen && (
+            <div className="bg-[#0d1626] border-t border-white/8 p-2 space-y-2">
+              {/* Preset buttons */}
+              <div className="flex gap-1">
+                {[7, 30, 90].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => { onDaysChange(d); setPickerOpen(false); }}
+                    className={`flex-1 text-[10px] py-1 rounded border transition-colors ${
+                      !showCustom && days === d
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "text-white/50 border-white/15 hover:border-white/30 hover:text-white/80"
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+                <button
+                  onClick={onCustomToggle}
+                  className={`flex-1 text-[10px] py-1 rounded border transition-colors ${
+                    showCustom
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "text-white/50 border-white/15 hover:border-white/30 hover:text-white/80"
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {/* Custom date inputs */}
+              {showCustom && (
+                <div className="space-y-1">
+                  <input
+                    type="date"
+                    value={customFrom.slice(0, 10)}
+                    onChange={e => onCustomFromChange(e.target.value + "T00:00:00Z")}
+                    className="w-full text-[10px] bg-white/5 border border-white/15 rounded px-2 py-1 text-white/70 focus:outline-none focus:border-blue-500"
+                  />
+                  <input
+                    type="date"
+                    value={customTo.slice(0, 10)}
+                    onChange={e => { onCustomToChange(e.target.value + "T23:59:59Z"); setPickerOpen(false); }}
+                    className="w-full text-[10px] bg-white/5 border border-white/15 rounded px-2 py-1 text-white/70 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Brand selector */}
