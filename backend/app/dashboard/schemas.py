@@ -262,6 +262,27 @@ class ReviewSummaryResponse(BaseModel):
     top_negative_topics: list[TopicTheme]
 
 
+class ReviewPlatformStat(BaseModel):
+    source_type: str
+    platform_name: str
+    count: int
+    avg_rating: float | None = None
+    positive_count: int = 0
+    negative_count: int = 0
+    neutral_count: int = 0
+    positive_pct: float = 0.0
+    negative_pct: float = 0.0
+    recent_snippets: list[str] = []
+
+
+class ReviewSitesBreakdownResponse(BaseModel):
+    platforms: list[ReviewPlatformStat]
+    total_reviews: int
+    overall_avg_rating: float | None = None
+    brand_id: str
+    period_days: int
+
+
 # --- Competitor Share of Voice ---
 
 class SoVEntry(BaseModel):

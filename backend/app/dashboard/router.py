@@ -34,6 +34,7 @@ from app.dashboard.schemas import (
     SourceCategoryPoint, SourceCategoriesResponse,
     HeadlineItem, HeadlinesResponse,
     ReviewSummaryResponse, ReviewStarBucket, TopicTheme,
+    ReviewPlatformStat, ReviewSitesBreakdownResponse,
     SoVEntry, CompetitorSoVResponse, CompetitorDiscoveryResponse,
     ClusterArticle, IssueCluster, IssueClustersResponse,
     ToneWeek, ToneBreakdownResponse,
@@ -671,7 +672,8 @@ def get_review_summary(
     date_to: str | None = None,
     _user: dict = Depends(require_brand_role(*READ_ROLES)),
 ):
-    articles = get_articles(brand_id, limit=2000, date_from=date_from, date_to=date_to)
+    articles = get_articles(brand_id, limit=2000, date_from=date_from, date_to=date_to,
+                            source_category="review_site")
     if not articles:
         return ReviewSummaryResponse(
             total=0,
@@ -721,6 +723,95 @@ def get_review_summary(
             TopicTheme(label=t, pct=round(c / neg_total * 100, 1))
             for t, c in neg_topics.most_common(5)
         ],
+    )
+
+
+_REVIEW_PLATFORM_NAMES: dict[str, str] = {
+    "google_review":     "Google Reviews",
+    "trustpilot_review": "Trustpilot",
+    "mouthshut_review":  "MouthShut",
+    "justdial_review":   "JustDial",
+    "ambitionbox_review": "AmbitionBox",
+    "tripadvisor_review": "TripAdvisor",
+    "team_bhp_review":   "Team-BHP",
+    "amazon_review":     "Amazon",
+    "flipkart_review":   "Flipkart",
+    "glassdoor_review":  "Glassdoor",
+    "indiamart_review":  "IndiaMART",
+}
+
+
+@router.get("/review-sites-breakdown/{brand_id}", response_model=ReviewSitesBreakdownResponse)
+def get_review_sites_breakdown(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=365),
+    date_from: str | None = None,
+    date_to: str | None = None,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    now = datetime.now(timezone.utc)
+    if date_from:
+        df = date_from
+        dt = date_to or now.isoformat()
+    else:
+        df = (now - timedelta(days=days)).isoformat()
+        dt = now.isoformat()
+
+    articles = get_articles(
+        brand_id, limit=2000,
+        date_from=df, date_to=dt,
+        source_category="review_site",
+    )
+
+    platform_map: dict[str, list[dict]] = {}
+    for a in articles:
+        st = a.get("source_type") or "unknown"
+        platform_map.setdefault(st, []).append(a)
+
+    platforms: list[ReviewPlatformStat] = []
+    for source_type, arts in sorted(platform_map.items(), key=lambda x: -len(x[1])):
+        count = len(arts)
+        pos = sum(1 for a in arts if a.get("sentiment_label") == "positive")
+        neg = sum(1 for a in arts if a.get("sentiment_label") == "negative")
+        neu = count - pos - neg
+
+        score_sum = sum(float(a.get("sentiment_score") or 0) for a in arts)
+        avg_score = score_sum / count if count else 0.0
+        avg_rating = round((avg_score + 1) / 2 * 4 + 1, 1)
+
+        # Up to 3 recent review snippets (body first 120 chars)
+        recent = sorted(arts, key=lambda a: a.get("published_at") or "", reverse=True)[:3]
+        snippets = [
+            (a.get("body") or a.get("title") or "")[:120].strip()
+            for a in recent if (a.get("body") or a.get("title"))
+        ]
+
+        platforms.append(ReviewPlatformStat(
+            source_type=source_type,
+            platform_name=_REVIEW_PLATFORM_NAMES.get(source_type, source_type.replace("_", " ").title()),
+            count=count,
+            avg_rating=avg_rating,
+            positive_count=pos,
+            negative_count=neg,
+            neutral_count=neu,
+            positive_pct=round(pos / count * 100, 1) if count else 0.0,
+            negative_pct=round(neg / count * 100, 1) if count else 0.0,
+            recent_snippets=snippets,
+        ))
+
+    total = sum(p.count for p in platforms)
+    overall_avg: float | None = None
+    if total:
+        score_sum = sum(float(a.get("sentiment_score") or 0) for a in articles)
+        avg_s = score_sum / total
+        overall_avg = round((avg_s + 1) / 2 * 4 + 1, 1)
+
+    return ReviewSitesBreakdownResponse(
+        platforms=platforms,
+        total_reviews=total,
+        overall_avg_rating=overall_avg,
+        brand_id=brand_id,
+        period_days=days,
     )
 
 

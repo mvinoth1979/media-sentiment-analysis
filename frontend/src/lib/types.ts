@@ -220,6 +220,27 @@ export interface ReviewSummaryData {
   top_negative_topics: TopicTheme[];
 }
 
+export interface ReviewPlatformStat {
+  source_type: string;
+  platform_name: string;
+  count: number;
+  avg_rating: number | null;
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
+  positive_pct: number;
+  negative_pct: number;
+  recent_snippets: string[];
+}
+
+export interface ReviewSitesBreakdownData {
+  platforms: ReviewPlatformStat[];
+  total_reviews: number;
+  overall_avg_rating: number | null;
+  brand_id: string;
+  period_days: number;
+}
+
 export interface SoVEntry {
   name: string;
   count: number;

@@ -22,6 +22,7 @@ import { TopNegativeMentions } from "../components/TopNegativeMentions";
 import { TopBrandAdvocates } from "../components/TopBrandAdvocates";
 import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
 import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
+import { ReviewSitesDashboard } from "../components/ReviewSitesDashboard";
 import { CompetitorComparison } from "../components/CompetitorComparison";
 import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
@@ -836,7 +837,6 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ══════════════════ SCREEN 3 ══════════════════════════════════════════ */}
       <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] shrink-0">
         {/* Header strip */}
-        {/* Header strip */}
         <div className="flex items-center gap-3 px-4 py-2 bg-[#1a2744] border-b border-white/10 flex-none">
           <h2 className="text-sm font-semibold text-white">Drill-Down Analysis</h2>
           <span className="text-[10px] text-white/40">— scroll up to return to overview</span>
@@ -884,6 +884,21 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <ViralityAlertsPanel brandId={brandId} days={days} />
           </div>
         </div>
+
+        {/* Scroll hint to Screen 4 */}
+        <div className="flex justify-center flex-none pb-1">
+          <div className="flex flex-col items-center gap-0.5 opacity-25">
+            <span className="text-[9px] text-white/60">review sites ↓</span>
+            <svg className="w-3 h-3 text-white/60 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════ SCREEN 4 — Review Sites Intelligence ═════════════ */}
+      <div className="h-full snap-start overflow-hidden shrink-0">
+        <ReviewSitesDashboard brandId={brandId} days={days} />
       </div>
 
     </div>

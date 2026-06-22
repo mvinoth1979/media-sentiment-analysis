@@ -177,6 +177,14 @@ export const fetchReviewSummary = (
     .get<import("./types").ReviewSummaryData>(`/dashboard/review-summary/${brandId}`, { params })
     .then(r => r.data);
 
+export const fetchReviewSitesBreakdown = (
+  brandId: string,
+  params?: { days?: number; date_from?: string; date_to?: string }
+) =>
+  api
+    .get<import("./types").ReviewSitesBreakdownData>(`/dashboard/review-sites-breakdown/${brandId}`, { params })
+    .then(r => r.data);
+
 export const fetchCompetitorSoV = (
   brandId: string,
   params?: { date_from?: string; date_to?: string }

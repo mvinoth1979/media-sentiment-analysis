@@ -46,6 +46,12 @@ _SOURCE_CATEGORY_MAP: dict[str, list[str]] = {
     "reddit":       ["reddit_post", "reddit_comment"],
     "news":         ["news"],
     "google_review": ["google_review"],
+    "review_site":  [
+        "google_review", "trustpilot_review", "mouthshut_review",
+        "justdial_review", "ambitionbox_review", "tripadvisor_review",
+        "team_bhp_review", "amazon_review", "flipkart_review",
+        "glassdoor_review", "indiamart_review",
+    ],
 }
 
 
