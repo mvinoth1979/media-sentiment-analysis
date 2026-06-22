@@ -790,30 +790,30 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           <div ref={mentionsRef} />
         </div>
 
-        {/* 2-col grid: left (News + Review) | right (Competitor Comparison) */}
-        <div className="grid grid-cols-2 gap-3 p-3 flex-1 min-h-0">
-          {/* Left column */}
-          <div className="flex flex-col gap-3 min-h-0">
-            <div className="flex-[3] min-h-0">
-              <NewsRSSMentionsPanel
-                brandId={brandId}
-                brandName={brandName}
-                portals={data.top_sources.map(s => s.portal_id)}
-                topics={data.top_topics}
-                states={data.state_breakdown.map(s => s.state)}
-                bySourceType={data.by_source_type}
-              />
-            </div>
-            <div className="flex-[2] min-h-0">
-              <ReviewSiteAnalysisPanel
-                brandId={brandId}
-                bySourceType={data.by_source_type}
-              />
-            </div>
+        {/* 3-col flex: News & RSS | Review Sites | Share of Voice */}
+        <div className="flex gap-3 p-3 flex-1 min-h-0">
+          {/* Col 1 — News & RSS (widest) */}
+          <div className="flex-[5] min-h-0 min-w-0">
+            <NewsRSSMentionsPanel
+              brandId={brandId}
+              brandName={brandName}
+              portals={data.top_sources.map(s => s.portal_id)}
+              topics={data.top_topics}
+              states={data.state_breakdown.map(s => s.state)}
+              bySourceType={data.by_source_type}
+            />
           </div>
 
-          {/* Right column */}
-          <div className="min-h-0">
+          {/* Col 2 — Review Site Analysis */}
+          <div className="flex-[3] min-h-0 min-w-0">
+            <ReviewSiteAnalysisPanel
+              brandId={brandId}
+              bySourceType={data.by_source_type}
+            />
+          </div>
+
+          {/* Col 3 — Share of Voice */}
+          <div className="flex-[4] min-h-0 min-w-0">
             <CompetitorComparison
               brandId={brandId}
               days={days}

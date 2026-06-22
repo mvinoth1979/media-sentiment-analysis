@@ -59,7 +59,7 @@ export function NewsRSSMentionsPanel({ brandId, brandName, portals = [], topics 
       </div>
 
       {/* MentionsList pre-filtered to news/blog sources */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <MentionsList
           brandId={brandId}
           brandName={brandName}

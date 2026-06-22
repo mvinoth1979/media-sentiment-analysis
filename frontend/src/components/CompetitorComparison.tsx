@@ -145,7 +145,7 @@ export function CompetitorComparison({ brandId, days = 30, topTopics = [] }: Pro
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-[9px] text-white/35">Executive Overview</span>
             <span className="text-[9px] text-white/20">›</span>
-            <span className="text-[10px] font-semibold text-white/70">Competitor Comparison</span>
+            <span className="text-[10px] font-semibold text-white/70">Share of Voice</span>
           </div>
           {/* Tab bar */}
           <div className="flex gap-1">
