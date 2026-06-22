@@ -1,18 +1,16 @@
-"""Tests for Google Business Reviews collector (Item 6).
+"""Tests for Google Business Reviews collector.
 
-Uses TDD — tests were written before implementation.
-All HTTP calls are mocked with httpx.MockTransport / respx-style mocks using
-unittest.mock.patch so no real network calls are made.
+Uses legacy Places Details API (maps.googleapis.com/maps/api/place/details/json).
+All HTTP calls are mocked with unittest.mock.patch — no real network calls.
 """
 
 import hashlib
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import httpx
-import pytest
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers — legacy Places Details API response format
 # ---------------------------------------------------------------------------
 
 _BRAND = {"id": "brand-abc-123", "name": "Amul Dairy"}
@@ -29,36 +27,39 @@ _CONFIG_DISABLED = {
     "google_places_id": "ChIJtesting12345",
 }
 
+# Legacy API uses author_name (str), text (str), time (unix int)
 _FAKE_REVIEW_1 = {
-    "name": "places/ChIJtesting12345/reviews/r1",
-    "relativePublishTimeDescription": "2 days ago",
+    "author_name": "Happy Customer",
     "rating": 5,
-    "text": {"text": "Excellent products, very fresh milk every day!", "languageCode": "en"},
-    "originalText": {"text": "Excellent products, very fresh milk every day!"},
-    "authorAttribution": {"displayName": "Happy Customer", "uri": ""},
-    "publishTime": "2024-01-10T10:00:00Z",
+    "text": "Excellent products, very fresh milk every day!",
+    "time": 1704880800,  # 2024-01-10T10:00:00Z
+    "relative_time_description": "2 days ago",
 }
 
 _FAKE_REVIEW_2 = {
-    "name": "places/ChIJtesting12345/reviews/r2",
-    "relativePublishTimeDescription": "5 days ago",
+    "author_name": "Disappointed User",
     "rating": 2,
-    "text": {"text": "Delivery was late and butter was melted.", "languageCode": "en"},
-    "originalText": {"text": "Delivery was late and butter was melted."},
-    "authorAttribution": {"displayName": "Disappointed User", "uri": ""},
-    "publishTime": "2024-01-07T08:00:00Z",
+    "text": "Delivery was late and butter was melted.",
+    "time": 1704614400,  # 2024-01-07T08:00:00Z
+    "relative_time_description": "5 days ago",
 }
 
+# Legacy API wraps everything under result + status
 _PLACES_RESPONSE = {
-    "id": "ChIJtesting12345",
-    "displayName": {"text": "Amul Dairy", "languageCode": "en"},
-    "reviews": [_FAKE_REVIEW_1, _FAKE_REVIEW_2],
+    "status": "OK",
+    "result": {
+        "name": "Amul Dairy",
+        "rating": 4.2,
+        "reviews": [_FAKE_REVIEW_1, _FAKE_REVIEW_2],
+    },
 }
 
+# Legacy text search response format
 _SEARCH_RESPONSE = {
-    "places": [
-        {"id": "ChIJresolved99999", "displayName": {"text": "Amul Dairy", "languageCode": "en"}}
-    ]
+    "status": "OK",
+    "results": [
+        {"place_id": "ChIJresolved99999", "name": "Amul Dairy"}
+    ],
 }
 
 
@@ -114,9 +115,9 @@ def test_collect_with_known_places_id(monkeypatch):
         result = mod.collect_google_reviews_for_brand(_BRAND, _CONFIG_ENABLED)
 
     assert len(result) == 2
-    # Verify the GET was called with correct URL
+    # Verify the GET was called with the legacy details endpoint
     call_url = mock_get.call_args[0][0]
-    assert "places/ChIJtesting12345" in call_url
+    assert "place/details" in call_url
 
     # Verify article structure
     article = result[0]
@@ -136,11 +137,12 @@ def test_collect_with_known_places_id(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_content_hash_deterministic():
-    """Same brand_id + author + publish_time always yields same hash."""
+    """Same brand_id + author + unix_time always yields same hash."""
     brand_id = "brand-abc-123"
     author = "Happy Customer"
-    publish_time = "2024-01-10T10:00:00Z"
-    expected = hashlib.sha256(f"{brand_id}:{author}:{publish_time}".encode()).hexdigest()
+    # Legacy API uses unix timestamp (int) as the publish_key
+    time_val = 1704880800
+    expected = hashlib.sha256(f"{brand_id}:{author}:{time_val}".encode()).hexdigest()
 
     with patch("httpx.get", return_value=_make_mock_response(_PLACES_RESPONSE)):
         from importlib import reload
@@ -158,37 +160,33 @@ def test_content_hash_deterministic():
 # ---------------------------------------------------------------------------
 
 def test_resolves_place_id_via_search(monkeypatch):
-    """When google_places_id is empty, POSTs to searchText and resolves ID."""
+    """When google_places_id is empty, GETs text search and resolves ID."""
     monkeypatch.setattr("app.config.settings.google_places_api_key", "fake-api-key")
 
-    # First call: POST to searchText → returns search result
-    # Second call: GET place details → returns reviews
-    search_resp = _make_mock_response(_SEARCH_RESPONSE)
-    place_resp = _make_mock_response(
-        {
-            "id": "ChIJresolved99999",
-            "displayName": {"text": "Amul Dairy"},
+    # Both search and details use GET in the legacy API
+    place_details_response = {
+        "status": "OK",
+        "result": {
+            "name": "Amul Dairy",
             "reviews": [_FAKE_REVIEW_1],
-        }
-    )
+        },
+    }
+    search_resp = _make_mock_response(_SEARCH_RESPONSE)
+    place_resp = _make_mock_response(place_details_response)
 
     import app.ingestion.google_reviews_collector as mod
 
-    # Patch _save_places_id on the already-imported module object so reload
-    # does not break the reference; patch httpx at the top-level so the module
-    # picks up the mock regardless of reload order.
-    with patch("httpx.post", return_value=search_resp) as mock_post, \
-         patch("httpx.get", return_value=place_resp) as mock_get, \
+    with patch("httpx.get", side_effect=[search_resp, place_resp]) as mock_get, \
          patch.object(mod, "_save_places_id") as mock_save:
         result = mod.collect_google_reviews_for_brand(_BRAND, _CONFIG_NO_ID)
 
-    # Verify POST was called with searchText endpoint
-    post_url = mock_post.call_args[0][0]
-    assert "places:searchText" in post_url
+    # First GET → text search endpoint
+    first_url = mock_get.call_args_list[0][0][0]
+    assert "textsearch" in first_url
 
-    # Verify GET was called with resolved ID
-    get_url = mock_get.call_args[0][0]
-    assert "ChIJresolved99999" in get_url
+    # Second GET → place details with resolved ID in params
+    second_kwargs = mock_get.call_args_list[1][1]
+    assert second_kwargs["params"]["place_id"] == "ChIJresolved99999"
 
     # Verify the resolved ID was saved back
     mock_save.assert_called_once_with("brand-abc-123", "ChIJresolved99999")
@@ -204,7 +202,8 @@ def test_graceful_noop_when_search_empty(monkeypatch):
     """Returns [] when text search finds no places."""
     monkeypatch.setattr("app.config.settings.google_places_api_key", "fake-api-key")
 
-    with patch("httpx.post", return_value=_make_mock_response({"places": []})):
+    empty_search = _make_mock_response({"status": "ZERO_RESULTS", "results": []})
+    with patch("httpx.get", return_value=empty_search):
         from importlib import reload
         import app.ingestion.google_reviews_collector as mod
         reload(mod)
@@ -240,18 +239,20 @@ def test_caps_at_five_reviews(monkeypatch):
 
     many_reviews = [
         {
-            "name": f"places/ChIJtesting12345/reviews/r{i}",
+            "author_name": f"User{i}",
             "rating": 4,
-            "text": {"text": f"Review text {i}", "languageCode": "en"},
-            "authorAttribution": {"displayName": f"User{i}", "uri": ""},
-            "publishTime": f"2024-01-{i + 1:02d}T10:00:00Z",
+            "text": f"Review text number {i} with enough content",
+            "time": 1704880800 + i * 86400,
+            "relative_time_description": f"{i} days ago",
         }
         for i in range(10)
     ]
     response_with_many = {
-        "id": "ChIJtesting12345",
-        "displayName": {"text": "Amul Dairy"},
-        "reviews": many_reviews,
+        "status": "OK",
+        "result": {
+            "name": "Amul Dairy",
+            "reviews": many_reviews,
+        },
     }
 
     with patch("httpx.get", return_value=_make_mock_response(response_with_many)):
