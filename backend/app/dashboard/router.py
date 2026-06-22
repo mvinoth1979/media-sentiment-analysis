@@ -25,7 +25,7 @@ from app.storage.influxdb import (
 from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
-    SourceStat, TopicStat, StateStat, TrendPoint,
+    SourceStat, TopicStat, StateStat, TrendPoint, SourceTypeStat,
     Annotation, AnnotationCreate, DeleteMentionsRequest, PipelineStats,
     SentimentTrendPoint, SentimentTrendResponse,
     SourceCategoryPoint, SourceCategoriesResponse,
@@ -135,6 +135,9 @@ def get_overview(
     pipeline_info = get_pipeline_info(brand_id)
     raw_stats = pipeline_info.get("pipeline_last_stats") or {}
 
+    previous_articles = get_articles(brand_id, limit=500, date_from=previous_start.isoformat(), date_to=current_start.isoformat())
+    by_source_type = _compute_by_source_type(all_articles, previous_articles)
+
     return OverviewResponse(
         kpi=KPISummary(perception_score=recent_score, **kpi_raw, **wow_delta),
         trend=[TrendPoint(**p) for p in trend_raw],
@@ -151,6 +154,7 @@ def get_overview(
             processed=raw_stats.get("processed", 0),
             errors=raw_stats.get("errors", 0),
         ),
+        by_source_type=by_source_type,
     )
 
 
@@ -176,6 +180,53 @@ def _compute_wow_delta(current: dict, previous: dict) -> dict:
         "perception_score_delta": round(current["perception_score"] - previous["perception_score"], 2),
         "mentions_delta_pct": round((current["count"] - previous["count"]) / previous["count"] * 100, 1),
     }
+
+
+_SOURCE_TYPE_CATEGORY: dict[str, str] = {
+    "news": "news", "rss": "news",
+    "youtube_video": "youtube", "youtube_comment": "youtube",
+    "blog": "blog", "portal": "blog",
+    "google_review": "google_review",
+    "reddit_post": "reddit_post", "reddit_comment": "reddit_post", "forum": "reddit_post",
+}
+_SOURCE_CATEGORIES = ("news", "youtube", "blog", "google_review", "reddit_post")
+
+
+def _compute_by_source_type(
+    current: list[dict],
+    previous: list[dict],
+) -> dict[str, SourceTypeStat]:
+    def _cat(a: dict) -> str:
+        return _SOURCE_TYPE_CATEGORY.get(a.get("source_type") or "", "news")
+
+    curr_map: dict[str, list[dict]] = {c: [] for c in _SOURCE_CATEGORIES}
+    prev_map: dict[str, list[dict]] = {c: [] for c in _SOURCE_CATEGORIES}
+    for a in current:
+        curr_map[_cat(a)].append(a)
+    for a in previous:
+        prev_map[_cat(a)].append(a)
+
+    result: dict[str, SourceTypeStat] = {}
+    for cat in _SOURCE_CATEGORIES:
+        curr_arts = curr_map[cat]
+        prev_arts = prev_map[cat]
+        count = len(curr_arts)
+        prev_count = len(prev_arts)
+        neg = sum(1 for a in curr_arts if a.get("sentiment_label") == "negative")
+        neg_pct = round(neg / count * 100, 1) if count else 0.0
+        delta_pct = round((count - prev_count) / prev_count * 100, 1) if prev_count else None
+        avg_rating: float | None = None
+        if cat == "google_review" and count:
+            score_sum = sum(float(a.get("sentiment_score") or 0) for a in curr_arts)
+            avg_score = score_sum / count
+            avg_rating = round((avg_score + 1) / 2 * 4 + 1, 1)
+        result[cat] = SourceTypeStat(
+            count=count,
+            delta_pct=delta_pct,
+            negative_pct=neg_pct,
+            avg_rating=avg_rating,
+        )
+    return result
 
 
 def _compute_source_stats(articles: list[dict]) -> list[SourceStat]:

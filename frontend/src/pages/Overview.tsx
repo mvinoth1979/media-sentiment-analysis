@@ -5,6 +5,7 @@ import type { AlertConfig, DivergenceSummaryData } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { MentionsBySourceDonut } from "../components/charts/MentionsBySourceDonut";
+import { MentionsBySourceCards } from "../components/MentionsBySourceCards";
 import { MentionsList } from "../components/mentions/MentionsList";
 import { TopHeadlines } from "../components/TopHeadlines";
 import { SentimentBySourceTable } from "../components/SentimentBySourceTable";
@@ -644,12 +645,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
         {/* ── Row 3: Mentions by Source | Top Headlines ─────────────── flex-1 */}
         <div className="grid grid-cols-12 gap-2 flex-1 min-h-0">
           <div className="col-span-5 min-h-0">
-            <MentionsBySourceDonut
-              brandId={brandId}
-              compact
-              onClick={() => setActivePanel("mentions-donut")}
-              onSourceClick={(category, label) => openDrill({ label: `Source: ${label}`, sourceCategory: category })}
-            />
+            <MentionsBySourceCards data={data?.by_source_type ?? {}} />
           </div>
           <div className="col-span-7 min-h-0">
             <TopHeadlines brandId={brandId} compact onClick={() => setActivePanel("top-headlines")} />

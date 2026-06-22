@@ -113,6 +113,14 @@ export interface BrandUser {
   agency_id: string | null;
 }
 
+export interface SourceTypeStat {
+  count: number;
+  delta_pct: number | null;
+  negative_pct: number | null;
+  avg_rating: number | null;
+  sparkline: number[];
+}
+
 export interface OverviewData {
   kpi: KPISummary;
   trend: TrendPoint[];
@@ -125,6 +133,7 @@ export interface OverviewData {
   pipeline_status: "idle" | "running";
   pipeline_last_run_at: string | null;
   pipeline_last_stats: PipelineStats;
+  by_source_type: Record<string, SourceTypeStat>;
 }
 
 // ── Phase 3 types ──────────────────────────────────────────────────────────────

@@ -108,6 +108,14 @@ class PipelineStats(BaseModel):
     errors: int = 0
 
 
+class SourceTypeStat(BaseModel):
+    count: int = 0
+    delta_pct: float | None = None
+    negative_pct: float | None = None
+    avg_rating: float | None = None
+    sparkline: list[int] = []
+
+
 class OverviewResponse(BaseModel):
     kpi: KPISummary
     trend: list[TrendPoint]
@@ -120,6 +128,7 @@ class OverviewResponse(BaseModel):
     pipeline_status: str = "idle"
     pipeline_last_run_at: str | None = None
     pipeline_last_stats: PipelineStats = PipelineStats()
+    by_source_type: dict[str, SourceTypeStat] = {}
 
 
 # --- Phase 3: Sentiment Trend (3-line + Tier 1+2 overlay) ---
