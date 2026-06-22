@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-22 IST (Phase 3 dashboard complete — 3-screen scroll-snap, all components, Mentions Monitor)
+> **Last updated:** 2026-06-22 IST (Phase 3 dashboard + LLM cost optimisation — tier routing, code extractors, Gemini paid/free/Groq rotation)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -83,6 +83,8 @@
 | **Sidebar date range picker** | ✅ Live | Inline expandable picker; shows live label ("Last 7 days" / "Jun 1–Jun 21"); preset 7d/30d/90d + custom date inputs; state shared across Sidebar and Overview |
 | **Click-to-detail panel navigation** | ✅ Live | Every dashboard section and KPI card is clickable — opens a full second-screen detail with breadcrumb `← Executive Overview | [Section Name]`; back navigation returns to compact grid |
 | **Mention Explorer — light theme + numbered pagination** | ✅ Live | `1–10 of 10+` counter; numbered paginator (← 1 2 →); 10 results per page |
+| **NLP tier routing + API cost optimisation** | ✅ Live | 4-tier pipeline: Tier 0 code-only (star rating → sentiment, ≤8-word → neutral); Tier 1 Groq free (EN social comments + posts); Tier 2 Gemini free key (EN news articles); Tier 3 Gemini paid key (Indic-language content + AI Summary). Full fallback chain across all providers. Code extractors (states_mentioned, topics, keywords, issue_category) run zero-cost before any LLM call and are merged post-call. Expected: ~69% reduction in paid Gemini calls per pipeline run. |
+| **Round-robin Groq key rotation** | ✅ Live | Thread-safe APIRouter class — up to 2 Groq API keys rotate round-robin with per-key rate-limit cooldown tracking (65s on 429). Gemini paid and free clients are similarly tracked. Full fallback: if primary tier rate-limited, auto-falls to next tier. |
 
 ### Not Yet Live (Planned)
 

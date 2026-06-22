@@ -1,6 +1,6 @@
 # MediaSense — Team Requirements & Cost Analysis
 
-> **Last updated:** 2026-06-22 IST (Phase 3 dashboard complete — 3-screen scroll-snap, dark theme, all components)
+> **Last updated:** 2026-06-22 IST (Phase 3 dashboard + LLM cost optimisation — tier routing, code extractors, Gemini paid/free/Groq rotation)
 > **Scope:** MVP to production-grade SaaS (news monitoring, 6 Indian languages, 12 brands, RBAC)
 > **Update this document** whenever a major feature (social media, alerts, export, billing, etc.) is added.
 > **See also:** `docs/competitive-analysis-and-pricing.md` for feature comparison and pricing tiers.
@@ -68,9 +68,15 @@
 - No branded PDF report generation
 
 ### NLP Scalability — Medium-Long Term
-- Gemini + Groq free tiers cap at ~1,500 calls/day combined
-- At 12 brands × 20 articles × 6 languages = up to 1,440 calls/run — already at ceiling
-- Adding 10+ more brands breaks quota without moving to paid NLP tiers
+- ~~Gemini + Groq free tiers cap at ~1,500 calls/day combined~~ **✅ Mitigated — LLM tier routing shipped**
+  - **Tier 0 (code-only):** Google reviews with star rating → sentiment via mapping; ≤8-word text → default neutral. Zero API cost.
+  - **Tier 1 (Groq free):** EN social comments, YouTube/Reddit posts → LLaMA 3.1 8B Instant. Round-robin across 2 Groq keys.
+  - **Tier 2 (Gemini free key):** EN news articles (primary path for majority of content).
+  - **Tier 3 (Gemini paid key):** Indic-language content (TA/HI/GU/BN/KN) + AI Executive Summary.
+  - **Code extractors:** states_mentioned (regex + city map), topics (keyword dict), keywords (frequency), issue_category (confidence-gated keyword rules) — extracted without any LLM call and merged with LLM results post-call.
+  - **Expected impact:** ~69% reduction in paid Gemini calls (2,940 → ~900 per pipeline run at 12 brands).
+- At scale (50+ brands): Indic content quota will be the bottleneck — evaluate IndicLID-FT + regional Groq routing at that point
+- Adding 10+ English-only brands now fits within Gemini free tier + Groq
 
 ---
 
