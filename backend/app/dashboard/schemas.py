@@ -131,6 +131,32 @@ class OverviewResponse(BaseModel):
     by_source_type: dict[str, SourceTypeStat] = {}
 
 
+# --- Screen 2: Top Influential Sources ---
+
+class InfluentialSource(BaseModel):
+    portal_name: str
+    impact_score: int  # 0-100, normalised
+    sentiment: str
+    article_count: int
+
+
+class TopSourcesResponse(BaseModel):
+    sources: list[InfluentialSource]
+
+
+# --- Screen 2: Top Brand Advocates ---
+
+class BrandAdvocate(BaseModel):
+    name: str
+    source_type: str  # "YouTube" | "Blog" | "Reddit"
+    article_count: int
+    total_reach: float
+
+
+class TopAdvocatesResponse(BaseModel):
+    advocates: list[BrandAdvocate]
+
+
 # --- Phase 3: Sentiment Trend (3-line + Tier 1+2 overlay) ---
 
 class SentimentTrendPoint(BaseModel):

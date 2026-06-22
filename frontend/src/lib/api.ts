@@ -221,4 +221,14 @@ export const fetchAiSummary = (
     )
     .then(r => r.data);
 
+export const fetchTopSources = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").TopSourcesData>(`/dashboard/top-sources/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
+export const fetchTopAdvocates = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").TopAdvocatesData>(`/dashboard/top-advocates/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export default api;

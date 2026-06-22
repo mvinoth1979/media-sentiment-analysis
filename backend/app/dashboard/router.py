@@ -26,6 +26,7 @@ from app.pipeline.perception import calculate_perception_score
 from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
     SourceStat, TopicStat, StateStat, TrendPoint, SourceTypeStat,
+    InfluentialSource, TopSourcesResponse, BrandAdvocate, TopAdvocatesResponse,
     Annotation, AnnotationCreate, DeleteMentionsRequest, PipelineStats,
     SentimentTrendPoint, SentimentTrendResponse,
     SourceCategoryPoint, SourceCategoriesResponse,
@@ -1526,3 +1527,97 @@ def get_ai_summary(
     }
     _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
     return AISummaryResponse(**result)
+
+
+# ── Screen 2: Top Influential Sources ──────────────────────────────────────────
+
+@router.get("/top-sources/{brand_id}", response_model=TopSourcesResponse)
+def get_top_sources_endpoint(
+    brand_id: str,
+    days: int = Query(30),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    from collections import defaultdict
+    current_end = datetime.utcnow()
+    current_start = current_end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=500, date_from=current_start.isoformat(), date_to=current_end.isoformat())
+
+    stats: dict = defaultdict(lambda: {"name": "", "total_reach": 0.0, "scores": [], "credibilities": [], "counts": {}})
+    for a in articles:
+        pid = a.get("portal_id", "unknown")
+        reach_meta = a.get("reach_metadata") or {}
+        reach = float(reach_meta.get("estimated_reach", 1)) if isinstance(reach_meta, dict) else 1.0
+        score = abs(float(a.get("sentiment_score") or 0))
+        cred = float(a.get("source_credibility") or 0.5)
+        sent = a.get("sentiment_label") or "neutral"
+
+        s = stats[pid]
+        s["name"] = a.get("portal_name") or pid
+        s["total_reach"] += reach
+        s["scores"].append(score)
+        s["credibilities"].append(cred)
+        s["counts"][sent] = s["counts"].get(sent, 0) + 1
+
+    rows = []
+    for pid, s in stats.items():
+        avg_score = sum(s["scores"]) / len(s["scores"]) if s["scores"] else 0
+        avg_cred = sum(s["credibilities"]) / len(s["credibilities"]) if s["credibilities"] else 0.5
+        impact_raw = s["total_reach"] * avg_score * avg_cred
+        total = sum(s["counts"].values())
+        dominant = max(s["counts"], key=s["counts"].get) if s["counts"] else "neutral"
+        rows.append({"name": s["name"], "impact_raw": impact_raw, "sentiment": dominant, "count": total})
+
+    rows.sort(key=lambda x: x["impact_raw"], reverse=True)
+    max_raw = rows[0]["impact_raw"] if rows else 1.0
+    sources = [
+        InfluentialSource(
+            portal_name=r["name"],
+            impact_score=round(r["impact_raw"] / max_raw * 100) if max_raw > 0 else 0,
+            sentiment=r["sentiment"],
+            article_count=r["count"],
+        )
+        for r in rows[:5]
+    ]
+    return TopSourcesResponse(sources=sources)
+
+
+# ── Screen 2: Top Brand Advocates ──────────────────────────────────────────────
+
+_ADVOCATE_SOURCE_TYPES = {"youtube_video", "youtube_comment", "blog", "reddit_post"}
+_ADVOCATE_TYPE_LABEL = {"youtube_video": "YouTube", "youtube_comment": "YouTube", "blog": "Blog", "reddit_post": "Reddit"}
+
+
+@router.get("/top-advocates/{brand_id}", response_model=TopAdvocatesResponse)
+def get_top_advocates_endpoint(
+    brand_id: str,
+    days: int = Query(30),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    from collections import defaultdict
+    current_end = datetime.utcnow()
+    current_start = current_end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=500, sentiment="positive", date_from=current_start.isoformat(), date_to=current_end.isoformat())
+    articles = [a for a in articles if a.get("source_type") in _ADVOCATE_SOURCE_TYPES]
+
+    stats: dict = defaultdict(lambda: {"name": "", "source_type": "", "total_reach": 0.0, "count": 0})
+    for a in articles:
+        author_info = a.get("author_info")
+        author = a.get("author") or (author_info.get("display_name") if isinstance(author_info, dict) else None)
+        key = author or a.get("portal_id", "unknown")
+        name = author or a.get("portal_name") or a.get("portal_id", "Unknown")
+        src_type = a.get("source_type", "blog")
+        reach_meta = a.get("reach_metadata") or {}
+        reach = float(reach_meta.get("estimated_reach", 1)) if isinstance(reach_meta, dict) else 1.0
+
+        s = stats[key]
+        s["name"] = name
+        s["source_type"] = _ADVOCATE_TYPE_LABEL.get(src_type, "Media")
+        s["total_reach"] += reach
+        s["count"] += 1
+
+    results = sorted(stats.values(), key=lambda x: x["total_reach"], reverse=True)
+    advocates = [
+        BrandAdvocate(name=r["name"], source_type=r["source_type"], article_count=r["count"], total_reach=r["total_reach"])
+        for r in results[:5]
+    ]
+    return TopAdvocatesResponse(advocates=advocates)

@@ -17,6 +17,9 @@ import { YouTubeSentimentSplit } from "../components/YouTubeSentimentSplit";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { AIExecutiveSummary } from "../components/AIExecutiveSummary";
 import { ReputationRiskGauge } from "../components/ReputationRiskGauge";
+import { TopInfluentialSources } from "../components/TopInfluentialSources";
+import { TopNegativeMentions } from "../components/TopNegativeMentions";
+import { TopBrandAdvocates } from "../components/TopBrandAdvocates";
 import { formatCount } from "../lib/utils";
 
 type ActivePanel =
@@ -666,16 +669,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ══════════════════ SCREEN 2 ══════════════════════════════════════════ */}
       <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
 
-        {/* ── Row 3: Review Sites | Top Issues | Sentiment by Source ─── flex-[3] */}
+        {/* ── Row 1: Top Issues | Top Influential Sources | Top Negative ── flex-[3] */}
         <div className="grid grid-cols-3 gap-2 flex-[3] min-h-0">
-          <div className="min-h-0">
-            <ReviewSitesSummary
-              brandId={brandId}
-              compact
-              onClick={() => setActivePanel("review-sites")}
-              onThemeClick={(topic) => openDrill({ label: `Theme: ${topic}`, topic })}
-            />
-          </div>
           <div className="min-h-0">
             <TopIssuesTable
               brandId={brandId}
@@ -686,20 +681,15 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             />
           </div>
           <div className="min-h-0">
-            <SentimentBySourceTable brandId={brandId} compact onClick={() => setActivePanel("sentiment-by-source")} />
+            <TopInfluentialSources brandId={brandId} days={days} />
+          </div>
+          <div className="min-h-0">
+            <TopNegativeMentions brandId={brandId} days={days} />
           </div>
         </div>
 
-        {/* ── Row 4: Competitor SoV | Risk Gauge | Alerts ──────────────── flex-[3] */}
+        {/* ── Row 2: Risk Gauge | India Map | Brand Advocates ──────────── flex-[3] */}
         <div className="grid grid-cols-3 gap-2 flex-[3] min-h-0">
-          <div className="min-h-0">
-            <CompetitorShareOfVoice
-              brandId={brandId}
-              compact
-              onClick={() => setActivePanel("competitor-sov")}
-              onEntityClick={(name) => openDrill({ label: `Mentions: ${name}`, entity: name })}
-            />
-          </div>
           <div className="min-h-0">
             <ReputationRiskGauge
               score={riskScore}
@@ -709,8 +699,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               compact
             />
           </div>
-          <div className="min-h-0 cursor-pointer" onClick={() => setActivePanel("alerts")}>
-            <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} compact />
+          <div className="min-h-0 overflow-auto">
+            <IndiaStateMap
+              data={data.state_breakdown}
+              onStateClick={(state) => openDrill({ label: `State: ${state}`, state })}
+            />
+          </div>
+          <div className="min-h-0">
+            <TopBrandAdvocates brandId={brandId} days={days} />
           </div>
         </div>
 
@@ -729,11 +725,11 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       {/* ══════════════════ SCREEN 3 ══════════════════════════════════════════ */}
-      <div className="h-full snap-start overflow-hidden flex flex-col bg-gray-50 shrink-0">
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] shrink-0">
         {/* Header strip */}
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-gray-200 flex-none">
-          <h2 className="text-sm font-semibold text-gray-800">All Mentions</h2>
-          <span className="text-[10px] text-gray-400">— scroll up to return to overview</span>
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#1a2744] border-b border-white/10 flex-none">
+          <h2 className="text-sm font-semibold text-white">All Mentions</h2>
+          <span className="text-[10px] text-white/40">— scroll up to return to overview</span>
           <div ref={mentionsRef} />
         </div>
         {/* Full MentionsList embedded */}

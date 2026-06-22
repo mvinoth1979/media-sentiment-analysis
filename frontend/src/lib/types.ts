@@ -358,3 +358,27 @@ export interface IssueCategoriesData {
   period_days: number;
   brand_id: string;
 }
+
+// ── Screen 2: Top Influential Sources + Top Brand Advocates ───────────────────
+
+export interface InfluentialSource {
+  portal_name: string;
+  impact_score: number;
+  sentiment: "positive" | "negative" | "neutral";
+  article_count: number;
+}
+
+export interface TopSourcesData {
+  sources: InfluentialSource[];
+}
+
+export interface BrandAdvocate {
+  name: string;
+  source_type: string;
+  article_count: number;
+  total_reach: number;
+}
+
+export interface TopAdvocatesData {
+  advocates: BrandAdvocate[];
+}
