@@ -142,8 +142,10 @@ def get_overview(
     previous_articles = get_articles(brand_id, limit=500, date_from=previous_start.isoformat(), date_to=current_start.isoformat())
     by_source_type = _compute_by_source_type(all_articles, previous_articles)
 
+    total_reach = sum(int(a.get("reach_score") or 0) for a in all_articles) * 1000
+
     return OverviewResponse(
-        kpi=KPISummary(perception_score=recent_score, **kpi_raw, **wow_delta),
+        kpi=KPISummary(perception_score=recent_score, total_reach=total_reach, **kpi_raw, **wow_delta),
         trend=[TrendPoint(**p) for p in trend_raw],
         recent_mentions=[_article_to_item(a) for a in recent],
         top_sources=_compute_source_stats(all_articles)[:5],

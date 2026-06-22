@@ -11,6 +11,7 @@ class KPISummary(BaseModel):
     negative_pct: float
     neutral_pct: float
     youtube_mention_count: int = 0
+    total_reach: int = 0
     perception_score_delta: float | None = None
     mentions_delta_pct: float | None = None
 

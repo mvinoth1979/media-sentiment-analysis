@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOverview, fetchAlerts, createAlert, deleteAlert, fetchDivergenceSummary } from "../lib/api";
+import { fetchOverview, fetchAlerts, createAlert, deleteAlert, fetchDivergenceSummary, fetchCompetitorSoV } from "../lib/api";
 import type { AlertConfig, DivergenceSummaryData } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
@@ -20,10 +20,10 @@ import { ReputationRiskGauge } from "../components/ReputationRiskGauge";
 import { TopInfluentialSources } from "../components/TopInfluentialSources";
 import { TopNegativeMentions } from "../components/TopNegativeMentions";
 import { TopBrandAdvocates } from "../components/TopBrandAdvocates";
-import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
 import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
 import { CompetitorComparison } from "../components/CompetitorComparison";
+import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import { formatCount } from "../lib/utils";
 
 type ActivePanel =
@@ -93,6 +93,61 @@ const ALERT_THRESHOLD_HINTS: Record<string, string> = {
   syndication_spike:      "e.g. 10",
   journalist_beat:        "e.g. 2",
 };
+
+function SoVKPICard({ brandId, onClick }: { brandId: string; days?: number; onClick?: () => void }) {
+  const { data: sovData } = useQuery({
+    queryKey: ["competitor-sov-kpi", brandId],
+    queryFn: () => fetchCompetitorSoV(brandId),
+    staleTime: 5 * 60_000,
+  });
+  const entries = sovData?.entries ?? [];
+  const ourEntry = entries.find(e => e.is_brand) ?? entries[0];
+  const ourPct = ourEntry?.pct ?? 0;
+  const COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b"];
+  const total = entries.reduce((s, e) => s + e.count, 0);
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-[#1a2744] border border-white/10 rounded-xl px-3 py-2.5 flex flex-col gap-1 cursor-pointer hover:border-white/25 hover:bg-white/[0.06] transition-all"
+    >
+      <div className="text-[9px] text-white/40 uppercase tracking-wider font-medium">Share of Voice</div>
+      <div className="flex items-center gap-2 flex-1">
+        <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
+          {entries.length === 0 && (
+            <circle cx="22" cy="22" r="15" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+          )}
+          {entries.slice(0, 4).map((e, i) => {
+            const pct = total > 0 ? e.count / total : (i === 0 ? 1 : 0);
+            const circ = 2 * Math.PI * 15;
+            const before = entries.slice(0, i).reduce((s, x) => s + (total > 0 ? x.count / total : 0), 0);
+            const offset = -(circ * before);
+            return (
+              <circle key={e.name} cx="22" cy="22" r="15" fill="none"
+                stroke={COLORS[i] ?? "#3b82f6"} strokeWidth="8"
+                strokeDasharray={`${pct * circ} ${circ}`}
+                strokeDashoffset={offset}
+                transform="rotate(-90 22 22)"
+              />
+            );
+          })}
+          <text x="22" y="23" textAnchor="middle" dominantBaseline="middle"
+            fill="white" fontSize="8" fontWeight="700">{ourPct.toFixed(0)}%</text>
+        </svg>
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-bold text-blue-300 leading-none">{ourPct.toFixed(0)}%</div>
+          <div className="text-[9px] text-white/40 truncate">Our Brand</div>
+          {entries.filter(e => !e.is_brand).slice(0, 2).map((e, i) => (
+            <div key={e.name} className="flex items-center gap-1 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: COLORS[i + 1] ?? "#8b5cf6" }} />
+              <span className="text-[8px] text-white/30 truncate">{e.name.slice(0, 10)}: {e.pct}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function formatLastProcessed(iso: string | null): string {
   if (!iso) return "—";
@@ -638,6 +693,19 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
         <div className="grid grid-cols-5 gap-2 flex-none">
           <KPICard
             variant="sparkline"
+            label="Reputation Score"
+            value={`${kpi.perception_score.toFixed(0)}`}
+            delta={kpi.perception_score_delta}
+            deltaUnit=" pts"
+            sub="out of 100"
+            icon="📊"
+            accentColor="purple"
+            sparklineData={data.trend.map(t => t.value)}
+            riskLabel={kpi.perception_score >= 65 ? "Good" : kpi.perception_score >= 40 ? "Medium" : "High"}
+            onClick={() => setActivePanel("alerts")}
+          />
+          <KPICard
+            variant="sparkline"
             label="Total Mentions"
             value={formatCount(kpi.total)}
             delta={kpi.mentions_delta_pct}
@@ -647,47 +715,30 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             sparklineData={data.trend.map(t => t.value)}
             onClick={() => setActivePanel("mentions")}
           />
-          <KPICard
-            variant="donut"
-            label="Positive Mentions"
-            value={formatCount(kpi.positive)}
-            pct={kpi.positive_pct}
-            icon="😊"
-            accentColor="green"
-            riskLabel={kpi.positive_pct >= 50 ? "Good" : kpi.positive_pct >= 30 ? "Medium" : "High"}
-            onClick={() => setActivePanel("mentions-positive")}
+          <SoVKPICard
+            brandId={brandId}
+            days={days}
+            onClick={() => setActivePanel("competitor-sov")}
           />
           <KPICard
             variant="donut"
-            label="Neutral Mentions"
-            value={formatCount(kpi.neutral)}
-            pct={kpi.neutral_pct}
-            icon="😐"
-            accentColor="gray"
-            onClick={() => setActivePanel("mentions-neutral")}
-          />
-          <KPICard
-            variant="donut"
-            label="Negative Mentions"
-            value={formatCount(kpi.negative)}
-            pct={kpi.negative_pct}
-            icon="😟"
+            label="Reputation Risk"
+            value={`${riskScore}`}
+            pct={riskScore}
+            icon="⚠️"
             accentColor="red"
-            riskLabel={kpi.negative_pct < 20 ? "Good" : kpi.negative_pct < 35 ? "Medium" : "High"}
-            onClick={() => setActivePanel("mentions-negative")}
+            riskLabel={riskScore < 35 ? "Good" : riskScore < 60 ? "Medium" : "High"}
+            onClick={() => setActivePanel("alerts")}
           />
           <KPICard
-            variant="donut"
-            label="Reputation Index"
-            value={`${kpi.perception_score.toFixed(0)}`}
-            pct={kpi.perception_score}
-            delta={kpi.perception_score_delta}
-            deltaUnit=" pts"
-            sub="out of 100"
-            icon="📊"
-            accentColor="purple"
-            riskLabel={kpi.perception_score >= 65 ? "Good" : kpi.perception_score >= 40 ? "Medium" : "High"}
-            onClick={() => setActivePanel("alerts")}
+            variant="sparkline"
+            label="Total Reach"
+            value={formatCount(kpi.total_reach ?? 0)}
+            sub="estimated impressions"
+            icon="📡"
+            accentColor="green"
+            sparklineData={data.trend.map(t => t.value)}
+            onClick={() => setActivePanel("mentions")}
           />
         </div>
 
@@ -762,14 +813,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onStateClick={(state) => openDrill({ label: `State: ${state}`, state })}
             />
           </div>
-          {/* Virality Alerts stacked above Brand Advocates */}
-          <div className="min-h-0 flex flex-col gap-2">
-            <div className="flex-1 min-h-0">
-              <ViralityAlertsPanel brandId={brandId} days={days} />
-            </div>
-            <div className="flex-1 min-h-0">
-              <TopBrandAdvocates brandId={brandId} days={days} />
-            </div>
+          <div className="min-h-0">
+            <TopBrandAdvocates brandId={brandId} days={days} />
           </div>
         </div>
 
@@ -797,35 +842,40 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           <div ref={mentionsRef} />
         </div>
 
-        {/* 3-col flex: News & RSS | Review Sites | Share of Voice */}
+        {/* 2-col layout: Left (News + Reviews) | Right (Competitor + Journey) */}
         <div className="flex gap-3 p-3 flex-1 min-h-0">
-          {/* Col 1 — News & RSS (widest) */}
-          <div className="flex-[5] min-h-0 min-w-0">
-            <NewsRSSMentionsPanel
-              brandId={brandId}
-              brandName={brandName}
-              portals={data.top_sources.map(s => s.portal_id)}
-              topics={data.top_topics}
-              states={data.state_breakdown.map(s => s.state)}
-              bySourceType={data.by_source_type}
-            />
+          {/* Left column — News & Reviews stacked */}
+          <div className="flex-[5] flex flex-col gap-3 min-h-0 min-w-0">
+            <div className="flex-[3] min-h-0">
+              <NewsRSSMentionsPanel
+                brandId={brandId}
+                brandName={brandName}
+                portals={data.top_sources.map(s => s.portal_id)}
+                topics={data.top_topics}
+                states={data.state_breakdown.map(s => s.state)}
+                bySourceType={data.by_source_type}
+              />
+            </div>
+            <div className="flex-[2] min-h-0">
+              <ReviewSiteAnalysisPanel
+                brandId={brandId}
+                bySourceType={data.by_source_type}
+              />
+            </div>
           </div>
 
-          {/* Col 2 — Review Site Analysis */}
-          <div className="flex-[3] min-h-0 min-w-0">
-            <ReviewSiteAnalysisPanel
-              brandId={brandId}
-              bySourceType={data.by_source_type}
-            />
-          </div>
-
-          {/* Col 3 — Share of Voice */}
-          <div className="flex-[4] min-h-0 min-w-0">
-            <CompetitorComparison
-              brandId={brandId}
-              days={days}
-              topTopics={data.top_topics}
-            />
+          {/* Right column — Competitor Comparison + Drill-Down Journey */}
+          <div className="flex-[4] flex flex-col gap-3 min-h-0 min-w-0">
+            <div className="flex-[4] min-h-0">
+              <CompetitorComparison
+                brandId={brandId}
+                days={days}
+                topTopics={data.top_topics}
+              />
+            </div>
+            <div className="flex-[1] min-h-0" style={{ minHeight: "100px" }}>
+              <DrillDownJourneyExample />
+            </div>
           </div>
         </div>
       </div>

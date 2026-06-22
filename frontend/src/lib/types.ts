@@ -9,6 +9,7 @@ export interface KPISummary {
   neutral_pct: number;
   youtube_mention_count?: number;
   reddit_mention_count?: number;
+  total_reach?: number;
   perception_score_delta: number | null;
   mentions_delta_pct: number | null;
 }

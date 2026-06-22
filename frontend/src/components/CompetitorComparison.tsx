@@ -130,8 +130,8 @@ function TopicsTab({ topics }: { topics: string[] }) {
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "sov",       label: "Share of Voice" },
-  { id: "sentiment", label: "Sentiment" },
-  { id: "topics",    label: "Topics" },
+  { id: "sentiment", label: "Sentiment Comparison" },
+  { id: "topics",    label: "Topics Comparison" },
 ];
 
 export function CompetitorComparison({ brandId, days = 30, topTopics = [] }: Props) {
@@ -167,28 +167,25 @@ export function CompetitorComparison({ brandId, days = 30, topTopics = [] }: Pro
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {tab === "sov" && (
           <div className="p-2 h-full">
             <CompetitorShareOfVoice brandId={brandId} />
           </div>
         )}
         {tab === "sentiment" && (
-          <SentimentTab brandId={brandId} days={days} />
+          <div className="flex gap-2 h-full min-h-0 p-2">
+            <div className="flex-[3] overflow-y-auto min-h-0">
+              <SentimentTab brandId={brandId} days={days} />
+            </div>
+            <div className="flex-[2] min-h-0">
+              <CompetitorShareOfVoice brandId={brandId} compact />
+            </div>
+          </div>
         )}
         {tab === "topics" && (
           <TopicsTab topics={topTopics} />
         )}
-      </div>
-
-      {/* Drill-down journey strip */}
-      <div className="flex items-center border-t border-white/5 flex-none px-3 py-2 gap-0 overflow-x-auto">
-        {["Exec Overview", "Source Level", "Mention Level", "Insights & Action"].map((step, i, arr) => (
-          <div key={step} className="flex items-center shrink-0">
-            <span className={`text-[9px] ${i === 0 ? "text-blue-400 font-semibold" : "text-white/25"}`}>{step}</span>
-            {i < arr.length - 1 && <span className="text-white/15 mx-1.5 text-[9px]">→</span>}
-          </div>
-        ))}
       </div>
     </div>
   );
