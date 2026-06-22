@@ -24,6 +24,7 @@ import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
 import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
 import { CompetitorComparison } from "../components/CompetitorComparison";
 import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
+import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { formatCount } from "../lib/utils";
 
 type ActivePanel =
