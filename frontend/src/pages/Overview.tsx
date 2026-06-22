@@ -754,8 +754,9 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               compact
             />
           </div>
-          <div className="min-h-0 overflow-auto">
+          <div className="min-h-0">
             <IndiaStateMap
+              variant="regions"
               data={data.state_breakdown}
               onStateClick={(state) => openDrill({ label: `State: ${state}`, state })}
             />
