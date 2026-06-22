@@ -24,7 +24,7 @@ function ClusterRow({ c, maxCount }: { c: IssueCluster; maxCount: number }) {
     <div>
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[12px] text-gray-700 font-medium truncate capitalize">
+          <span className="text-[12px] text-white/70 font-medium truncate capitalize">
             {c.cluster_name.replace(/_/g, " ")}
           </span>
           {c.trend === "rising" && (
@@ -34,7 +34,7 @@ function ClusterRow({ c, maxCount }: { c: IssueCluster; maxCount: number }) {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-gray-400">{formatCount(c.article_count)}</span>
+          <span className="text-[11px] text-white/40">{formatCount(c.article_count)}</span>
           <span className={`text-[12px] font-semibold w-12 text-right ${netColor}`}>{netLabel}</span>
         </div>
       </div>
@@ -74,17 +74,17 @@ function CategoryRow({ c, maxCount }: { c: IssueCategoryItem; maxCount: number }
   const posPct = Math.round((c.positive_count / total) * 100);
   const negPct = Math.round((c.negative_count / total) * 100);
   const barPct = Math.min(100, Math.round((c.count / maxCount) * 100));
-  const accent = CATEGORY_ACCENTS[c.category] ?? "border-l-gray-300";
+  const accent = CATEGORY_ACCENTS[c.category] ?? "border-l-white/20";
   const label = CATEGORY_LABELS[c.category] ?? c.category.replace(/_/g, " ");
 
   return (
     <div className={`pl-2 border-l-2 ${accent}`}>
       <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-[12px] text-gray-700 font-medium">{label}</span>
+        <span className="text-[12px] text-white/70 font-medium">{label}</span>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] text-green-600">{posPct}%▲</span>
           <span className="text-[10px] text-red-500">{negPct}%▼</span>
-          <span className="text-[11px] text-gray-400">{formatCount(c.count)}</span>
+          <span className="text-[11px] text-white/40">{formatCount(c.count)}</span>
         </div>
       </div>
       <div className="h-1.5 rounded-full bg-gray-100">
@@ -130,20 +130,20 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
     return (
       <div
         onClick={onClick}
-        className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}
+        className={`bg-[#1a2744] border border-white/10 rounded-lg p-2.5 h-full flex flex-col overflow-hidden ${clickable}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-1.5 flex-none">
-          <span className="text-[11px] font-semibold text-gray-800">Top Issues</span>
-          <span className="text-[10px] text-gray-400">(All Sources)</span>
+          <span className="text-[11px] font-semibold text-white">Top Issues</span>
+          <span className="text-[10px] text-white/40">(All Sources)</span>
         </div>
 
         {/* Column headers */}
-        <div className="flex items-center justify-between mb-1 pb-1 border-b border-gray-100 flex-none">
-          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Issue</span>
+        <div className="flex items-center justify-between mb-1 pb-1 border-b border-white/8 flex-none">
+          <span className="text-[9px] font-semibold text-white/40 uppercase tracking-wide">Issue</span>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Mentions</span>
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide w-10 text-right">Sentiment</span>
+            <span className="text-[9px] font-semibold text-white/40 uppercase tracking-wide">Mentions</span>
+            <span className="text-[9px] font-semibold text-white/40 uppercase tracking-wide w-10 text-right">Sentiment</span>
           </div>
         </div>
 
@@ -151,8 +151,8 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
           <div className="space-y-2 flex-1 pt-1">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="space-y-1">
-                <div className="h-2.5 bg-gray-100 rounded animate-pulse w-3/4" />
-                <div className="h-1.5 bg-gray-100 rounded animate-pulse w-1/2" />
+                <div className="h-2.5 bg-white/8 rounded animate-pulse w-3/4" />
+                <div className="h-1.5 bg-white/8 rounded animate-pulse w-1/2" />
               </div>
             ))}
           </div>
@@ -168,7 +168,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
                 <div key={c.cluster_name}>
                   <div className="flex items-center justify-between gap-2 mb-0.5">
                     <div className="flex items-center gap-1 min-w-0">
-                      <span className="text-[11px] text-gray-700 font-medium truncate capitalize">
+                      <span className="text-[11px] text-white/70 font-medium truncate capitalize">
                         {c.cluster_name.replace(/_/g, " ")}
                       </span>
                       {c.trend === "rising" && (
@@ -176,11 +176,11 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-gray-400">{formatCount(c.article_count)}</span>
+                      <span className="text-[10px] text-white/40">{formatCount(c.article_count)}</span>
                       <span className={`text-[10px] font-semibold w-10 text-right ${netColor}`}>{netLabel}</span>
                     </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-gray-100">
+                  <div className="h-1.5 rounded-full bg-white/8">
                     <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barPct}%` }} />
                   </div>
                 </div>
@@ -189,7 +189,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-[9px] text-gray-400 text-center">
+            <span className="text-[9px] text-white/40 text-center">
               Populates after next pipeline run
             </span>
           </div>
@@ -217,24 +217,24 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
   const maxCatCount = categoryItems[0]?.count ?? 1;
 
   return (
-    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
+    <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-xl p-4 ${clickable}`}>
       <div className="flex items-center justify-between mb-4">
-        <div className="text-sm font-semibold text-gray-800">Top Issues</div>
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+        <div className="text-sm font-semibold text-white">Top Issues</div>
+        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
           <button
             onClick={e => { e.stopPropagation(); setViewMode("clusters"); }}
-            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${viewMode === "clusters" ? "bg-white text-gray-800 shadow-sm font-medium" : "text-gray-500 hover:text-gray-700"}`}
+            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${viewMode === "clusters" ? "bg-white/15 text-white font-medium" : "text-white/50 hover:text-white/70"}`}
           >Clusters</button>
           <button
             onClick={e => { e.stopPropagation(); setViewMode("categories"); }}
-            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${viewMode === "categories" ? "bg-white text-gray-800 shadow-sm font-medium" : "text-gray-500 hover:text-gray-700"}`}
+            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${viewMode === "categories" ? "bg-white/15 text-white font-medium" : "text-white/50 hover:text-white/70"}`}
           >Categories</button>
         </div>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />)}
+          {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-white/8 rounded animate-pulse" />)}
         </div>
       ) : viewMode === "categories" ? (
         categoryItems.length > 0 ? (
@@ -242,7 +242,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
             {categoryItems.map(c => (
               <div
                 key={c.category}
-                className={onCategoryClick ? "cursor-pointer rounded hover:bg-blue-50 px-1 -mx-1" : ""}
+                className={onCategoryClick ? "cursor-pointer rounded hover:bg-white/5 px-1 -mx-1" : ""}
                 onClick={onCategoryClick ? (e) => { e.stopPropagation(); onCategoryClick(c.category); } : undefined}
               >
                 <CategoryRow c={c} maxCount={maxCatCount} />
@@ -250,7 +250,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
             ))}
           </div>
         ) : (
-          <div className="text-xs text-gray-400 py-8 text-center">
+          <div className="text-xs text-white/40 py-8 text-center">
             Issue category data will populate after the next pipeline run.
           </div>
         )
@@ -259,7 +259,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
           {visibleClusters.map(c => (
             <div
               key={c.cluster_name}
-              className={onClusterClick ? "cursor-pointer rounded hover:bg-blue-50 px-1 -mx-1" : ""}
+              className={onClusterClick ? "cursor-pointer rounded hover:bg-white/5 px-1 -mx-1" : ""}
               onClick={onClusterClick ? (e) => { e.stopPropagation(); onClusterClick(c.cluster_name); } : undefined}
             >
               <ClusterRow c={c} maxCount={maxClusterCount} />
@@ -267,7 +267,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
           ))}
         </div>
       ) : allTopics.length === 0 ? (
-        <div className="text-xs text-gray-400 py-6 text-center">No topic data yet.</div>
+        <div className="text-xs text-white/40 py-6 text-center">No topic data yet.</div>
       ) : (
         <div className="grid grid-cols-2 gap-x-6">
           <div>
@@ -276,9 +276,9 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
               {positiveTopics.map(t => (
                 <div key={t.topic}>
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[12px] text-gray-700 font-medium truncate capitalize">{t.topic.replace(/_/g, " ")}</span>
+                    <span className="text-[12px] text-white/70 font-medium truncate capitalize">{t.topic.replace(/_/g, " ")}</span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] text-gray-400">{formatCount(t.count)}</span>
+                      <span className="text-[11px] text-white/40">{formatCount(t.count)}</span>
                       <span className="text-[12px] font-semibold text-green-600 w-10 text-right">+{t.net}%</span>
                     </div>
                   </div>
@@ -287,7 +287,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
                   </div>
                 </div>
               ))}
-              {positiveTopics.length === 0 && <div className="text-[11px] text-gray-400 py-2">No positive issues found.</div>}
+              {positiveTopics.length === 0 && <div className="text-[11px] text-white/40 py-2">No positive issues found.</div>}
             </div>
           </div>
           <div>
@@ -296,9 +296,9 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
               {negativeTopics.map(t => (
                 <div key={t.topic}>
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[12px] text-gray-700 font-medium truncate capitalize">{t.topic.replace(/_/g, " ")}</span>
+                    <span className="text-[12px] text-white/70 font-medium truncate capitalize">{t.topic.replace(/_/g, " ")}</span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] text-gray-400">{formatCount(t.count)}</span>
+                      <span className="text-[11px] text-white/40">{formatCount(t.count)}</span>
                       <span className="text-[12px] font-semibold text-red-500 w-10 text-right">{t.net}%</span>
                     </div>
                   </div>
@@ -307,7 +307,7 @@ export function TopIssuesTable({ brandId, compact, onClick, onClusterClick, onCa
                   </div>
                 </div>
               ))}
-              {negativeTopics.length === 0 && <div className="text-[11px] text-gray-400 py-2">No negative issues found.</div>}
+              {negativeTopics.length === 0 && <div className="text-[11px] text-white/40 py-2">No negative issues found.</div>}
             </div>
           </div>
         </div>

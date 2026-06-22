@@ -22,8 +22,8 @@ function ToneTooltip({ active, payload }: { active?: boolean; payload?: TooltipE
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-md">
-      <div className="font-semibold text-gray-700">{d.label}</div>
+    <div className="bg-[#1a2744] border border-white/10 rounded-lg px-3 py-2 text-xs shadow-md">
+      <div className="font-semibold text-white/80">{d.label}</div>
       <div className="font-bold" style={{ color: d.color }}>{d.value} articles</div>
     </div>
   );
@@ -49,9 +49,9 @@ export function EditorialToneChart({ brandId, compact }: Props) {
 
   if (grandTotal === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-        <div className="text-sm font-semibold text-gray-800 mb-2">Editorial Tone</div>
-        <p className="text-xs text-gray-400">Tone data will populate after the next pipeline run.</p>
+      <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
+        <div className="text-sm font-semibold text-white mb-2">Editorial Tone</div>
+        <p className="text-xs text-white/40">Tone data will populate after the next pipeline run.</p>
       </div>
     );
   }
@@ -59,8 +59,8 @@ export function EditorialToneChart({ brandId, compact }: Props) {
   if (compact) {
     const top2 = [...TONE_CONFIG].sort((a, b) => (total[b.key] || 0) - (total[a.key] || 0)).slice(0, 2);
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden">
-        <span className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Editorial Tone</span>
+      <div className="bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden">
+        <span className="text-[11px] font-semibold text-white mb-1 flex-none">Editorial Tone</span>
         <div className="flex items-center gap-2 flex-1 min-h-0">
           <div className="relative w-[70px] h-[70px] shrink-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -72,7 +72,7 @@ export function EditorialToneChart({ brandId, compact }: Props) {
             </ResponsiveContainer>
             {dominant && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-[7px] text-gray-500 text-center leading-tight px-1">{dominant.label}</span>
+                <span className="text-[7px] text-white/40 text-center leading-tight px-1">{dominant.label}</span>
               </div>
             )}
           </div>
@@ -83,8 +83,8 @@ export function EditorialToneChart({ brandId, compact }: Props) {
               return (
                 <div key={c.key} className="flex items-center gap-1 text-[9px]">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                  <span className="truncate flex-1 text-gray-600">{c.label}</span>
-                  <span className="font-bold text-gray-700 shrink-0">{pct}%</span>
+                  <span className="truncate flex-1 text-white/60">{c.label}</span>
+                  <span className="font-bold text-white/80 shrink-0">{pct}%</span>
                 </div>
               );
             })}
@@ -95,8 +95,8 @@ export function EditorialToneChart({ brandId, compact }: Props) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-      <div className="text-sm font-semibold text-gray-800 mb-3">Editorial Tone</div>
+    <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
+      <div className="text-sm font-semibold text-white mb-3">Editorial Tone</div>
       <div className="flex items-center gap-4">
         <div className="relative w-[110px] h-[110px] shrink-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -114,7 +114,7 @@ export function EditorialToneChart({ brandId, compact }: Props) {
           </ResponsiveContainer>
           {dominant && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[9px] text-gray-500 text-center leading-tight px-2">{dominant.label}</span>
+              <span className="text-[9px] text-white/40 text-center leading-tight px-2">{dominant.label}</span>
             </div>
           )}
         </div>
@@ -128,17 +128,17 @@ export function EditorialToneChart({ brandId, compact }: Props) {
                 <div className="flex items-center justify-between text-xs mb-0.5">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="text-gray-600">{c.label}</span>
+                    <span className="text-white/60">{c.label}</span>
                   </div>
-                  <span className="font-semibold text-gray-700">{count} <span className="text-gray-400 font-normal">({pct}%)</span></span>
+                  <span className="font-semibold text-white/80">{count} <span className="text-white/40 font-normal">({pct}%)</span></span>
                 </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
                   <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: c.color }} />
                 </div>
               </div>
             );
           })}
-          <div className="text-[10px] text-gray-400 pt-1">Based on {grandTotal} articles · last 30 days</div>
+          <div className="text-[10px] text-white/40 pt-1">Based on {grandTotal} articles · last 30 days</div>
         </div>
       </div>
     </div>

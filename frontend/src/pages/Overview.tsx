@@ -115,13 +115,13 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
   const canSubmit = threshold !== "" && !isNaN(parseFloat(threshold)) && notifyEmail.includes("@");
 
   return (
-    <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-      <div className="text-xs font-semibold text-gray-600">Configure New Alert</div>
+    <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+      <div className="text-xs font-semibold text-white/60">Configure New Alert</div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <select
           value={alertType}
           onChange={e => setAlertType(e.target.value)}
-          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500"
+          className="bg-[#0d1626] border border-white/15 rounded-lg text-xs text-white/70 px-2 py-2 focus:outline-none focus:border-blue-500"
         >
           {Object.entries(ALERT_TYPE_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
@@ -132,17 +132,17 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
           value={threshold}
           onChange={e => setThreshold(e.target.value)}
           placeholder={ALERT_THRESHOLD_HINTS[alertType] ?? "threshold"}
-          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
+          className="bg-[#0d1626] border border-white/15 rounded-lg text-xs text-white/70 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-white/25"
         />
         <input
           type="email"
           value={notifyEmail}
           onChange={e => setNotifyEmail(e.target.value)}
           placeholder="notify@email.com"
-          className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
+          className="bg-[#0d1626] border border-white/15 rounded-lg text-xs text-white/70 px-2 py-2 focus:outline-none focus:border-blue-500 placeholder:text-white/25"
         />
       </div>
-      {formError && <p className="text-xs text-red-500">{formError}</p>}
+      {formError && <p className="text-xs text-red-400">{formError}</p>}
       <button
         onClick={() => createMutation.mutate()}
         disabled={!canSubmit || createMutation.isPending}
@@ -150,7 +150,7 @@ function AlertsSection({ brandId, userEmail }: { brandId: string; userEmail?: st
       >
         {createMutation.isPending ? "Adding…" : "+ Add Alert"}
       </button>
-      <p className="text-[10px] text-gray-400">
+      <p className="text-[10px] text-white/35">
         Alerts fire once per 4 hours via Resend email. Requires RESEND_API_KEY in Railway.
       </p>
     </div>
@@ -181,18 +181,18 @@ function AlertsRiskCards({
     journalist_beat:        "border-l-rose-500",
   };
   const RISK_BG: Record<string, string> = {
-    perception_score_below: "bg-red-50",
-    negative_pct_above:     "bg-amber-50",
-    mention_spike:          "bg-orange-50",
-    syndication_spike:      "bg-purple-50",
-    journalist_beat:        "bg-rose-50",
+    perception_score_below: "bg-red-500/10",
+    negative_pct_above:     "bg-amber-500/10",
+    mention_spike:          "bg-orange-500/10",
+    syndication_spike:      "bg-purple-500/10",
+    journalist_beat:        "bg-rose-500/10",
   };
   const RISK_BADGE: Record<string, { label: string; color: string }> = {
-    perception_score_below: { label: "High Risk",       color: "text-red-600 bg-red-100"       },
-    negative_pct_above:     { label: "Medium Risk",     color: "text-amber-600 bg-amber-100"   },
-    mention_spike:          { label: "Medium Risk",     color: "text-orange-600 bg-orange-100" },
-    syndication_spike:      { label: "Amplification",   color: "text-purple-600 bg-purple-100" },
-    journalist_beat:        { label: "Coverage Risk",   color: "text-rose-600 bg-rose-100"     },
+    perception_score_below: { label: "High Risk",       color: "text-red-400 bg-red-500/20"       },
+    negative_pct_above:     { label: "Medium Risk",     color: "text-amber-400 bg-amber-500/20"   },
+    mention_spike:          { label: "Medium Risk",     color: "text-orange-400 bg-orange-500/20" },
+    syndication_spike:      { label: "Amplification",   color: "text-purple-400 bg-purple-500/20" },
+    journalist_beat:        { label: "Coverage Risk",   color: "text-rose-400 bg-rose-500/20"     },
   };
 
   const ALERT_CATEGORIES = [
@@ -206,13 +206,13 @@ function AlertsRiskCards({
   const inner = alerts.length === 0 ? (
     <div className="space-y-1.5">
       {ALERT_CATEGORIES.map(cat => (
-        <div key={cat.type} className="flex items-center gap-2 rounded-md border border-dashed border-gray-200 px-2 py-1.5 bg-gray-50">
+        <div key={cat.type} className="flex items-center gap-2 rounded-md border border-dashed border-white/10 px-2 py-1.5 bg-white/3">
           <span className="text-sm shrink-0">{cat.icon}</span>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-medium text-gray-600 truncate">{cat.label}</div>
-            <div className="text-[8px] text-gray-400 truncate">{cat.hint}</div>
+            <div className="text-[10px] font-medium text-white/60 truncate">{cat.label}</div>
+            <div className="text-[8px] text-white/35 truncate">{cat.hint}</div>
           </div>
-          <span className="text-[8px] text-gray-400 shrink-0 border border-gray-200 rounded px-1 py-0.5">
+          <span className="text-[8px] text-white/35 shrink-0 border border-white/10 rounded px-1 py-0.5">
             {isAdmin ? "Set up" : "Not set"}
           </span>
         </div>
@@ -221,20 +221,20 @@ function AlertsRiskCards({
   ) : (
     <div className={`grid ${compact ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-2`}>
       {alerts.map(a => {
-        const badge = RISK_BADGE[a.alert_type] ?? { label: "Alert", color: "text-gray-600 bg-gray-100" };
+        const badge = RISK_BADGE[a.alert_type] ?? { label: "Alert", color: "text-white/50 bg-white/10" };
         return (
           <div
             key={a.id}
-            className={`relative border border-l-4 border-gray-100 rounded-lg px-2 py-2 ${RISK_BORDER[a.alert_type] ?? "border-l-gray-400"} ${RISK_BG[a.alert_type] ?? "bg-gray-50"}`}
+            className={`relative border border-l-4 border-white/10 rounded-lg px-2 py-2 ${RISK_BORDER[a.alert_type] ?? "border-l-white/20"} ${RISK_BG[a.alert_type] ?? "bg-white/5"}`}
           >
             <button
               onClick={e => { e.stopPropagation(); deleteMutation.mutate(a.id); }}
-              className="absolute top-1 right-1.5 text-gray-300 hover:text-red-400 text-sm leading-none"
+              className="absolute top-1 right-1.5 text-white/25 hover:text-red-400 text-sm leading-none"
             >×</button>
             <span className={`inline-block text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mb-1 ${badge.color}`}>
               {badge.label}
             </span>
-            <div className="text-[10px] text-gray-700">
+            <div className="text-[10px] text-white/70">
               {ALERT_TYPE_LABELS[a.alert_type]}: <span className="font-semibold">{a.threshold}</span>
             </div>
           </div>
@@ -245,17 +245,17 @@ function AlertsRiskCards({
 
   if (compact) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden">
-        <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Alerts & Risks</div>
+      <div className="bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden">
+        <div className="text-[11px] font-semibold text-white mb-1 flex-none">Alerts & Risks</div>
         <div className="flex-1 min-h-0 overflow-hidden">{inner}</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+    <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-semibold text-gray-800">Alerts & Risks</div>
+        <div className="text-sm font-semibold text-white">Alerts & Risks</div>
       </div>
       {inner}
       {isAdmin && <AlertsSection brandId={brandId} userEmail={userEmail} />}
@@ -309,7 +309,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
   }, [activePanel, brandId, divergenceData]);
 
   if (isLoading) return (
-    <div className="flex items-center justify-center h-full text-gray-400 text-sm">Loading…</div>
+    <div className="flex items-center justify-center h-full text-white/40 text-sm">Loading…</div>
   );
   if (error || !data || !data.kpi) return (
     <div className="text-red-500 p-8 text-sm">Failed to load dashboard. No data yet — the pipeline runs hourly.</div>
@@ -325,20 +325,20 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       activePanel === "mentions-neutral"  ? "neutral"  : "";
 
     return (
-      <div className="h-full flex flex-col overflow-hidden bg-gray-50">
+      <div className="h-full flex flex-col overflow-hidden bg-[#0d1626]">
         {/* Back bar */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 flex-none">
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#1a2744] border-b border-white/10 flex-none">
           <button
             onClick={() => setActivePanel(null)}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors font-medium"
+            className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors font-medium"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             Executive Overview
           </button>
-          <span className="text-gray-200">|</span>
-          <h2 className="text-xs font-semibold text-gray-800">
+          <span className="text-white/15">|</span>
+          <h2 className="text-xs font-semibold text-white">
             {activePanel === "mentions-drill" && drilldown ? drilldown.label : PANEL_TITLE[activePanel]}
           </h2>
           <div className="ml-auto flex items-center gap-1">
@@ -349,7 +349,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                 className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
                   !showCustom && days === d
                     ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-gray-500 border-gray-200 hover:border-gray-300"
+                    : "text-white/40 border-white/15 hover:border-white/30"
                 }`}
               >
                 {d}d
@@ -358,7 +358,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <button
               onClick={() => setShowCustom(v => !v)}
               className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-gray-500 border-gray-200 hover:border-gray-300"
+                showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-white/40 border-white/15 hover:border-white/30"
               }`}
             >
               Custom
@@ -369,14 +369,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                   type="date"
                   value={customFrom.slice(0, 10)}
                   onChange={e => setCustomFrom(e.target.value + "T00:00:00Z")}
-                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                  className="text-[10px] bg-[#0d1626] border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
-                <span className="text-[10px] text-gray-400">→</span>
+                <span className="text-[10px] text-white/35">→</span>
                 <input
                   type="date"
                   value={customTo.slice(0, 10)}
                   onChange={e => setCustomTo(e.target.value + "T23:59:59Z")}
-                  className="text-[10px] border border-gray-200 rounded px-1 py-0.5 text-gray-700"
+                  className="text-[10px] bg-[#0d1626] border border-white/15 rounded px-1 py-0.5 text-white/70"
                 />
               </div>
             )}
@@ -405,48 +405,48 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               <EditorialToneChart brandId={brandId} />
               <YouTubeSentimentSplit brandId={brandId} />
               {/* Divergent Headlines */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+              <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
                 <button
-                  className="flex items-center justify-between w-full text-sm font-semibold text-gray-800"
+                  className="flex items-center justify-between w-full text-sm font-semibold text-white"
                   onClick={() => setDivOpen(o => !o)}
                 >
                   <span>Divergent Headlines</span>
-                  <span className="text-gray-400 text-xs">{divOpen ? "▲ hide" : "▼ show"}</span>
+                  <span className="text-white/40 text-xs">{divOpen ? "▲ hide" : "▼ show"}</span>
                 </button>
                 {divergenceData && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-white/50 mt-1">
                     {divergenceData.total_divergent_count} articles ({divergenceData.divergent_pct}%) had divergent headline/body sentiment in the last {divergenceData.period_days} days.
                   </p>
                 )}
                 {divOpen && (
                   <div className="mt-3 space-y-2">
-                    {!divergenceData && <p className="text-xs text-gray-400">Loading…</p>}
+                    {!divergenceData && <p className="text-xs text-white/40">Loading…</p>}
                     {divergenceData && divergenceData.articles.length === 0 && (
-                      <p className="text-xs text-gray-400">No divergent articles detected.</p>
+                      <p className="text-xs text-white/40">No divergent articles detected.</p>
                     )}
                     {divergenceData?.articles.map((a, i) => {
                       const hScore = a.headline_sentiment_score;
                       const bScore = a.body_sentiment_score;
                       const scoreChip = (v: number) => (
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${v >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${v >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
                           {v >= 0 ? "+" : ""}{v.toFixed(2)}
                         </span>
                       );
                       return (
-                        <div key={i} className="flex items-start gap-2 py-1 border-b border-gray-50 last:border-0">
+                        <div key={i} className="flex items-start gap-2 py-1 border-b border-white/5 last:border-0">
                           <a
                             href={a.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 text-xs text-blue-600 hover:underline truncate"
+                            className="flex-1 text-xs text-blue-400 hover:underline truncate"
                             title={a.title}
                           >
                             {a.title.slice(0, 80)}{a.title.length > 80 ? "…" : ""}
                           </a>
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[9px] text-gray-400">H</span>{scoreChip(hScore)}
-                            <span className="text-[9px] text-gray-400">B</span>{scoreChip(bScore)}
-                            <span className="text-[9px] font-medium text-amber-600 bg-amber-50 px-1 py-0.5 rounded">↕</span>
+                            <span className="text-[9px] text-white/35">H</span>{scoreChip(hScore)}
+                            <span className="text-[9px] text-white/35">B</span>{scoreChip(bScore)}
+                            <span className="text-[9px] font-medium text-amber-400 bg-amber-500/15 px-1 py-0.5 rounded">↕</span>
                           </div>
                         </div>
                       );

@@ -37,14 +37,14 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
   const isYouTube = item.portal_category === "youtube";
 
   return (
-    <div className="flex gap-2.5 py-2.5 border-b border-gray-100 last:border-0">
+    <div className="flex gap-2.5 py-2.5 border-b border-white/8 last:border-0">
       {/* Avatar */}
       <div className={`w-7 h-7 rounded shrink-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ${
-        isYouTube ? "bg-red-100" : "bg-blue-100"
+        isYouTube ? "bg-red-500/20" : "bg-blue-500/20"
       }`}>
         {isYouTube
           ? <YouTubeIcon className="w-4 h-4" />
-          : <span className="text-blue-600">{item.portal_name.charAt(0).toUpperCase()}</span>
+          : <span className="text-blue-400">{item.portal_name.charAt(0).toUpperCase()}</span>
         }
       </div>
 
@@ -54,7 +54,7 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-gray-700 hover:text-blue-600 line-clamp-2 leading-tight transition-colors"
+          className="text-xs text-white/70 hover:text-blue-400 line-clamp-2 leading-tight transition-colors"
         >
           {item.title}
         </a>
@@ -77,7 +77,7 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
           {item.repeat_author && (
             <span
               title={`${item.author_name ?? "This author"} has multiple negative articles about this brand`}
-              className="text-[9px] text-orange-500 border border-orange-200 px-1 rounded"
+              className="text-[9px] text-orange-400 border border-orange-500/30 px-1 rounded"
             >
               ⚠ Repeat critic
             </span>
@@ -85,23 +85,23 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
           {item.sentiment_divergence && (
             <span
               title="Headline sentiment diverges from body — verify manually"
-              className="text-[9px] text-amber-600 border border-amber-200 bg-amber-50 px-1 rounded"
+              className="text-[9px] text-amber-400 border border-amber-500/30 bg-amber-500/10 px-1 rounded"
             >
               ⚠ Divergent
             </span>
           )}
           {item.is_regulatory_source && (
-            <span className="text-[9px] text-blue-600 border border-blue-200 bg-blue-50 px-1 rounded">
+            <span className="text-[9px] text-blue-400 border border-blue-500/30 bg-blue-500/10 px-1 rounded">
               🛡 Gov/Reg
             </span>
           )}
         </div>
 
         {/* Meta row */}
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+        <div className="flex items-center gap-1.5 text-[10px] text-white/40">
           <span className="truncate max-w-[100px]">{item.portal_name}</span>
           {item.language !== "en" && (
-            <span className="uppercase font-mono text-gray-400">{item.language}</span>
+            <span className="uppercase font-mono text-white/40">{item.language}</span>
           )}
           <span>·</span>
           <span>{timeAgo(item.collected_at ?? item.published_at)}</span>
@@ -113,16 +113,16 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
 
 function SkeletonCard() {
   return (
-    <div className="flex gap-2.5 py-2.5 border-b border-gray-100 last:border-0 animate-pulse">
-      <div className="w-7 h-7 rounded bg-gray-100 shrink-0 mt-0.5" />
+    <div className="flex gap-2.5 py-2.5 border-b border-white/8 last:border-0 animate-pulse">
+      <div className="w-7 h-7 rounded bg-white/8 shrink-0 mt-0.5" />
       <div className="flex-1 space-y-1.5">
-        <div className="h-3 bg-gray-100 rounded w-full" />
-        <div className="h-3 bg-gray-100 rounded w-4/5" />
+        <div className="h-3 bg-white/8 rounded w-full" />
+        <div className="h-3 bg-white/8 rounded w-4/5" />
         <div className="flex gap-1">
-          <div className="h-3 w-16 bg-gray-100 rounded" />
-          <div className="h-3 w-10 bg-gray-100 rounded" />
+          <div className="h-3 w-16 bg-white/8 rounded" />
+          <div className="h-3 w-10 bg-white/8 rounded" />
         </div>
-        <div className="h-2.5 bg-gray-100 rounded w-24" />
+        <div className="h-2.5 bg-white/8 rounded w-24" />
       </div>
     </div>
   );
@@ -152,13 +152,13 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
   if (compact) {
     const compactItems = items.slice(0, 5);
     return (
-      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
-        <div className="text-[11px] font-semibold text-gray-800 mb-1 flex-none">Top Headlines</div>
+      <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden ${clickable}`}>
+        <div className="text-[11px] font-semibold text-white mb-1 flex-none">Top Headlines</div>
         <div className="flex-1 min-h-0 overflow-hidden space-y-1.5">
           {isLoading ? (
-            [1,2,3,4].map(i => <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" />)
+            [1,2,3,4].map(i => <div key={i} className="h-3 bg-white/8 rounded animate-pulse" />)
           ) : compactItems.length === 0 ? (
-            <div className="text-[10px] text-gray-400 pt-2 text-center">No headlines</div>
+            <div className="text-[10px] text-white/40 pt-2 text-center">No headlines</div>
           ) : compactItems.map(item => {
             const intensity = sentimentIntensity(item.sentiment_label, item.sentiment_score);
             return (
@@ -166,7 +166,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
                 <span className={`shrink-0 text-[8px] px-1 py-0.5 rounded font-medium mt-0.5 ${intensity.bg} ${intensity.color}`}>
                   {item.sentiment_label === "positive" ? "+" : item.sentiment_label === "negative" ? "−" : "~"}
                 </span>
-                <span className="text-[10px] text-gray-700 leading-tight line-clamp-2">{item.title}</span>
+                <span className="text-[10px] text-white/70 leading-tight line-clamp-2">{item.title}</span>
               </div>
             );
           })}
@@ -176,14 +176,14 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
   }
 
   return (
-    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 flex flex-col shadow-sm ${clickable}`}>
+    <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-xl p-4 flex flex-col ${clickable}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-semibold text-gray-800">Top Headlines <span className="text-gray-400 font-normal text-xs">(News)</span></div>
+        <div className="text-sm font-semibold text-white">Top Headlines <span className="text-white/40 font-normal text-xs">(News)</span></div>
         {onViewAll && (
           <button
             onClick={() => onViewAll(activeTab)}
-            className="text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors"
           >
             View All
           </button>
@@ -191,15 +191,15 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-0 border border-gray-200 rounded-lg p-0.5 mb-3">
+      <div className="flex gap-0 border border-white/10 rounded-lg p-0.5 mb-3">
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
             className={`flex-1 text-[10px] py-1 rounded-md transition-colors ${
               activeTab === t.key
-                ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-                : "text-gray-400 hover:text-gray-600"
+                ? "bg-white/15 text-white"
+                : "text-white/40 hover:text-white/70"
             }`}
           >
             {t.label}
@@ -212,7 +212,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
         ) : items.length === 0 ? (
-          <div className="py-8 text-center text-gray-400 text-xs">
+          <div className="py-8 text-center text-white/40 text-xs">
             No {activeTab} headlines found.
           </div>
         ) : hasYouTubeGroups ? (
@@ -220,7 +220,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
             {newsItems.length > 0 && newsItems.map(item => <HeadlineCard key={item.id} item={item} />)}
             {videoItems.length > 0 && (
               <>
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider mt-2 mb-1">
+                <div className="text-[10px] text-white/40 uppercase tracking-wider mt-2 mb-1">
                   Creator (Videos)
                 </div>
                 {videoItems.map(item => <HeadlineCard key={item.id} item={item} />)}
@@ -228,7 +228,7 @@ export function TopHeadlines({ brandId, dateFrom, dateTo, onViewAll, compact, on
             )}
             {commentItems.length > 0 && (
               <>
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider mt-2 mb-1">
+                <div className="text-[10px] text-white/40 uppercase tracking-wider mt-2 mb-1">
                   Audience (Comments)
                 </div>
                 {commentItems.map(item => <HeadlineCard key={item.id} item={item} />)}

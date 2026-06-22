@@ -70,12 +70,12 @@ function SentimentTooltip({ active, payload, label }: CustomTooltipProps) {
   const { text } = sentimentIntensity(dominant, domScore);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-md">
-      <div className="text-gray-500 mb-1">{label}</div>
-      <div className="text-blue-600 text-[10px] mb-1.5 font-medium">{text}</div>
-      <div className="text-indigo-600">+{pos} positive</div>
-      <div className="text-red-500">−{neg} negative</div>
-      <div className="text-amber-500">~{neu} neutral</div>
+    <div className="bg-[#1a2744] border border-white/10 rounded-lg px-3 py-2 text-xs shadow-md">
+      <div className="text-white/50 mb-1">{label}</div>
+      <div className="text-blue-400 text-[10px] mb-1.5 font-medium">{text}</div>
+      <div className="text-indigo-400">+{pos} positive</div>
+      <div className="text-red-400">−{neg} negative</div>
+      <div className="text-amber-400">~{neu} neutral</div>
     </div>
   );
 }
@@ -126,14 +126,14 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
   // ── Skeleton ──────────────────────────────────────────────────────────────
   if (isLoading) {
     return compact ? (
-      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col">
-        <div className="h-3 w-28 bg-gray-100 rounded animate-pulse mb-1" />
-        <div className="flex-1 min-h-0 bg-gray-50 rounded animate-pulse" />
+      <div className="bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col">
+        <div className="h-3 w-28 bg-white/8 rounded animate-pulse mb-1" />
+        <div className="flex-1 min-h-0 bg-white/5 rounded animate-pulse" />
       </div>
     ) : (
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-        <div className="h-5 w-48 bg-gray-100 rounded animate-pulse mb-4" />
-        <div className="h-[220px] bg-gray-50 rounded-lg animate-pulse" />
+      <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
+        <div className="h-5 w-48 bg-white/8 rounded animate-pulse mb-4" />
+        <div className="h-[220px] bg-white/5 rounded-lg animate-pulse" />
       </div>
     );
   }
@@ -141,18 +141,18 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
   if (compact) {
     const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
     return (
-      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
+      <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden ${clickable}`}>
         <div className="flex items-center justify-between flex-none mb-0.5">
-          <span className="text-[11px] font-semibold text-gray-800">Sentiment Trend</span>
-          <div className="flex gap-2 text-[9px] text-gray-400">
-            <span><span className="inline-block w-3 h-0.5 bg-indigo-500 mr-0.5 align-middle" />Pos</span>
+          <span className="text-[11px] font-semibold text-white">Sentiment Trend</span>
+          <div className="flex gap-2 text-[9px] text-white/40">
+            <span><span className="inline-block w-3 h-0.5 bg-indigo-400 mr-0.5 align-middle" />Pos</span>
             <span><span className="inline-block w-3 h-0.5 bg-amber-400 mr-0.5 align-middle" />Neu</span>
             <span><span className="inline-block w-3 h-0.5 bg-red-400 mr-0.5 align-middle" />Neg</span>
           </div>
         </div>
         <div className="flex-1 min-h-0">
           {chartData.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-gray-300 text-xs">No data yet</div>
+            <div className="h-full flex items-center justify-center text-white/20 text-xs">No data yet</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 2, right: 4, bottom: 0, left: -24 }}>
@@ -184,26 +184,26 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+    <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-semibold text-gray-800">Sentiment Trend</div>
+        <div className="text-sm font-semibold text-white">Sentiment Trend</div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowTier1(s => !s)}
             title="Overlay showing only Tier 1+2 national/major-regional sources"
             className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
               showTier1
-                ? "bg-violet-50 border-violet-300 text-violet-600"
-                : "border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600"
+                ? "bg-violet-500/20 border-violet-400/50 text-violet-400"
+                : "border-white/15 text-white/40 hover:border-white/30 hover:text-white/60"
             }`}
           >
             Tier 1+2 only
           </button>
           <button
             onClick={() => setShowForm(s => !s)}
-            className="text-xs text-blue-600 hover:text-blue-700"
+            className="text-xs text-blue-400 hover:text-blue-300"
           >
             {showForm ? "Cancel" : "+ Annotate"}
           </button>
@@ -221,7 +221,7 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
             value={draftDate}
             onChange={e => setDraftDate(e.target.value)}
             required
-            className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2 py-1.5 focus:outline-none focus:border-blue-500"
+            className="bg-white/5 border border-white/15 rounded-lg text-xs text-white/80 px-2 py-1.5 focus:outline-none focus:border-blue-500"
           />
           <input
             type="text"
@@ -229,7 +229,7 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
             onChange={e => setDraftLabel(e.target.value)}
             placeholder="What happened on this date?"
             required
-            className="bg-white border border-gray-300 rounded-lg text-xs text-gray-700 px-2.5 py-1.5 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 flex-1 min-w-[160px]"
+            className="bg-white/5 border border-white/15 rounded-lg text-xs text-white/80 px-2.5 py-1.5 placeholder:text-white/30 focus:outline-none focus:border-blue-500 flex-1 min-w-[160px]"
           />
           <button
             type="submit"
@@ -242,7 +242,7 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
       )}
 
       {chartData.length === 0 ? (
-        <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">
+        <div className="h-[220px] flex items-center justify-center text-white/40 text-sm">
           No trend data yet — the pipeline runs hourly.
         </div>
       ) : (
@@ -262,10 +262,10 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
                 <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} />
-            <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} allowDecimals={false} />
+            <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
+            <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} allowDecimals={false} />
             <Tooltip content={<SentimentTooltip />} />
-            <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8, color: "#6b7280" }} />
+            <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8, color: "rgba(255,255,255,0.5)" }} />
 
             {/* Area fills — all sources (indigo=positive, amber=neutral, red=negative) */}
             <Area type="monotone" dataKey="positive" stroke="#6366f1" strokeWidth={2} fill="url(#gradPos)" dot={false} name="Positive" />
@@ -299,7 +299,7 @@ export function SentimentTrendChart({ brandId, dateFrom, dateTo, compact, onClic
           {annotations.map(a => (
             <span
               key={a.id}
-              className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5"
+              className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5"
             >
               {new Date(a.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · {a.label}
             </span>

@@ -18,10 +18,10 @@ function SovTooltip({ active, payload }: SovTooltipProps) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs shadow-md">
-      <div className="font-semibold text-gray-700">{d.name}</div>
-      <div className="text-blue-600 font-bold">{d.pct}% share</div>
-      <div className="text-gray-400">{d.count.toLocaleString()} mentions</div>
+    <div className="bg-[#1a2744] border border-white/10 rounded-lg px-3 py-2 text-xs shadow-md">
+      <div className="font-semibold text-white/80">{d.name}</div>
+      <div className="text-blue-400 font-bold">{d.pct}% share</div>
+      <div className="text-white/40">{d.count.toLocaleString()} mentions</div>
     </div>
   );
 }
@@ -79,11 +79,11 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
 
   if (compact) {
     return (
-      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
+      <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden ${clickable}`}>
         <div className="flex items-center justify-between mb-1 flex-none">
-          <span className="text-[11px] font-semibold text-gray-800">Share of Voice</span>
+          <span className="text-[11px] font-semibold text-white">Share of Voice</span>
           {discovering && (
-            <span className="text-[8px] text-blue-500 animate-pulse">AI detecting…</span>
+            <span className="text-[8px] text-blue-400 animate-pulse">AI detecting…</span>
           )}
         </div>
         <div className="flex items-center gap-2 flex-1 min-h-0">
@@ -96,15 +96,15 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[8px] text-gray-500">SoV</span>
+              <span className="text-[8px] text-white/40">SoV</span>
             </div>
           </div>
           <div className="flex-1 space-y-1 min-w-0 overflow-hidden">
             {entries.slice(0, 5).map(d => (
               <div key={d.name} className="flex items-center gap-1 text-[9px]">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                <span className={`truncate flex-1 ${d.is_brand ? "font-semibold text-gray-800" : "text-gray-600"}`}>{d.name}</span>
-                <span className="font-bold text-gray-700 shrink-0">{d.pct}%</span>
+                <span className={`truncate flex-1 ${d.is_brand ? "font-semibold text-white" : "text-white/60"}`}>{d.name}</span>
+                <span className="font-bold text-white/80 shrink-0">{d.pct}%</span>
               </div>
             ))}
           </div>
@@ -114,20 +114,20 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
   }
 
   return (
-    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
+    <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-xl p-4 ${clickable}`}>
       <div className="flex items-center gap-1.5 mb-3">
-        <span className="text-sm font-semibold text-gray-800">Competitor Share of Voice</span>
+        <span className="text-sm font-semibold text-white">Competitor Share of Voice</span>
         <div className="relative group">
           <button
             onClick={e => e.stopPropagation()}
-            className="w-4 h-4 rounded-full bg-gray-100 text-gray-400 hover:text-gray-600 hover:bg-gray-200 flex items-center justify-center text-[10px] font-bold leading-none transition-colors"
+            className="w-4 h-4 rounded-full bg-white/10 text-white/40 hover:text-white/70 hover:bg-white/15 flex items-center justify-center text-[10px] font-bold leading-none transition-colors"
             aria-label="Coverage scope information"
           >
             i
           </button>
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-lg bg-gray-900 px-3 py-2 text-[11px] text-gray-100 leading-snug shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-lg bg-[#0d1626] border border-white/10 px-3 py-2 text-[11px] text-white/80 leading-snug shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20">
             Based on YouTube and news portal coverage only. Twitter/X, Instagram, and Facebook are not yet monitored and are excluded from these figures.
-            <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900" />
+            <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#0d1626]" />
           </div>
         </div>
       </div>
@@ -149,8 +149,8 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-[10px] text-gray-500">Share of</span>
-            <span className="text-[10px] font-bold text-gray-700">Voice</span>
+            <span className="text-[10px] text-white/40">Share of</span>
+            <span className="text-[10px] font-bold text-white/60">Voice</span>
           </div>
         </div>
 
@@ -158,32 +158,32 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
           {entries.map(d => (
             <div
               key={d.name}
-              className={`flex items-center justify-between gap-2 rounded px-1 -mx-1 py-0.5 ${onEntityClick ? "cursor-pointer hover:bg-blue-50" : ""}`}
+              className={`flex items-center justify-between gap-2 rounded px-1 -mx-1 py-0.5 ${onEntityClick ? "cursor-pointer hover:bg-white/5" : ""}`}
               onClick={onEntityClick ? (e) => { e.stopPropagation(); onEntityClick(d.name); } : undefined}
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                <span className="text-xs text-gray-600 truncate">{d.name}</span>
+                <span className="text-xs text-white/60 truncate">{d.name}</span>
               </div>
-              <span className="text-xs font-bold text-gray-800 shrink-0">{d.pct}%</span>
+              <span className="text-xs font-bold text-white shrink-0">{d.pct}%</span>
             </div>
           ))}
         </div>
       </div>
 
-      <p className="mt-2 text-[10px] text-gray-400 italic">
+      <p className="mt-2 text-[10px] text-white/40 italic">
         YouTube &amp; news coverage only — social media channels excluded.
       </p>
 
       <div className="mt-2 flex items-start justify-between gap-3">
-        <p className="text-[10px] text-gray-400 leading-relaxed">
+        <p className="text-[10px] text-white/40 leading-relaxed">
           {source === "configured"
             ? "Based on competitor mentions in brand coverage"
             : "Showing top co-mentioned entities — no competitors configured yet"}
         </p>
         <div className="shrink-0 text-right">
           {discovered !== null && discovered.length > 0 && (
-            <p className="text-[10px] text-green-600 mb-1">
+            <p className="text-[10px] text-green-400 mb-1">
               Saved: {discovered.join(", ")}
             </p>
           )}
@@ -193,7 +193,7 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
           <button
             onClick={handleDiscover}
             disabled={discovering}
-            className="text-[10px] font-medium px-2 py-1 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="text-[10px] font-medium px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {discovering ? "Detecting…" : "✦ Auto-detect with AI"}
           </button>

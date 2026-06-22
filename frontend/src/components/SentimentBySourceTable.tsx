@@ -24,14 +24,14 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
   if (compact) {
     const totalAll = cats.reduce((s, c) => s + c.count, 0);
     return (
-      <div onClick={onClick} className={`bg-white border border-gray-200 rounded-lg p-2 shadow-sm h-full flex flex-col overflow-hidden ${clickable}`}>
-        <div className="text-[11px] font-semibold text-gray-800 mb-1.5 flex-none">Sentiment by Source</div>
+      <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden ${clickable}`}>
+        <div className="text-[11px] font-semibold text-white mb-1.5 flex-none">Sentiment by Source</div>
         {isLoading ? (
           <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-5 bg-gray-100 rounded animate-pulse" />)}
+            {[1,2,3].map(i => <div key={i} className="h-5 bg-white/8 rounded animate-pulse" />)}
           </div>
         ) : displayCats.length === 0 ? (
-          <div className="text-[10px] text-gray-400 py-2 text-center">No data yet.</div>
+          <div className="text-[10px] text-white/40 py-2 text-center">No data yet.</div>
         ) : (
           <div className="flex-1 min-h-0 overflow-hidden space-y-2">
             {displayCats.map(cat => {
@@ -43,18 +43,18 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
               return (
                 <div key={cat.category}>
                   <div className="flex items-center justify-between text-[10px] mb-0.5">
-                    <span className="text-gray-700 font-medium truncate">{cat.label}</span>
+                    <span className="text-white/70 font-medium truncate">{cat.label}</span>
                     <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      <span className="text-gray-400 text-[9px]">{cat.count} mentions</span>
-                      <span className="text-gray-800 font-bold">{score}</span>
+                      <span className="text-white/40 text-[9px]">{cat.count} mentions</span>
+                      <span className="text-white font-bold">{score}</span>
                     </div>
                   </div>
                   <div className="flex rounded-full overflow-hidden h-2">
                     <div className="bg-green-400" style={{ width: `${posPct}%` }} />
-                    <div className="bg-gray-200" style={{ width: `${neuPct}%` }} />
+                    <div className="bg-white/15" style={{ width: `${neuPct}%` }} />
                     <div className="bg-red-400" style={{ width: `${negPct}%` }} />
                   </div>
-                  <div className="flex justify-between text-[8px] mt-0.5 text-gray-400">
+                  <div className="flex justify-between text-[8px] mt-0.5 text-white/40">
                     <span className="text-green-600">{posPct}% pos</span>
                     <span>{neuPct}% neu</span>
                     <span className="text-red-500">{negPct}% neg</span>
@@ -63,9 +63,9 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
               );
             })}
             {totalAll > 0 && cats.length > 0 && (
-              <div className="pt-1 border-t border-gray-100 flex justify-between text-[9px] text-gray-400">
+              <div className="pt-1 border-t border-white/8 flex justify-between text-[9px] text-white/40">
                 <span>All sources</span>
-                <span className="font-medium text-gray-600">{totalAll} total mentions</span>
+                <span className="font-medium text-white/60">{totalAll} total mentions</span>
               </div>
             )}
           </div>
@@ -75,28 +75,28 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
   }
 
   return (
-    <div onClick={onClick} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${clickable}`}>
-      <div className="text-sm font-semibold text-gray-800 mb-3">Sentiment by Source</div>
+    <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-xl p-4 ${clickable}`}>
+      <div className="text-sm font-semibold text-white mb-3">Sentiment by Source</div>
 
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="animate-pulse space-y-1">
-              <div className="h-3 bg-gray-100 rounded w-24" />
-              <div className="h-2 bg-gray-100 rounded" />
+              <div className="h-3 bg-white/8 rounded w-24" />
+              <div className="h-2 bg-white/8 rounded" />
             </div>
           ))}
         </div>
       ) : cats.length === 0 ? (
-        <div className="text-xs text-gray-400 py-4 text-center">No source data yet.</div>
+        <div className="text-xs text-white/40 py-4 text-center">No source data yet.</div>
       ) : (
         <>
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 text-[10px] text-gray-400 uppercase font-medium mb-2 px-1">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 text-[10px] text-white/40 uppercase font-medium mb-2 px-1">
             <span>Source</span>
-            <span className="text-green-600 text-right">Positive</span>
-            <span className="text-gray-500 text-right">Neutral</span>
-            <span className="text-red-500 text-right">Negative</span>
+            <span className="text-green-400 text-right">Positive</span>
+            <span className="text-white/40 text-right">Neutral</span>
+            <span className="text-red-400 text-right">Negative</span>
             <span className="text-right">Score</span>
           </div>
 
@@ -111,16 +111,16 @@ export function SentimentBySourceTable({ brandId, dateFrom, dateTo, compact, onC
               return (
                 <div key={cat.category} className="space-y-1">
                   <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 items-center">
-                    <span className="text-xs font-medium text-gray-700 truncate">{cat.label}</span>
-                    <span className="text-xs text-green-600 font-medium w-9 text-right">{posPct}%</span>
-                    <span className="text-xs text-gray-500 w-9 text-right">{neuPct}%</span>
-                    <span className="text-xs text-red-500 w-9 text-right">{negPct}%</span>
-                    <span className="text-xs font-bold text-gray-800 w-7 text-right">{score}</span>
+                    <span className="text-xs font-medium text-white/70 truncate">{cat.label}</span>
+                    <span className="text-xs text-green-400 font-medium w-9 text-right">{posPct}%</span>
+                    <span className="text-xs text-white/50 w-9 text-right">{neuPct}%</span>
+                    <span className="text-xs text-red-400 w-9 text-right">{negPct}%</span>
+                    <span className="text-xs font-bold text-white w-7 text-right">{score}</span>
                   </div>
                   {/* Stacked bar */}
-                  <div className="flex rounded-full overflow-hidden h-1.5 bg-gray-100">
+                  <div className="flex rounded-full overflow-hidden h-1.5 bg-white/8">
                     <div className="bg-green-400 h-full" style={{ width: `${posPct}%` }} />
-                    <div className="bg-gray-300 h-full" style={{ width: `${neuPct}%` }} />
+                    <div className="bg-white/20 h-full" style={{ width: `${neuPct}%` }} />
                     <div className="bg-red-400 h-full" style={{ width: `${negPct}%` }} />
                   </div>
                 </div>
