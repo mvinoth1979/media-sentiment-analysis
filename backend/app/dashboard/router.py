@@ -1530,33 +1530,42 @@ def get_ai_summary(
         '"Second specific action", "Third specific action"]}'
     )
 
-    try:
-        from app.nlp.gemini_handler import _get_client, _GEMINI_MODELS, _strip_fences
-        client = _get_client()
-        for model in _GEMINI_MODELS:
-            try:
-                response = client.models.generate_content(model=model, contents=prompt)
-                raw = _strip_fences(response.text.strip())
-                match = re.search(r"\{.*\}", raw, re.DOTALL)
-                if not match:
-                    continue
-                parsed = _json.loads(match.group())
-                result = {
-                    "what_changed": str(parsed.get("what_changed", "")).strip() or f"Negative sentiment at {neg_pct}% of {total} articles.",
-                    "why": str(parsed.get("why", "")).strip() or f"Coverage driven by {top_issues[0] if top_issues else 'general news'}.",
-                    "actions": [str(a).strip() for a in parsed.get("actions", []) if a][:3] or ["Review coverage", "Monitor trends", "Engage stakeholders"],
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
-                }
-                _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
-                return AISummaryResponse(**result)
-            except Exception as e:
-                err = str(e)
-                if "404" in err:
-                    continue
-                log.warning("AI summary Gemini error (%s): %s", model, err[:150])
-                break
-    except Exception as e:
-        log.warning("AI summary generation failed: %s", e)
+    # Try LLM — paid key first, then free key with lighter model
+    _AI_SUMMARY_ATTEMPTS = [
+        (settings.gemini_api_key,      settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key, "gemini-2.0-flash"),
+        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+    ]
+    from app.nlp.gemini_handler import _strip_fences
+    from google import genai as _genai
+    for _api_key, _model in _AI_SUMMARY_ATTEMPTS:
+        if not _api_key:
+            continue
+        try:
+            _client = _genai.Client(api_key=_api_key)
+            response = _client.models.generate_content(model=_model, contents=prompt)
+            raw = _strip_fences(response.text.strip())
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
+            if not match:
+                continue
+            parsed = _json.loads(match.group())
+            result = {
+                "what_changed": str(parsed.get("what_changed", "")).strip() or f"Negative sentiment at {neg_pct}% of {total} articles.",
+                "why": str(parsed.get("why", "")).strip() or f"Coverage driven by {top_issues[0] if top_issues else 'general news'}.",
+                "actions": [str(a).strip() for a in parsed.get("actions", []) if a][:3] or ["Review coverage", "Monitor trends", "Engage stakeholders"],
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
+            return AISummaryResponse(**result)
+        except Exception as e:
+            err = str(e)
+            if "RESOURCE_EXHAUSTED" in err or "429" in err:
+                log.warning("AI summary: %s quota exhausted, trying next", _model)
+                continue
+            if "404" in err:
+                continue
+            log.warning("AI summary LLM error (%s): %s", _model, err[:150])
+            break
 
     # Fallback: data-driven summary without LLM
     if neg_pct > 35:
