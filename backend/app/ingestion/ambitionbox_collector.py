@@ -6,7 +6,7 @@ AmbitionBox is a Next.js app. Reviews are embedded in:
   3. HTML selectors (last resort)
 
 brand_configs.ambitionbox_slug: e.g. "tata-motors"
-URL: https://www.ambitionbox.com/reviews/{slug}
+URL: https://www.ambitionbox.com/reviews/{slug}-reviews
 
 source_type: "ambitionbox_review"
 source_credibility: 0.70 (verified employee reviews)
@@ -52,6 +52,11 @@ _HEADERS = {
 _BASE_URL = "https://www.ambitionbox.com/reviews"
 
 
+def _review_url(slug: str) -> str:
+    """AmbitionBox review pages follow the pattern /reviews/{slug}-reviews."""
+    return f"{_BASE_URL}/{slug}-reviews"
+
+
 def _content_hash(brand_id: str, review_id: str) -> str:
     return hashlib.sha256(f"{brand_id}:ab:{review_id}".encode()).hexdigest()
 
@@ -67,7 +72,7 @@ def _fetch(url: str) -> httpx.Response | None:
 
 
 def _fetch_with_retry(slug: str) -> httpx.Response | None:
-    url = f"{_BASE_URL}/{slug}"
+    url = _review_url(slug)
     for attempt in range(3):
         if attempt > 0:
             time.sleep(_RETRY_DELAYS[attempt - 1] + random.uniform(0, 1))
@@ -168,7 +173,7 @@ def _map_next_data_review(review: dict, brand_id: str, slug: str) -> dict | None
             "story_hash":         _content_hash(brand_id, slug + (date_raw or body[:20])),
             "portal_id":          "ambitionbox",
             "portal_name":        "AmbitionBox",
-            "url":                f"{_BASE_URL}/{slug}",
+            "url":                _review_url(slug),
             "title":              f"AmbitionBox Review {star_str} — {designation}".strip(),
             "body":               body[:2000],
             "author":             author or designation,
@@ -203,7 +208,7 @@ def _map_json_ld_review(review: dict, brand_id: str, slug: str) -> dict | None:
             "story_hash":         _content_hash(brand_id, slug + date_raw),
             "portal_id":          "ambitionbox",
             "portal_name":        "AmbitionBox",
-            "url":                f"{_BASE_URL}/{slug}",
+            "url":                _review_url(slug),
             "title":              f"AmbitionBox Review {star_str}".strip(),
             "body":               body[:2000],
             "author":             author,
@@ -239,7 +244,7 @@ def _html_fallback(soup: BeautifulSoup, brand_id: str, slug: str) -> list[dict]:
                 "story_hash":         _content_hash(brand_id, slug + body[:30]),
                 "portal_id":          "ambitionbox",
                 "portal_name":        "AmbitionBox",
-                "url":                f"{_BASE_URL}/{slug}",
+                "url":                _review_url(slug),
                 "title":              "AmbitionBox Employee Review",
                 "body":               body[:2000],
                 "author":             "Employee",
