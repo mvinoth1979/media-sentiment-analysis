@@ -635,11 +635,59 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
 
         {/* ── Row 1: KPI cards ──────────────────────────────────────── flex-none */}
         <div className="grid grid-cols-5 gap-2 flex-none">
-          <KPICard compact label="Total Mentions"    value={formatCount(kpi.total)}       delta={kpi.mentions_delta_pct}   deltaUnit="%" sub="vs last period" icon="📰" accentColor="blue"   onClick={() => setActivePanel("mentions")} />
-          <KPICard compact label="Positive Mentions" value={formatCount(kpi.positive)}    pct={kpi.positive_pct}                                                       icon="😊" accentColor="green"  onClick={() => setActivePanel("mentions-positive")} />
-          <KPICard compact label="Neutral Mentions"  value={formatCount(kpi.neutral)}     pct={kpi.neutral_pct}                                                        icon="😐" accentColor="gray"   onClick={() => setActivePanel("mentions-neutral")} />
-          <KPICard compact label="Negative Mentions" value={formatCount(kpi.negative)}    pct={kpi.negative_pct}                                                       icon="😟" accentColor="red"    onClick={() => setActivePanel("mentions-negative")} />
-          <KPICard compact label="Reputation Index"  value={`${kpi.perception_score.toFixed(0)} / 100`} delta={kpi.perception_score_delta} deltaUnit=" pts"          icon="📊" accentColor="purple" onClick={() => setActivePanel("alerts")} />
+          <KPICard
+            variant="sparkline"
+            label="Total Mentions"
+            value={formatCount(kpi.total)}
+            delta={kpi.mentions_delta_pct}
+            sub="vs last period"
+            icon="📰"
+            accentColor="blue"
+            sparklineData={data.trend.map(t => t.value)}
+            onClick={() => setActivePanel("mentions")}
+          />
+          <KPICard
+            variant="donut"
+            label="Positive Mentions"
+            value={formatCount(kpi.positive)}
+            pct={kpi.positive_pct}
+            icon="😊"
+            accentColor="green"
+            riskLabel={kpi.positive_pct >= 50 ? "Good" : kpi.positive_pct >= 30 ? "Medium" : "High"}
+            onClick={() => setActivePanel("mentions-positive")}
+          />
+          <KPICard
+            variant="donut"
+            label="Neutral Mentions"
+            value={formatCount(kpi.neutral)}
+            pct={kpi.neutral_pct}
+            icon="😐"
+            accentColor="gray"
+            onClick={() => setActivePanel("mentions-neutral")}
+          />
+          <KPICard
+            variant="donut"
+            label="Negative Mentions"
+            value={formatCount(kpi.negative)}
+            pct={kpi.negative_pct}
+            icon="😟"
+            accentColor="red"
+            riskLabel={kpi.negative_pct < 20 ? "Good" : kpi.negative_pct < 35 ? "Medium" : "High"}
+            onClick={() => setActivePanel("mentions-negative")}
+          />
+          <KPICard
+            variant="donut"
+            label="Reputation Index"
+            value={`${kpi.perception_score.toFixed(0)}`}
+            pct={kpi.perception_score}
+            delta={kpi.perception_score_delta}
+            deltaUnit=" pts"
+            sub="out of 100"
+            icon="📊"
+            accentColor="purple"
+            riskLabel={kpi.perception_score >= 65 ? "Good" : kpi.perception_score >= 40 ? "Medium" : "High"}
+            onClick={() => setActivePanel("alerts")}
+          />
         </div>
 
         {/* ── Row 2: AI Executive Summary (58%) | Sentiment Trend (42%) ── flex-none */}
