@@ -1,0 +1,2 @@
+ALTER TABLE articles
+  ADD COLUMN IF NOT EXISTS creator_type TEXT NOT NULL DEFAULT 'unknown';
