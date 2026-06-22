@@ -1,6 +1,6 @@
 # MediaSense — Pricing
 
-> **Last updated:** 2026-06-21 (Phase 2.1 Reddit live; Phase 3.2 analytics intelligence: structured issue taxonomy + YouTube creator vs audience split)
+> **Last updated:** 2026-06-22 (Review site collectors × 7 platforms live; Screen 4 Review Sites Intelligence dashboard)
 > **Update this document** whenever a major feature ships (export, alerts, social media, billing, API access, etc.).
 > **See also:** `docs/competitive-analysis-and-pricing.md` for full competitor matrix and go-to-market strategy.
 
@@ -8,12 +8,13 @@
 
 ## Current Feature Scope (determines pricing floor)
 
-| Channel | Languages | Portals | Analytics | Workflow | Dashboard |
+| Channel | Languages | Portals / Platforms | Analytics | Workflow | Dashboard |
 |---|---|---|---|---|---|
-| News portals + YouTube (video + comments) | EN, TA, HI, GU, BN, KN | 43 curated Indian portals | Sentiment, topics, entities, states, credibility-weighted score, trend, YouTube reach metadata | CSV export ✅ · Email alerts ✅ · 4-step self-serve brand wizard ✅ | **Phase 3 redesign live**: compact no-scroll layout · click-to-detail for all 9 sections · area chart (filled) · donut/table/headlines · sidebar static |
+| News portals + YouTube (video + comments) + Reddit + **Review Sites × 7** | EN, TA, HI, GU, BN, KN | 31 curated Indian news portals + 7 review platforms (Google Reviews, Trustpilot, MouthShut, JustDial, AmbitionBox, TripAdvisor, Team-BHP) | Sentiment, topics, entities, states, credibility-weighted score, trend, YouTube reach metadata, **per-platform review ★ rating + sentiment breakdown** | CSV export ✅ · Email alerts ✅ · 4-step self-serve brand wizard ✅ | **4-screen snap-scroll**: Screen 1 Executive Overview · Screen 2 Deep Analysis · Screen 3 Drill-Down · **Screen 4 Review Sites Intelligence** (per-platform cards, feed, best-rated spotlight) |
 
 > YouTube monitoring (video search + channel RSS + comments) shipped Phase 2.0 and is **included in all tiers at no additional charge**.
-> Twitter/X, Instagram, and Facebook remain Phase 3. Pricing will increase materially when those channels ship.
+> Review site monitoring (7 platforms) shipped Phase 3.A and is **included in all tiers at no additional charge**.
+> Twitter/X, Instagram, and Facebook remain Phase 4. Pricing will increase materially when those channels ship.
 
 ---
 
@@ -29,6 +30,7 @@
 | **Languages** | English + 1 regional (EN + TA or HI or GU or BN or KN) |
 | **News portals** | All portals for chosen languages (up to 26 portals across chosen 2 languages) |
 | **YouTube monitoring** | ✅ Keyword search + comments for chosen languages |
+| **Review site monitoring** | ✅ Google Reviews + Trustpilot (if brand has presence) |
 | **Users** | 5 |
 | **History** | 90 days |
 | **Export** | Dashboard only (CSV export available at Tier 2+) |
@@ -49,7 +51,8 @@
 | **Languages** | All 6 (EN + TA + HI + GU + BN + KN) |
 | **News portals** | All 43 curated portals |
 | **YouTube monitoring** | ✅ Keyword search + channel RSS + comments · reach metadata (views, likes, subscribers) · per-brand channel ID config |
-| **Source type filter** | ✅ News / YT Videos / YT Comments (Mention Explorer) |
+| **Review site monitoring** | ✅ All 7 platforms — Google Reviews, Trustpilot, MouthShut, JustDial, AmbitionBox, TripAdvisor, Team-BHP · per-platform ★ rating + sentiment breakdown · Screen 4 Review Sites Intelligence dashboard |
+| **Source type filter** | ✅ News / YT Videos / YT Comments / Reviews / Reddit (Mention Explorer) |
 | **State-level filtering** | ✅ |
 | **Users** | 10 |
 | **History** | 12 months |
@@ -74,6 +77,7 @@
 | **Languages** | All 6 per brand |
 | **News portals** | All 43 per brand |
 | **YouTube monitoring** | ✅ Per-brand youtube_enabled toggle + channel ID config (brand wizard Step 4) |
+| **Review site monitoring** | ✅ All 7 platforms per brand · configurable slugs/URLs/keywords per brand via Channel Settings |
 | **Users** | 25 (agency staff + client read-only logins) |
 | **History** | 12 months |
 | **State-level filtering** | ✅ |
@@ -166,7 +170,42 @@ No pricing change — these are analytics intelligence improvements included in 
 
 ---
 
-### Phase 3 — Twitter/X, Instagram, Facebook (planned, pricing increase)
+### Phase 3.A — Regional language relevance filtering (complete ✅ — 2026-06-21)
+
+Root cause of ~50% irrelevant regional articles fixed. 6 high-noise portals removed (Tamil TV channels, Bengali tabloid, Kannada TV news) reducing portal count 43→31. Three-layer filter added: multilang keyword matching with script transliterations (TA/HI/KN/BN/GU), RSS category blocking (sports/cinema/entertainment dropped at ingestion), post-NLP entity gate (articles with no brand entity discarded). Rejection memory fix ensures user-deleted articles never re-enter. Expected outcome: irrelevant article rate <5%.
+
+No pricing change — data quality improvement included in all tiers.
+
+---
+
+### Phase 3.B — Review site monitoring × 7 platforms (complete ✅ — 2026-06-22)
+
+Seven review site collectors now run per pipeline cycle alongside news and social channels:
+
+| Platform | Coverage | Notes |
+|---|---|---|
+| **Google Reviews** | Star rating → sentiment (Tier 0 code-only, zero API cost) | Requires Places API Advanced SKU |
+| **Trustpilot** | Public review scraping via `__NEXT_DATA__` JSON | Per-brand slug |
+| **MouthShut** | Desktop + mobile WAP fallback | Per-brand slug |
+| **JustDial** | WAP + m.justdial fallback | Per-brand listing URL |
+| **AmbitionBox** | Employee reviews, paginated | Per-brand slug |
+| **TripAdvisor** | JSON-LD primary + `__SERVER_DATA__` recursive fallback | Per-brand listing URL |
+| **Team-BHP** | WordPress keyword search, 3 articles/keyword | Per-brand keyword list |
+
+All collectors use full browser fingerprint headers, 3-attempt retry on 429/502/503, and content-hash deduplication. Migrations 024–028 seed slugs/URLs/keywords for 14 brands.
+
+**New dashboard — Screen 4 Review Sites Intelligence:**
+- 3 summary KPIs: Total Reviews · Overall ★ Rating · Needs Attention platform
+- Per-platform cards: review count, star rating, sentiment bar (positive/neutral/negative %)
+- Live review feed filterable by platform
+- Best-rated platform spotlight
+- Backed by `/dashboard/review-sites-breakdown/{brand_id}` endpoint
+
+No pricing change — included in all tiers at no additional charge.
+
+---
+
+### Phase 4 — Twitter/X, Instagram, Facebook (planned, pricing increase)
 
 When these ship, a **Full Social + News** tier is added. This directly competes with Locobuzz/Konnect's core product. Existing tier customers' founder-locked rates are preserved; new customers pay full rate.
 
@@ -180,7 +219,7 @@ When these ship, a **Full Social + News** tier is added. This directly competes 
 
 ---
 
-### Phase 4 — Full feature parity (export formats, PDF reports, API, competitive tracking)
+### Phase 5 — Full feature parity (export formats, PDF reports, API, competitive tracking)
 
 At full parity with Locobuzz/Konnect mid-tier, standard pricing increases 20–30% across all tiers. Founder-locked customers retain their rate permanently.
 
@@ -196,7 +235,7 @@ At full parity with Locobuzz/Konnect mid-tier, standard pricing increases 20–3
 | Locobuzz | ₹20,000–80,000/brand/month | Social + news + CRM, vernacular social claims |
 | Meltwater (India) | ₹40,000–1,25,000/month | Global news + social, English-grade NLP only |
 | Brandwatch / Cision | ₹65,000–2,50,000/month | Full social intelligence, no Indian vernacular |
-| **MediaSense News + YouTube Pro** | **₹10,000–14,000/month** | **AI NLP across 6 Indian languages, 43 news portals + YouTube monitoring, state-level filtering, CSV export, email alerts** |
+| **MediaSense News + YouTube + Reviews Pro** | **₹10,000–14,000/month** | **AI NLP across 6 Indian languages, 31 curated news portals + YouTube + Reddit + 7 review platforms (Google Reviews/Trustpilot/MouthShut/JustDial/AmbitionBox/TripAdvisor/Team-BHP), state-level filtering, CSV export, email alerts, 4-screen dashboard** |
 
 ---
 
@@ -243,3 +282,4 @@ At full parity with Locobuzz/Konnect mid-tier, standard pricing increases 20–3
 | 2026-06-20 | Phase 1 data quality + C1/C2 alerts | Wire-service syndication dedup (story_hash, syndication_count); separate headline/body sentiment scores (headline_sentiment_score, body_sentiment_score, sentiment_divergence flag); editorial tone tag (factual/positive_frame/negative_frame/critical); author extraction from RSS; regulatory source flag (gov.in + keyword list); C1 syndication spike alert + C2 journalist beat alert — 2 new alert types (total 5); migration 013+014; alerts.py rewritten |
 | 2026-06-20 | Phase 1 UI + Tier 1 analytics + Reddit Phase 2.1 + Channel Settings | Phase 1 UI signals in Mention Explorer (editorial tone filter, ⚠ Divergent badge, 🛡 Gov/Reg badge, author byline, r/ badge); B4 issue clustering in TopIssuesTable (union-find co-occurrence, rising trend arrows); Tier 1: Journalist Coverage page, Editorial Tone donut, Divergent Headlines panel in detail view; Reddit: public JSON API collector, reddit_post/reddit_comment source types, r/ badge, per-brand subreddit config, migration 015; Channel Settings: BrandConfig edit page for existing brands |
 | 2026-06-21 | Phase 3.2 analytics intelligence | Structured issue taxonomy: 12 categories in NLP prompts, issue_category column (migration 016), /issue-categories endpoint, TopIssuesTable Categories tab; YouTube Creator vs Audience split: /youtube-sentiment-split endpoint, YouTubeSentimentSplit component showing creator/audience bars + divergent videos; Feature Scope table updated |
+| 2026-06-22 | Phase 3.A relevance filtering + Phase 3.B review site collectors × 7 platforms | 3.A: 6 high-noise portals removed (43→31), multilang keyword matching, RSS category blocking, post-NLP entity gate — irrelevant articles expected <5%. 3.B: Trustpilot, MouthShut, JustDial, AmbitionBox, Team-BHP, TripAdvisor collectors added (+ existing Google Reviews = 7 total); migrations 024–028 seed slugs for 14 brands; Screen 4 Review Sites Intelligence dashboard (per-platform cards, feed, spotlight); review site monitoring added to all tier tables; Feature Scope table + Market Comparison updated; Phase 3.B section added; Phase 3→4 / Phase 4→5 renumbered for planned social monitoring |
