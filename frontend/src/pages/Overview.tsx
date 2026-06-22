@@ -20,6 +20,7 @@ import { ReputationRiskGauge } from "../components/ReputationRiskGauge";
 import { TopInfluentialSources } from "../components/TopInfluentialSources";
 import { TopNegativeMentions } from "../components/TopNegativeMentions";
 import { TopBrandAdvocates } from "../components/TopBrandAdvocates";
+import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
 import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
 import { CompetitorComparison } from "../components/CompetitorComparison";
@@ -761,8 +762,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onStateClick={(state) => openDrill({ label: `State: ${state}`, state })}
             />
           </div>
-          <div className="min-h-0">
-            <TopBrandAdvocates brandId={brandId} days={days} />
+          {/* Virality Alerts stacked above Brand Advocates */}
+          <div className="min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <ViralityAlertsPanel brandId={brandId} days={days} />
+            </div>
+            <div className="flex-1 min-h-0">
+              <TopBrandAdvocates brandId={brandId} days={days} />
+            </div>
           </div>
         </div>
 

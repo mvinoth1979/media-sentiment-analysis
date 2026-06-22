@@ -23,6 +23,7 @@ from app.storage.influxdb import (
     query_sentiment_counts_trend_range,
 )
 from app.pipeline.perception import calculate_perception_score
+from app.pipeline.virality_detector import compute_virality_flags
 from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
     SourceStat, TopicStat, StateStat, TrendPoint, SourceTypeStat,
@@ -43,6 +44,7 @@ from app.dashboard.schemas import (
     ReviewQueueItem, ReviewQueueResponse, ReviewQueuePatchRequest,
     VideoRiskItem, BrandRiskScoresResponse,
     AISummaryResponse,
+    ViralityFlag, ViralityAlertsResponse,
 )
 
 router = APIRouter()
@@ -1710,3 +1712,23 @@ def get_competitor_sentiment(
         brands.append(BrandSentimentEntry(name=comp, is_brand=False, **_sentiment_pcts(comp_articles)))
 
     return CompetitorSentimentResponse(brands=brands)
+
+
+# ── Virality Alerts ───────────────────────────────────────────────────────────
+
+@router.get("/virality-alerts/{brand_id}", response_model=ViralityAlertsResponse)
+async def get_virality_alerts(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=30),
+    user=Depends(require_brand_role),
+):
+    """Return YouTube videos with virality spikes for the given brand.
+
+    Works with whatever snapshot history is available:
+    - 0 prior days: absolute threshold (50K views / 500 comments)
+    - 1–7 prior days: rolling avg × 3 multiplier
+    """
+    raw_flags = compute_virality_flags(brand_id, article_days=days)
+    flags = [ViralityFlag(**f) for f in raw_flags]
+    flags.sort(key=lambda f: f.flag_level, reverse=True)
+    return ViralityAlertsResponse(flags=flags, brand_id=brand_id, period_days=days)

@@ -397,3 +397,20 @@ export interface BrandSentimentEntry {
 export interface CompetitorSentimentData {
   brands: BrandSentimentEntry[];
 }
+
+// ── Virality Alerts ───────────────────────────────────────────────────────────
+
+export interface ViralityFlag {
+  article_id: string;
+  title: string;
+  url: string;
+  flag_level: 1 | 2 | 3;
+  triggered_metrics: string[];
+  history_days: number;
+}
+
+export interface ViralityAlertsData {
+  flags: ViralityFlag[];
+  brand_id: string;
+  period_days: number;
+}

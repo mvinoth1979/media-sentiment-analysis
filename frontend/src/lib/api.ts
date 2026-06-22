@@ -236,4 +236,9 @@ export const fetchTopAdvocates = (brandId: string, days = 30) =>
     .get<import("./types").TopAdvocatesData>(`/dashboard/top-advocates/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export const fetchViralityAlerts = (brandId: string, days = 7) =>
+  api
+    .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export default api;

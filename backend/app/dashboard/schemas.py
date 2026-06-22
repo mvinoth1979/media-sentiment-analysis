@@ -471,3 +471,21 @@ class AISummaryResponse(BaseModel):
     why: str
     actions: list[str]
     generated_at: str
+
+
+
+# ── Virality Alerts ───────────────────────────────────────────────────────────
+
+class ViralityFlag(BaseModel):
+    article_id: str
+    title: str
+    url: str = ""
+    flag_level: int           # 1=emerging, 2=reputation_risk, 3=crisis_alert
+    triggered_metrics: list[str]
+    history_days: int = 0     # 0 = day-0 absolute threshold; 1-7 = rolling avg
+
+
+class ViralityAlertsResponse(BaseModel):
+    flags: list[ViralityFlag]
+    brand_id: str
+    period_days: int = 7

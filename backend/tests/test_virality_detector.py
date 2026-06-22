@@ -186,18 +186,36 @@ class TestComputeViralityFlags:
         assert entry["flag_level"] == 3
         assert set(entry["triggered_metrics"]) == {"view_count", "comment_count", "negative_count"}
 
-    def test_no_history_skips_article(self):
-        # No baseline history → cannot compute avg → skip (do not flag)
+    def test_no_history_below_absolute_threshold_not_flagged(self):
+        # Day 0: values below absolute thresholds (50K views / 500 comments) → no flag
         article_id = "art-7"
         today_rows = [{
             "id": article_id,
-            "title": "No History",
+            "title": "No History Low",
             "source_type": "youtube_video",
-            "reach_metadata": {"view_count": 9999, "comment_count": 999},
+            "reach_metadata": {"view_count": 9999, "comment_count": 100},
             "negative_count": 50,
         }]
         result = self._run({article_id: []}, today_rows)
         assert result == []
+
+    def test_no_history_above_absolute_threshold_flagged(self):
+        # Day 0: views > 50K OR comments > 500 → flag even without history
+        article_id = "art-7b"
+        today_rows = [{
+            "id": article_id,
+            "title": "Instant Viral",
+            "url": "https://yt.test/v",
+            "source_type": "youtube_video",
+            "reach_metadata": {"view_count": 60000, "comment_count": 600},
+            "negative_count": 10,
+        }]
+        result = self._run({article_id: []}, today_rows)
+        assert len(result) == 1
+        assert result[0]["flag_level"] >= 1
+        assert result[0]["history_days"] == 0
+        assert "view_count" in result[0]["triggered_metrics"]
+        assert "comment_count" in result[0]["triggered_metrics"]
 
     def test_multiple_articles_flagged_independently(self):
         art1, art2 = "art-8", "art-9"
