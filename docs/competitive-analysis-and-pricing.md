@@ -1,6 +1,6 @@
 # MediaSense — Competitive Analysis & Pricing Strategy
 
-> **Last updated:** 2026-06-21 22:50 IST (regional language relevance filtering — 6 noisy portals removed; multilang keyword matching; entity gate; NLP engine analysis)
+> **Last updated:** 2026-06-22 IST (Phase 3 dashboard complete — 3-screen scroll-snap, all components, Mentions Monitor)
 > **Based on:** Live codebase audit + competitor research (June 2026)
 > Update this document when major features ship (social media, export, alerts, billing).
 
@@ -75,25 +75,27 @@
 | **Reddit + Google Reviews scheduler fix** | ✅ Live | Critical bug fixed: scheduler.py was silently dropping `google_reviews_enabled`, `google_places_id`, `reddit_enabled`, `reddit_subreddits` from the Redis worker config dict — both channels never ran despite Supabase flags being set. |
 | **Competitor SoV entity filter** | ✅ Live | Clicking entity in SoV widget filters mentions by `entities[]` array containment (`.contains("entities", [name])`) instead of fuzzy title ilike search. Full stack: postgres, /dashboard/mentions endpoint, MentionsList `initialEntity` prop. |
 | Mobile responsive UI | ✅ Live | |
-| **Compact single-screen dashboard (no scroll)** | ✅ Live | All 9 sections fit in one viewport — `h-screen overflow-hidden` root layout; `flex-[N] min-h-0` proportional row heights; compact prop variants for all section components |
+| **3-screen scroll-snap dashboard (Phase 3 complete)** | ✅ Live | `snap-y snap-mandatory` layout; 3 full-viewport screens; all dark-themed (`bg-[#0d1626]` / `bg-[#1a2744]`); sidebar fixed with live date range picker |
+| **Screen 1 — Executive Overview** | ✅ Live | 5 KPI cards: Total Mentions (sparkline variant), Positive/Neutral/Negative/Reputation (donut variant with % ring + Good/Medium/High risk label); AI Executive Summary (Gemini 3-col panel); Sentiment Trend; MentionsBySourceCards (5 channel cards: News/YouTube/Blogs/Reviews/Reddit with volume + Δ% + neg% + ★) |
+| **Screen 2 — Deep Analysis** | ✅ Live | TopIssuesTable (split sentiment bars, Neg/All/Pos toggle); TopInfluentialSources (impact score rank); TopNegativeMentions (severity dot); ReputationRiskGauge (SVG arc dial); IndiaStateMap regions mode (N/S/E/W zone cards with donut); TopBrandAdvocates |
+| **Screen 3 — Drill-Down** | ✅ Live | NewsRSSMentionsPanel + ReviewSiteAnalysisPanel + CompetitorComparison (3-tab: SoV / Sentiment stacked bars / Topics) |
+| **Mentions Monitor page** | ✅ Live | Full-screen MentionsList with 6 source tabs: All / News & RSS / YouTube / Reviews / Reddit / Journalists; replaces SourceBreakdown as primary exploration surface |
+| **Sidebar date range picker** | ✅ Live | Inline expandable picker; shows live label ("Last 7 days" / "Jun 1–Jun 21"); preset 7d/30d/90d + custom date inputs; state shared across Sidebar and Overview |
 | **Click-to-detail panel navigation** | ✅ Live | Every dashboard section and KPI card is clickable — opens a full second-screen detail with breadcrumb `← Executive Overview | [Section Name]`; back navigation returns to compact grid |
-| **Full dashboard redesign (Phase 3)** | ✅ Live | Dark navy sidebar (BrandPulse brand, nav, brand selector, last-updated timestamp); light main area with card-based layout; Sentiment Trend area chart (indigo/amber/red gradient fills); Mentions by Source donut; Top Headlines 3-tab panel (Top Positive / Top Negative / Trending); Review Sites Summary (star rating + distribution bars + themes); Top Issues Table (topic + bar + net sentiment %); Sentiment by Source Table (stacked bar + score); Competitor Share of Voice donut; Alerts & Risks cards |
 | **Mention Explorer — light theme + numbered pagination** | ✅ Live | `1–10 of 10+` counter; numbered paginator (← 1 2 →); 10 results per page |
 
 ### Not Yet Live (Planned)
 
 | Feature | Phase | Priority |
 |---|---|---|
-| Twitter/X, Instagram, Facebook monitoring | Phase 3 | Critical — crisis channels |
-| ~~Reddit monitoring~~ | ~~Phase 2.1~~ | ✅ Live — public JSON API, no approval required |
-| Real-time / near-real-time ingestion (< 15 min) | Phase 3 | High |
+| Twitter/X, Instagram, Facebook monitoring | Phase 4 | Critical — crisis channels |
+| Real-time / near-real-time ingestion (< 15 min) | Phase 4 | High |
 | Export (PDF / PPT report) | Wave 4 | High |
 | Full-text search across all stored articles | Wave 4 | Medium |
-| Competitive benchmarking / share of voice | Phase 3 | Medium |
 | Billing / subscription management | Wave 4 | Critical for revenue |
-| API access (for BI tools: Power BI, Tableau) | Phase 3 | Medium |
-| White-label reports (agency PDF with client branding) | Phase 3 | High for agencies |
-| Influencer / journalist identification | Phase 3 | Low |
+| API access (for BI tools: Power BI, Tableau) | Phase 4 | Medium |
+| White-label reports (agency PDF with client branding) | Phase 4 | High for agencies |
+| Influencer / journalist identification | Phase 4 | Low |
 | Image / visual brand recognition | Long-term | Low |
 | Mobile app | Long-term | Low |
 
