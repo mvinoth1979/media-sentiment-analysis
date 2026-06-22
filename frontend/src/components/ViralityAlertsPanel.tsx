@@ -1,4 +1,3 @@
-import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchViralityAlerts } from "../lib/api";
 import type { ViralityFlag } from "../lib/types";
