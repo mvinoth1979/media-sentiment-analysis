@@ -38,14 +38,14 @@ def test_missing_listing_url_returns_empty():
 
 # ── WAP URL conversion ─────────────────────────────────────────────────────
 
-def test_converts_to_wap_url():
-    from app.ingestion.justdial_collector import _to_wap_url
-    assert _to_wap_url("https://www.justdial.com/foo") == "https://wap.justdial.com/foo"
+def test_converts_to_wap():
+    from app.ingestion.justdial_collector import _to_wap
+    assert _to_wap("https://www.justdial.com/foo") == "https://wap.justdial.com/foo"
 
 
 def test_wap_url_unchanged_if_already_wap():
-    from app.ingestion.justdial_collector import _to_wap_url
-    assert _to_wap_url("https://wap.justdial.com/foo") == "https://wap.justdial.com/foo"
+    from app.ingestion.justdial_collector import _to_wap
+    assert _to_wap("https://wap.justdial.com/foo") == "https://wap.justdial.com/foo"
 
 
 # ── successful JSON-LD parse ───────────────────────────────────────────────

@@ -122,6 +122,12 @@ export const updateBrandConfig = (brandId: string, payload: {
   mouthshut_slug?: string;
   justdial_enabled?: boolean;
   justdial_listing_url?: string;
+  ambitionbox_enabled?: boolean;
+  ambitionbox_slug?: string;
+  tripadvisor_enabled?: boolean;
+  tripadvisor_listing_url?: string;
+  team_bhp_enabled?: boolean;
+  team_bhp_keywords?: string[];
 }) => api.put(`/tenants/brands/${brandId}/config`, payload).then(r => r.data);
 
 export const deleteBrand = (brandId: string) =>

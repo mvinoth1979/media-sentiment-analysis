@@ -196,11 +196,13 @@ _SOURCE_TYPE_CATEGORY: dict[str, str] = {
     "trustpilot_review":  "review_site",
     "mouthshut_review":   "review_site",
     "justdial_review":    "review_site",
-    "ambitionbox_review": "review_site",
-    "amazon_review":      "review_site",
-    "flipkart_review":    "review_site",
-    "glassdoor_review":   "review_site",
-    "indiamart_review":   "review_site",
+    "ambitionbox_review":  "review_site",
+    "tripadvisor_review":  "review_site",
+    "team_bhp_review":     "review_site",
+    "amazon_review":       "review_site",
+    "flipkart_review":     "review_site",
+    "glassdoor_review":    "review_site",
+    "indiamart_review":    "review_site",
     "reddit_post": "reddit_post", "reddit_comment": "reddit_post", "forum": "reddit_post",
 }
 _SOURCE_CATEGORIES = ("news", "youtube", "blog", "review_site", "reddit_post")

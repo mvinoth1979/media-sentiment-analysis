@@ -26,6 +26,13 @@ class BrandConfigUpdate(BaseModel):
     mouthshut_slug: str | None = None
     justdial_enabled: bool | None = None
     justdial_listing_url: str | None = None
+    # Review sites — Phase B
+    ambitionbox_enabled: bool | None = None
+    ambitionbox_slug: str | None = None
+    tripadvisor_enabled: bool | None = None
+    tripadvisor_listing_url: str | None = None
+    team_bhp_enabled: bool | None = None
+    team_bhp_keywords: list[str] | None = None
 
 
 @router.get("/me")

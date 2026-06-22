@@ -65,6 +65,15 @@ export function BrandConfig({ brandId, brandName }: Props) {
   // JustDial
   const [jdEnabled, setJdEnabled]             = useState(false);
   const [jdUrl, setJdUrl]                     = useState("");
+  // AmbitionBox
+  const [abEnabled, setAbEnabled]             = useState(false);
+  const [abSlug, setAbSlug]                   = useState("");
+  // TripAdvisor
+  const [taEnabled, setTaEnabled]             = useState(false);
+  const [taUrl, setTaUrl]                     = useState("");
+  // Team-BHP
+  const [tbhpEnabled, setTbhpEnabled]         = useState(false);
+  const [tbhpKeywords, setTbhpKeywords]       = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -82,6 +91,12 @@ export function BrandConfig({ brandId, brandName }: Props) {
         setMsSlug((cfg.mouthshut_slug as string) || "");
         setJdEnabled(Boolean(cfg.justdial_enabled));
         setJdUrl((cfg.justdial_listing_url as string) || "");
+        setAbEnabled(Boolean(cfg.ambitionbox_enabled));
+        setAbSlug((cfg.ambitionbox_slug as string) || "");
+        setTaEnabled(Boolean(cfg.tripadvisor_enabled));
+        setTaUrl((cfg.tripadvisor_listing_url as string) || "");
+        setTbhpEnabled(Boolean(cfg.team_bhp_enabled));
+        setTbhpKeywords(((cfg.team_bhp_keywords as string[]) || []).join("\n"));
       })
       .catch(() => setError("Failed to load brand config."))
       .finally(() => setLoading(false));
@@ -103,6 +118,12 @@ export function BrandConfig({ brandId, brandName }: Props) {
         mouthshut_slug: msSlug.trim(),
         justdial_enabled: jdEnabled,
         justdial_listing_url: jdUrl.trim(),
+        ambitionbox_enabled: abEnabled,
+        ambitionbox_slug: abSlug.trim(),
+        tripadvisor_enabled: taEnabled,
+        tripadvisor_listing_url: taUrl.trim(),
+        team_bhp_enabled: tbhpEnabled,
+        team_bhp_keywords: tbhpKeywords.split("\n").map(s => s.trim()).filter(Boolean),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -242,6 +263,69 @@ export function BrandConfig({ brandId, brandName }: Props) {
             <input type="text" value={jdUrl} onChange={e => setJdUrl(e.target.value)}
               placeholder="https://www.justdial.com/..."
               className={inputCls + " focus:ring-purple-400/50"} />
+          </Field>
+        )}
+      </section>
+
+      {/* ── AmbitionBox ─────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <SectionHeader
+          label="AmbitionBox"
+          enabled={abEnabled}
+          onToggle={() => setAbEnabled(v => !v)}
+          color="bg-blue-600"
+          icon={<svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.34C18 2.54 15.76.5 13.5.5c-1.34 0-2.5.56-3.36 1.44L9 3.06 7.86 1.94C6.96 1.06 5.76.5 4.5.5 2.24.5 0 2.54 0 4.66 0 5.12.11 5.56.18 6H0v2h20V6zm-5.5 0h-3V4.66C11.5 3.75 12.42 3 13.5 3s2 .75 2 1.66C15.5 5.12 15.39 5.56 14.5 6z M0 8v12h20V8H0zm4 10H2v-8h2v8zm4 0H6v-8h2v8zm4 0h-2v-8h2v8zm4 0h-2v-8h2v8zm4 0h-2v-8h2v8z"/></svg>}
+        />
+        {abEnabled && (
+          <Field
+            label="AmbitionBox company slug"
+            hint="Slug from the AmbitionBox URL: ambitionbox.com/reviews/{slug} (e.g. tata-motors, maruti-suzuki-india)."
+          >
+            <input type="text" value={abSlug} onChange={e => setAbSlug(e.target.value)}
+              placeholder="company-name"
+              className={inputCls + " focus:ring-blue-500/50"} />
+          </Field>
+        )}
+      </section>
+
+      {/* ── TripAdvisor ──────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <SectionHeader
+          label="TripAdvisor"
+          enabled={taEnabled}
+          onToggle={() => setTaEnabled(v => !v)}
+          color="bg-green-600"
+          icon={<svg className="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 4.5 4.13 4.5 7.5c0 3.38 3.63 5.5 7.5 5.5s7.5-2.12 7.5-5.5C19.5 4.13 15.87 2 12 2zm0 9c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM6 14.5c-2.21 0-4 1.79-4 4S3.79 22.5 6 22.5s4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm12-6c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>}
+        />
+        {taEnabled && (
+          <Field
+            label="TripAdvisor listing URL"
+            hint="Full URL of the attraction, hotel or business listing on TripAdvisor."
+          >
+            <input type="text" value={taUrl} onChange={e => setTaUrl(e.target.value)}
+              placeholder="https://www.tripadvisor.in/Attraction_Review-..."
+              className={inputCls + " focus:ring-green-500/50"} />
+          </Field>
+        )}
+      </section>
+
+      {/* ── Team-BHP ────────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <SectionHeader
+          label="Team-BHP"
+          enabled={tbhpEnabled}
+          onToggle={() => setTbhpEnabled(v => !v)}
+          color="bg-red-700"
+          icon={<svg className="w-5 h-5 text-red-700" viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>}
+        />
+        {tbhpEnabled && (
+          <Field
+            label="Search keywords"
+            hint="One model/sub-brand per line. The collector searches Team-BHP for each term and de-dupes. E.g. Maruti Swift, Maruti Baleno, WagonR."
+          >
+            <textarea value={tbhpKeywords} onChange={e => setTbhpKeywords(e.target.value)}
+              rows={4} placeholder={"Maruti Swift\nMaruti Baleno\nWagonR\nErtiga"}
+              className={inputCls + " resize-none focus:ring-red-600/50"} />
           </Field>
         )}
       </section>

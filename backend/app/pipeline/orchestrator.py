@@ -183,6 +183,20 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         else:
             log.info("JustDial skipped for brand %s", brand_id[:8])
 
+        if config.get("ambitionbox_enabled", False):
+            try:
+                from app.ingestion.ambitionbox_collector import collect_ambitionbox_for_brand
+                ab_raw = collect_ambitionbox_for_brand(brand, config)
+                ab_new = filter_new_articles(ab_raw, brand_id)
+                ab_new = [a for a in ab_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(ab_new)
+                stats["collected"] += len(ab_raw)
+            except Exception as e:
+                log.error("AmbitionBox collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("AmbitionBox skipped for brand %s", brand_id[:8])
+
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)
             return stats
