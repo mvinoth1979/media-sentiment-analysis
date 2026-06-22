@@ -1,149 +1,141 @@
-"""Trustpilot review collector using the official public API.
+"""Trustpilot review collector — scrapes the public review page.
 
-Workflow:
-1. If brand_configs.trustpilot_business_unit_id is empty:
-   GET https://api.trustpilot.com/v1/business-units/find?name={domain}&apikey={key}
-   -> saves the businessUnitId back to brand_configs
-2. GET https://api.trustpilot.com/v1/business-units/{id}/reviews?apikey={key}&perPage=20&orderBy=createdat.desc
-3. Maps each review to an article dict.
+No API key required. Trustpilot embeds review data as JSON in a
+<script id="__NEXT_DATA__"> block on https://www.trustpilot.com/review/{domain}.
 
 Returns [] when:
 - trustpilot_enabled is False
 - trustpilot_domain is not set
-- TRUSTPILOT_API_KEY env var is not set
-- API returns error
+- page returns non-200 or JSON structure changes
 """
 
 import hashlib
+import json
 import logging
 from datetime import datetime, timezone
 
 import httpx
-
-from app.config import settings
+from bs4 import BeautifulSoup
 
 log = logging.getLogger(__name__)
 
-_TRUSTPILOT_BASE = "https://api.trustpilot.com/v1"
-_TIMEOUT = 15.0
+_BASE_URL  = "https://www.trustpilot.com/review"
+_TIMEOUT   = 20.0
 _MAX_REVIEWS = 20
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 
-def _content_hash(brand_id: str, author: str, created_at: str) -> str:
-    raw = f"{brand_id}:{author}:{created_at}"
+def _content_hash(brand_id: str, review_id: str) -> str:
+    raw = f"{brand_id}:tp:{review_id}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def _save_business_unit_id(brand_id: str, unit_id: str) -> None:
+def _fetch_page(domain: str) -> list[dict]:
+    """Fetch public Trustpilot review page and extract reviews from __NEXT_DATA__."""
+    url = f"{_BASE_URL}/{domain}"
     try:
-        from app.storage.postgres import get_db
-        db = get_db()
-        db.table("brand_configs").update({"trustpilot_business_unit_id": unit_id}).eq("brand_id", brand_id).execute()
-        log.info("Brand %s: saved trustpilot_business_unit_id=%s", brand_id[:8], unit_id)
+        resp = httpx.get(url, headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True)
     except Exception as e:
-        log.warning("Brand %s: could not save trustpilot_business_unit_id: %s", brand_id[:8], e)
-
-
-def _resolve_business_unit(domain: str, api_key: str) -> str | None:
-    url = f"{_TRUSTPILOT_BASE}/business-units/find"
-    try:
-        resp = httpx.get(url, params={"name": domain, "apikey": api_key}, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        units = resp.json().get("businessUnits", [])
-        if not units:
-            log.info("Trustpilot: no business unit found for domain '%s'", domain)
-            return None
-        unit_id = units[0].get("id", "")
-        log.info("Trustpilot: resolved domain '%s' to unit_id=%s", domain, unit_id)
-        return unit_id or None
-    except Exception as e:
-        log.warning("Trustpilot: business unit lookup failed for '%s': %s", domain, e)
-        return None
-
-
-def _fetch_reviews(unit_id: str, api_key: str) -> list[dict]:
-    url = f"{_TRUSTPILOT_BASE}/business-units/{unit_id}/reviews"
-    params = {"apikey": api_key, "perPage": _MAX_REVIEWS, "orderBy": "createdat.desc"}
-    try:
-        resp = httpx.get(url, params=params, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json().get("reviews", [])
-    except Exception as e:
-        log.warning("Trustpilot: reviews fetch failed for unit_id=%s: %s", unit_id, e)
+        log.warning("Trustpilot: HTTP error for '%s': %s", domain, e)
         return []
+
+    if resp.status_code != 200:
+        log.warning("Trustpilot: HTTP %d for '%s'", resp.status_code, domain)
+        return []
+
+    soup = BeautifulSoup(resp.text, "lxml")
+    tag = soup.find("script", id="__NEXT_DATA__")
+    if not tag or not tag.string:
+        log.warning("Trustpilot: __NEXT_DATA__ not found for '%s'", domain)
+        return []
+
+    try:
+        data = json.loads(tag.string)
+    except json.JSONDecodeError as e:
+        log.warning("Trustpilot: JSON parse error for '%s': %s", domain, e)
+        return []
+
+    # Path: props.pageProps.reviews (standard Next.js SSR hydration)
+    reviews = (
+        data.get("props", {})
+            .get("pageProps", {})
+            .get("reviews", [])
+    )
+    if not reviews:
+        log.info("Trustpilot: 0 reviews in __NEXT_DATA__ for '%s'", domain)
+    return reviews
 
 
 def _map_review(review: dict, brand_id: str, domain: str) -> dict | None:
-    stars = int(review.get("stars") or 0)
-    text_obj = review.get("text") or {}
-    body = (text_obj.get("review") or "").strip()
-    author = (review.get("consumer") or {}).get("displayName", "")
-    created_at = review.get("createdAt", "")
+    review_id = review.get("id") or ""
+    body = (review.get("text") or "").strip()
+    title_text = (review.get("title") or "").strip()
+    stars = int((review.get("rating") or {}).get("value") or 0)
+    author = (review.get("consumer") or {}).get("displayName", "Anonymous")
+    published_raw = (review.get("dates") or {}).get("publishedDate", "")
 
-    if not body:
+    if not body and not title_text:
         return None
 
-    star_str = f"{'★' * stars}{'☆' * (5 - stars)}"
-    title = f"Trustpilot Review {star_str}"
+    full_body = f"{title_text}\n\n{body}".strip() if title_text else body
 
     try:
-        published_at = datetime.fromisoformat(created_at.replace("Z", "+00:00")).isoformat()
+        published_at = datetime.fromisoformat(
+            published_raw.replace("Z", "+00:00")
+        ).isoformat()
     except (ValueError, AttributeError):
         published_at = datetime.now(tz=timezone.utc).isoformat()
 
+    star_str = f"{'★' * stars}{'☆' * (5 - stars)}" if stars else ""
+    display_title = f"Trustpilot Review {star_str}".strip()
+
     return {
-        "brand_id": brand_id,
-        "content_hash": _content_hash(brand_id, author, created_at),
-        "story_hash": _content_hash(brand_id, domain, created_at),
-        "portal_id": "trustpilot",
-        "portal_name": "Trustpilot",
-        "url": f"https://www.trustpilot.com/review/{domain}",
-        "title": title,
-        "body": body[:2000],
-        "author": author,
-        "published_at": published_at,
-        "language": "en",
-        "source_type": "trustpilot_review",
+        "brand_id":           brand_id,
+        "content_hash":       _content_hash(brand_id, review_id or (author + published_raw)),
+        "story_hash":         _content_hash(brand_id, domain + published_raw),
+        "portal_id":          "trustpilot",
+        "portal_name":        "Trustpilot",
+        "url":                f"https://www.trustpilot.com/review/{domain}",
+        "title":              display_title,
+        "body":               full_body[:2000],
+        "author":             author,
+        "published_at":       published_at,
+        "language":           "en",
+        "source_type":        "trustpilot_review",
         "source_credibility": 0.80,
         "is_regulatory_source": False,
-        "reach_metadata": {"rating": stars},
+        "reach_metadata":     {"rating": stars},
     }
 
 
 def collect_trustpilot_for_brand(brand: dict, config: dict) -> list[dict]:
-    """Collect up to 20 Trustpilot reviews for a brand.
+    """Scrape up to 20 Trustpilot reviews for a brand.
 
-    Returns [] when trustpilot_enabled is False, domain is missing,
-    or the API key is not configured.
+    Returns [] when trustpilot_enabled is False or trustpilot_domain is missing.
+    No API key required — uses public page scraping.
     """
-    api_key = settings.trustpilot_api_key
-    brand_id = brand["id"]
-
-    if not api_key:
-        log.warning("TRUSTPILOT_API_KEY not set — skipping Trustpilot for brand %s", brand_id[:8])
-        return []
-
     if not config.get("trustpilot_enabled", False):
         return []
 
+    brand_id = brand["id"]
     domain = (config.get("trustpilot_domain") or "").strip()
     if not domain:
         log.warning("Brand %s: trustpilot_domain not set", brand_id[:8])
         return []
 
-    unit_id = (config.get("trustpilot_business_unit_id") or "").strip()
-    if not unit_id:
-        unit_id = _resolve_business_unit(domain, api_key)
-        if not unit_id:
-            return []
-        _save_business_unit_id(brand_id, unit_id)
-
-    raw_reviews = _fetch_reviews(unit_id, api_key)
+    raw_reviews = _fetch_page(domain)
     articles: list[dict] = []
     for review in raw_reviews[:_MAX_REVIEWS]:
         article = _map_review(review, brand_id, domain)
         if article:
             articles.append(article)
 
-    log.info("Brand %s: Trustpilot collected %d reviews", brand_id[:8], len(articles))
+    log.info("Brand %s: Trustpilot scraped %d reviews from '%s'", brand_id[:8], len(articles), domain)
     return articles

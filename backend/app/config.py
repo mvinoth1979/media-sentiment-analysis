@@ -37,7 +37,6 @@ class Settings(BaseSettings):
     reddit_user_agent: str = "script:MediaSense:v1.0 (by u/Vinoth1979)"
 
     google_places_api_key: str = ""
-    trustpilot_api_key: str = ""
 
     secret_key: str = ""
     environment: str = "development"

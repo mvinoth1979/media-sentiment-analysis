@@ -1,34 +1,49 @@
+"""Tests for the scraping-based Trustpilot collector (no API key required)."""
+import json
 from unittest.mock import MagicMock, patch
-
-import pytest
-
-FIND_RESPONSE = {"businessUnits": [{"id": "abc123", "displayName": "Test Brand"}]}
-REVIEWS_RESPONSE = {
-    "reviews": [
-        {
-            "id": "r1",
-            "stars": 4,
-            "text": {"review": "Great product, very happy!"},
-            "consumer": {"displayName": "Alice"},
-            "createdAt": "2025-05-01T10:00:00Z",
-        }
-    ]
-}
 
 BRAND = {"id": "b1b1b1b1-0000-0000-0000-000000000000"}
 CONFIG_ENABLED = {
     "trustpilot_enabled": True,
     "trustpilot_domain": "example.com",
-    "trustpilot_business_unit_id": "abc123",
+}
+
+_REVIEW_1 = {
+    "id": "r1",
+    "text": "Great product, very happy!",
+    "title": "Excellent experience",
+    "rating": {"value": 4},
+    "consumer": {"displayName": "Alice"},
+    "dates": {"publishedDate": "2025-05-01T10:00:00Z"},
+}
+_REVIEW_NO_BODY = {
+    "id": "r2",
+    "text": "",
+    "title": "",
+    "rating": {"value": 3},
+    "consumer": {"displayName": "Bob"},
+    "dates": {"publishedDate": "2025-05-02T10:00:00Z"},
 }
 
 
-def _mock_response(status_code=200, json_data=None):
-    mock = MagicMock()
-    mock.status_code = status_code
-    mock.json.return_value = json_data or {}
-    mock.raise_for_status = MagicMock()
-    return mock
+def _make_html(reviews: list[dict]) -> str:
+    next_data = {
+        "props": {
+            "pageProps": {"reviews": reviews}
+        }
+    }
+    return (
+        "<html><head>"
+        f'<script id="__NEXT_DATA__" type="application/json">{json.dumps(next_data)}</script>'
+        "</head><body></body></html>"
+    )
+
+
+def _mock_http(status_code: int = 200, html: str = "") -> MagicMock:
+    m = MagicMock()
+    m.status_code = status_code
+    m.text = html
+    return m
 
 
 # ── disabled / missing config ──────────────────────────────────────────────
@@ -41,30 +56,15 @@ def test_disabled_returns_empty():
 
 def test_missing_domain_returns_empty():
     from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
-    cfg = {**CONFIG_ENABLED, "trustpilot_domain": "", "trustpilot_business_unit_id": ""}
-    with patch("app.ingestion.trustpilot_collector.settings") as s:
-        s.trustpilot_api_key = "fake_key"
-        result = collect_trustpilot_for_brand(BRAND, cfg)
+    result = collect_trustpilot_for_brand(BRAND, {**CONFIG_ENABLED, "trustpilot_domain": ""})
     assert result == []
 
 
-def test_no_api_key_returns_empty():
+# ── successful scraping ────────────────────────────────────────────────────
+
+def test_parses_review_correctly():
     from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
-    with patch("app.ingestion.trustpilot_collector.settings") as s:
-        s.trustpilot_api_key = ""
-        result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
-    assert result == []
-
-
-# ── successful parse ───────────────────────────────────────────────────────
-
-def test_parses_reviews_correctly():
-    from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
-    with patch("app.ingestion.trustpilot_collector.settings") as s, \
-         patch("httpx.get") as mock_get:
-        s.trustpilot_api_key = "fake_key"
-        mock_get.return_value = _mock_response(json_data=REVIEWS_RESPONSE)
-
+    with patch("httpx.get", return_value=_mock_http(html=_make_html([_REVIEW_1]))):
         result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
 
     assert len(result) == 1
@@ -75,47 +75,57 @@ def test_parses_reviews_correctly():
     assert "★★★★☆" in art["title"]
     assert art["reach_metadata"]["rating"] == 4
     assert art["source_credibility"] == 0.80
+    assert "Great product" in art["body"]
+    assert "Excellent experience" in art["body"]
 
 
-def test_skips_review_with_empty_body():
+def test_skips_review_with_empty_body_and_title():
     from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
-    response = {
-        "reviews": [
-            {"stars": 3, "text": {"review": ""}, "consumer": {"displayName": "Bob"}, "createdAt": "2025-05-02T10:00:00Z"}
-        ]
-    }
-    with patch("app.ingestion.trustpilot_collector.settings") as s, \
-         patch("httpx.get") as mock_get:
-        s.trustpilot_api_key = "fake_key"
-        mock_get.return_value = _mock_response(json_data=response)
+    with patch("httpx.get", return_value=_mock_http(html=_make_html([_REVIEW_NO_BODY]))):
         result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
-
     assert result == []
 
 
-# ── business unit ID resolution ────────────────────────────────────────────
-
-def test_resolves_and_saves_business_unit_id():
+def test_limits_to_20_reviews():
     from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
-    cfg_no_unit = {**CONFIG_ENABLED, "trustpilot_business_unit_id": ""}
-    responses = [
-        _mock_response(json_data=FIND_RESPONSE),
-        _mock_response(json_data=REVIEWS_RESPONSE),
+    reviews = [
+        {**_REVIEW_1, "id": f"r{i}", "text": f"Review {i}"}
+        for i in range(30)
     ]
-    with patch("app.ingestion.trustpilot_collector.settings") as s, \
-         patch("httpx.get", side_effect=responses), \
-         patch("app.ingestion.trustpilot_collector._save_business_unit_id") as mock_save:
-        s.trustpilot_api_key = "fake_key"
-        result = collect_trustpilot_for_brand(BRAND, cfg_no_unit)
+    with patch("httpx.get", return_value=_mock_http(html=_make_html(reviews))):
+        result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
+    assert len(result) == 20
 
-    mock_save.assert_called_once_with(BRAND["id"], "abc123")
-    assert len(result) == 1
 
+def test_content_hash_deterministic():
+    from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
+    html = _make_html([_REVIEW_1])
+    with patch("httpx.get", return_value=_mock_http(html=html)):
+        r1 = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
+    with patch("httpx.get", return_value=_mock_http(html=html)):
+        r2 = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
+    assert r1[0]["content_hash"] == r2[0]["content_hash"]
+
+
+# ── error handling ─────────────────────────────────────────────────────────
 
 def test_http_error_returns_empty():
     from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
-    with patch("app.ingestion.trustpilot_collector.settings") as s, \
-         patch("httpx.get", side_effect=Exception("Connection refused")):
-        s.trustpilot_api_key = "fake_key"
+    with patch("httpx.get", side_effect=Exception("Connection refused")):
+        result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
+    assert result == []
+
+
+def test_non_200_returns_empty():
+    from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
+    with patch("httpx.get", return_value=_mock_http(status_code=404)):
+        result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
+    assert result == []
+
+
+def test_missing_next_data_returns_empty():
+    from app.ingestion.trustpilot_collector import collect_trustpilot_for_brand
+    bare_html = "<html><body><p>No JSON here</p></body></html>"
+    with patch("httpx.get", return_value=_mock_http(html=bare_html)):
         result = collect_trustpilot_for_brand(BRAND, CONFIG_ENABLED)
     assert result == []
