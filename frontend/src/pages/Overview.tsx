@@ -37,6 +37,7 @@ interface DrillFilter {
   issueCategory?: string;
   q?: string;
   entity?: string;
+  state?: string;
 }
 
 const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
