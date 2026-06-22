@@ -15,6 +15,7 @@ from app.storage.rejection_store import is_rejected
 from app.storage.influxdb import write_sentiment_point
 from app.storage.r2 import archive_article
 from app.pipeline.dead_letter import push_to_dlq
+from app.pipeline.virality_detector import save_snapshot, compute_virality_flags
 
 log = logging.getLogger(__name__)
 
@@ -173,8 +174,17 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
                         continue
 
                 archive_article(article)
-                save_article(article, nlp_dict)
+                article_id = save_article(article, nlp_dict)
                 mark_article_seen(article["content_hash"], brand_id)
+                if article.get("source_type") == "youtube_video" and article_id:
+                    meta = article.get("reach_metadata") or {}
+                    save_snapshot(
+                        article_id=article_id,
+                        brand_id=brand_id,
+                        view_count=int(meta.get("view_count") or 0),
+                        comment_count=int(meta.get("comment_count") or 0),
+                        negative_count=0,
+                    )
                 processed_articles.append({**article, **nlp_dict})
                 stats["processed"] += 1
             except Exception as e:
@@ -198,6 +208,17 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
                 perception_score=score,
                 negative_pct=negative_pct,
                 mention_count=counts["total"],
+            )
+
+        # Virality detection — runs after all articles are saved so snapshots exist.
+        # Needs ≥1 day of prior history to produce flags; harmless on first run.
+        virality_flags = compute_virality_flags(brand_id)
+        if virality_flags:
+            log.warning(
+                "Brand %s: %d virality flag(s) detected: %s",
+                brand_id[:8],
+                len(virality_flags),
+                [(f["title"][:40], f["flag_level"]) for f in virality_flags],
             )
 
     finally:
