@@ -382,3 +382,18 @@ export interface BrandAdvocate {
 export interface TopAdvocatesData {
   advocates: BrandAdvocate[];
 }
+
+// ── Screen 3: Competitor Sentiment Comparison ─────────────────────────────────
+
+export interface BrandSentimentEntry {
+  name: string;
+  is_brand: boolean;
+  positive_pct: number;
+  neutral_pct: number;
+  negative_pct: number;
+  count: number;
+}
+
+export interface CompetitorSentimentData {
+  brands: BrandSentimentEntry[];
+}

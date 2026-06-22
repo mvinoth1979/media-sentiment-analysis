@@ -27,6 +27,7 @@ from app.dashboard.schemas import (
     OverviewResponse, KPISummary, ArticleItem, AuthorInfo, MentionMetrics,
     SourceStat, TopicStat, StateStat, TrendPoint, SourceTypeStat,
     InfluentialSource, TopSourcesResponse, BrandAdvocate, TopAdvocatesResponse,
+    BrandSentimentEntry, CompetitorSentimentResponse,
     Annotation, AnnotationCreate, DeleteMentionsRequest, PipelineStats,
     SentimentTrendPoint, SentimentTrendResponse,
     SourceCategoryPoint, SourceCategoriesResponse,
@@ -1621,3 +1622,50 @@ def get_top_advocates_endpoint(
         for r in results[:5]
     ]
     return TopAdvocatesResponse(advocates=advocates)
+
+
+# ── Screen 3: Competitor Sentiment Comparison ──────────────────────────────────
+
+def _sentiment_pcts(arts: list[dict]) -> dict:
+    if not arts:
+        return {"positive_pct": 0.0, "neutral_pct": 0.0, "negative_pct": 0.0, "count": 0}
+    total = len(arts)
+    pos = sum(1 for a in arts if a.get("sentiment_label") == "positive")
+    neg = sum(1 for a in arts if a.get("sentiment_label") == "negative")
+    return {
+        "positive_pct": round(pos / total * 100, 1),
+        "neutral_pct": round((total - pos - neg) / total * 100, 1),
+        "negative_pct": round(neg / total * 100, 1),
+        "count": total,
+    }
+
+
+@router.get("/competitor-sentiment/{brand_id}", response_model=CompetitorSentimentResponse)
+def get_competitor_sentiment(
+    brand_id: str,
+    days: int = Query(30),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    db = get_db()
+    brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "Brand"
+
+    config_row = db.table("brand_configs").select("competitors").eq("brand_id", brand_id).execute().data
+    competitors: list[str] = (config_row[0].get("competitors") or []) if config_row else []
+
+    current_end = datetime.utcnow()
+    current_start = current_end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=2000, date_from=current_start.isoformat(), date_to=current_end.isoformat())
+
+    brands = [BrandSentimentEntry(name=brand_name, is_brand=True, **_sentiment_pcts(articles))]
+
+    for comp in competitors[:4]:
+        comp_lower = comp.lower()
+        comp_articles = [
+            a for a in articles
+            if comp_lower in (a.get("title") or "").lower()
+            or any(comp_lower in (e or "").lower() for e in (a.get("entities") or []))
+        ]
+        brands.append(BrandSentimentEntry(name=comp, is_brand=False, **_sentiment_pcts(comp_articles)))
+
+    return CompetitorSentimentResponse(brands=brands)

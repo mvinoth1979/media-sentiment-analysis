@@ -20,6 +20,9 @@ import { ReputationRiskGauge } from "../components/ReputationRiskGauge";
 import { TopInfluentialSources } from "../components/TopInfluentialSources";
 import { TopNegativeMentions } from "../components/TopNegativeMentions";
 import { TopBrandAdvocates } from "../components/TopBrandAdvocates";
+import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
+import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
+import { CompetitorComparison } from "../components/CompetitorComparison";
 import { formatCount } from "../lib/utils";
 
 type ActivePanel =
@@ -728,22 +731,43 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ══════════════════ SCREEN 3 ══════════════════════════════════════════ */}
       <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] shrink-0">
         {/* Header strip */}
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#1a2744] border-b border-white/10 flex-none">
-          <h2 className="text-sm font-semibold text-white">All Mentions</h2>
+        {/* Header strip */}
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#1a2744] border-b border-white/10 flex-none">
+          <h2 className="text-sm font-semibold text-white">Drill-Down Analysis</h2>
           <span className="text-[10px] text-white/40">— scroll up to return to overview</span>
           <div ref={mentionsRef} />
         </div>
-        {/* Full MentionsList embedded */}
-        <div className="flex-1 min-h-0 overflow-auto p-4">
-          <MentionsList
-            brandId={brandId}
-            brandName={brandName}
-            portals={data.top_sources.map(s => s.portal_id)}
-            topics={data.top_topics}
-            states={data.state_breakdown.map(s => s.state)}
-            selectable
-            syncUrl
-          />
+
+        {/* 2-col grid: left (News + Review) | right (Competitor Comparison) */}
+        <div className="grid grid-cols-2 gap-3 p-3 flex-1 min-h-0">
+          {/* Left column */}
+          <div className="flex flex-col gap-3 min-h-0">
+            <div className="flex-[3] min-h-0">
+              <NewsRSSMentionsPanel
+                brandId={brandId}
+                brandName={brandName}
+                portals={data.top_sources.map(s => s.portal_id)}
+                topics={data.top_topics}
+                states={data.state_breakdown.map(s => s.state)}
+                bySourceType={data.by_source_type}
+              />
+            </div>
+            <div className="flex-[2] min-h-0">
+              <ReviewSiteAnalysisPanel
+                brandId={brandId}
+                bySourceType={data.by_source_type}
+              />
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div className="min-h-0">
+            <CompetitorComparison
+              brandId={brandId}
+              days={days}
+              topTopics={data.top_topics}
+            />
+          </div>
         </div>
       </div>
 

@@ -221,6 +221,11 @@ export const fetchAiSummary = (
     )
     .then(r => r.data);
 
+export const fetchCompetitorSentiment = (brandId: string, days = 30) =>
+  api
+    .get<import("./types").CompetitorSentimentData>(`/dashboard/competitor-sentiment/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export const fetchTopSources = (brandId: string, days = 30) =>
   api
     .get<import("./types").TopSourcesData>(`/dashboard/top-sources/${brandId}`, { params: { days } })

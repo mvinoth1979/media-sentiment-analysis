@@ -131,6 +131,21 @@ class OverviewResponse(BaseModel):
     by_source_type: dict[str, SourceTypeStat] = {}
 
 
+# --- Screen 3: Competitor Sentiment Comparison ---
+
+class BrandSentimentEntry(BaseModel):
+    name: str
+    is_brand: bool
+    positive_pct: float
+    neutral_pct: float
+    negative_pct: float
+    count: int
+
+
+class CompetitorSentimentResponse(BaseModel):
+    brands: list[BrandSentimentEntry]
+
+
 # --- Screen 2: Top Influential Sources ---
 
 class InfluentialSource(BaseModel):
