@@ -1,4 +1,20 @@
-import json
+"""
+Gemini NLP handler.
+
+Prompts have been trimmed to remove fields now handled by code_extractors:
+  - states_mentioned  (regex + city map — more accurate than LLM)
+  - topics            (keyword dict)
+  - keywords          (frequency count)
+
+This saves ~130 tokens per article call. The JSON schemas now only ask for
+fields where LLM adds genuine value: sentiment scores, entities, editorial
+tone, issue_category, and creator_type.
+
+Client selection is delegated to APIRouter — this module only builds prompts
+and parses responses.
+"""
+
+import json as _json
 import logging
 import re
 import time
@@ -8,7 +24,6 @@ from app.nlp.schemas import NLPResult
 
 log = logging.getLogger(__name__)
 
-_client = None
 _VALID_LABELS = {"positive", "negative", "neutral"}
 _VALID_TONES  = {"factual", "positive_frame", "negative_frame", "critical"}
 _VALID_CREATOR_TYPES = {
@@ -22,23 +37,21 @@ _VALID_CATEGORIES = {
     "customer_experience", "brand_advocacy", "market_opportunity", "other",
 }
 
-_INDIAN_STATES = (
-    "Andhra Pradesh, Arunachal Pradesh, Assam, Bihar, Chhattisgarh, Goa, Gujarat, "
-    "Haryana, Himachal Pradesh, Jharkhand, Karnataka, Kerala, Madhya Pradesh, "
-    "Maharashtra, Manipur, Meghalaya, Mizoram, Nagaland, Odisha, Punjab, Rajasthan, "
-    "Sikkim, Tamil Nadu, Telangana, Tripura, Uttar Pradesh, Uttarakhand, West Bengal, "
-    "Delhi, Jammu & Kashmir, Ladakh, Chandigarh, Puducherry"
-)
-
-
 _GEMINI_MODELS = [settings.gemini_model, "gemini-2.5-flash", "gemini-flash-latest"]
 
 
 def _get_client():
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=settings.gemini_api_key)
-    return _client
+    """Backward-compat client for AI summary and competitor discovery (paid tier)."""
+    from app.nlp.api_router import APIRouter
+    result = APIRouter.get_gemini_client(paid=True)
+    if result:
+        return result[0]
+    # If paid is rate-limited, try free as last resort
+    result = APIRouter.get_gemini_client(paid=False)
+    if result:
+        return result[0]
+    # Absolute fallback — create directly (no rate-limit awareness)
+    return genai.Client(api_key=settings.gemini_api_key or settings.gemini_free_api_key)
 
 
 def _strip_fences(raw: str) -> str:
@@ -46,23 +59,23 @@ def _strip_fences(raw: str) -> str:
 
 
 def _parse_label(label: str) -> str:
-    normalized = label.lower().strip()
-    return normalized if normalized in _VALID_LABELS else "neutral"
+    n = label.lower().strip()
+    return n if n in _VALID_LABELS else "neutral"
 
 
 def _parse_tone(tone: str) -> str:
-    normalized = tone.lower().strip().replace(" ", "_")
-    return normalized if normalized in _VALID_TONES else "factual"
+    n = tone.lower().strip().replace(" ", "_")
+    return n if n in _VALID_TONES else "factual"
 
 
 def _parse_category(cat: str) -> str:
-    normalized = cat.lower().strip().replace(" ", "_")
-    return normalized if normalized in _VALID_CATEGORIES else "other"
+    n = cat.lower().strip().replace(" ", "_")
+    return n if n in _VALID_CATEGORIES else "other"
 
 
 def _parse_creator_type(ct: str) -> str:
-    normalized = ct.lower().strip().replace(" ", "_")
-    return normalized if normalized in _VALID_CREATOR_TYPES else "unknown"
+    n = ct.lower().strip().replace(" ", "_")
+    return n if n in _VALID_CREATOR_TYPES else "unknown"
 
 
 def _clip(v) -> float | None:
@@ -76,79 +89,67 @@ def _clip(v) -> float | None:
 
 _SOURCE_CONTEXT = {
     "news": (
-        "This is a news article. Use journalistic framing to assess brand sentiment. "
-        "Extract Indian states mentioned in the text carefully — they are significant."
+        "News article — use journalistic framing. "
+        "Weight body sentiment more than headline."
     ),
     "youtube_video": (
-        "This is a YouTube video title and description. The title may use clickbait phrasing — "
-        "weight the description more heavily than the title when judging true sentiment. "
-        "Focus on the creator's opinion about the brand or product."
+        "YouTube video title+description — description carries more weight than "
+        "clickbait title. Focus on the creator's stance toward the brand."
     ),
     "youtube_comment": (
-        "This is a short YouTube comment. Emojis carry strong sentiment (😤😡=negative, 😊❤️=positive). "
-        "Slang and mixed languages (Hinglish, Tanglish) are intentional — focus on emotional tone. "
-        "states_mentioned will almost always be empty. Confidence should reflect text brevity."
+        "Short YouTube comment. Emojis signal sentiment (😤😡=negative, 😊❤️=positive). "
+        "Slang and Hinglish are intentional. Keep confidence low for very short text."
     ),
     "reddit_post": (
-        "This is a Reddit post from an Indian subreddit. Upvotes signal community agreement. "
-        "Extract brand sentiment from the community reaction, not just the post author's framing. "
-        "Posts can be long-form discussions — weigh the overall narrative."
+        "Reddit post from an Indian subreddit. Upvotes indicate community agreement. "
+        "Read the overall narrative, not just the post author's framing."
     ),
     "reddit_comment": (
-        "This is a short Reddit comment. Sarcasm and irony are common on Reddit — read carefully. "
-        "Emojis and Hinglish are intentional; states_mentioned is usually empty. "
-        "Confidence should reflect text brevity."
+        "Short Reddit comment. Sarcasm and irony are common. "
+        "Hinglish is intentional. Keep confidence low for brief text."
     ),
     "google_review": (
-        "This is a Google Business review left by a customer. Star rating strongly correlates "
-        "with sentiment (4-5 stars = positive, 1-2 stars = negative, 3 stars = neutral). "
-        "Text may be brief — use rating context to anchor sentiment score. "
-        "states_mentioned is usually empty unless the reviewer mentions a city or region. "
-        "Confidence should reflect text length and specificity."
+        "Google Business review. Star rating anchors sentiment strongly. "
+        "Text may be brief."
     ),
 }
 
-# Used when title and body are available separately (news articles — A2)
+# ── Slim prompt: news (headline + body split, editorial tone) ─────────────────
+# Removed from schema: states_mentioned, topics, keywords (code_extractors handles these)
 _PROMPT_NEWS = """Analyse sentiment of this news content for brand/product mentions.
 
-Source context: {source_context}
+Source: {source_context}
 
 HEADLINE: {title}
 
 BODY: {body}
 
-Return ONLY valid JSON with this exact schema:
+Return ONLY valid JSON — no markdown, no explanation:
 {{
-  "sentiment_score": <float -1.0 to +1.0, overall body-weighted score>,
+  "sentiment_score": <float -1.0 to +1.0, overall body-weighted>,
   "headline_sentiment_score": <float -1.0 to +1.0, headline only>,
-  "body_sentiment_score": <float -1.0 to +1.0, body/summary only>,
+  "body_sentiment_score": <float -1.0 to +1.0, body only>,
   "sentiment_label": <"positive" | "negative" | "neutral">,
   "editorial_tone": <"factual" | "positive_frame" | "negative_frame" | "critical">,
-  "entities": [<named entities: brands, people, locations, products>],
-  "topics": [<from: product_quality, pricing, customer_service, leadership, campaign, legal, expansion, financial, other>],
-  "keywords": [<up to 8 significant keywords>],
-  "states_mentioned": [<Indian states/UTs from: {states}. Empty list if none.>],
-  "issue_category": <one of: "financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other">,
+  "entities": [<named entities: brands, people, organisations, products>],
+  "issue_category": <"financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other">,
   "confidence": <float 0.0 to 1.0>
 }}
 
 Language: {language}"""
 
-# Used for YouTube and any source where headline/body are not separated
-_PROMPT_COMBINED = """Analyse the sentiment of the following text for the brand/product mentions it contains.
+# ── Slim prompt: YouTube video / Reddit post ──────────────────────────────────
+_PROMPT_SOCIAL_POST = """Analyse the sentiment of this content toward the brand or product mentioned.
 
-Source context: {source_context}
+Source: {source_context}
 
-Return ONLY valid JSON with this exact schema:
+Return ONLY valid JSON:
 {{
-  "sentiment_score": <float from -1.0 (very negative) to +1.0 (very positive)>,
+  "sentiment_score": <float -1.0 to +1.0>,
   "sentiment_label": <"positive" | "negative" | "neutral">,
-  "entities": [<named entities: brands, people, locations, products>],
-  "topics": [<topics from: product_quality, pricing, customer_service, leadership, campaign, legal, expansion, financial, other>],
-  "keywords": [<up to 8 significant keywords>],
-  "states_mentioned": [<Indian states or UTs explicitly named or clearly implied by a city/region in the text. Use only full official state names from this list: {states}. Empty list if none found.>],
-  "issue_category": <one of: "financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other">,
-  "creator_type": <for youtube_video: "journalist"|"reviewer"|"influencer"|"customer"|"industry_expert"|"activist"|"competitor_affiliate"|"unknown". Use "unknown" for all non-video sources.>,
+  "entities": [<named entities: brands, people, products>],
+  "issue_category": <"financial_performance"|"regulatory_compliance"|"product_quality"|"leadership_governance"|"crisis_controversy"|"awards_recognition"|"csr_sustainability"|"policy_government"|"competitive_landscape"|"customer_experience"|"brand_advocacy"|"market_opportunity"|"other">,
+  "creator_type": <for youtube_video only: "journalist"|"reviewer"|"influencer"|"customer"|"industry_expert"|"activist"|"competitor_affiliate"|"unknown". Use "unknown" for all other sources.>,
   "confidence": <float 0.0 to 1.0>
 }}
 
@@ -156,6 +157,124 @@ Language: {language}
 Text:
 {text}"""
 
+# ── Ultra-slim prompt: short comments ────────────────────────────────────────
+# Comments (youtube_comment, reddit_comment) only need core sentiment.
+# issue_category is omitted — comments rarely appear in TopIssuesTable.
+_PROMPT_COMMENT = """Sentiment of this comment toward the brand/product:
+
+Return ONLY valid JSON:
+{{"sentiment_score": <float -1.0 to +1.0>, "sentiment_label": <"positive"|"negative"|"neutral">, "confidence": <float 0.0-1.0>}}
+
+Text: {text}"""
+
+
+def _build_prompt(
+    text: str,
+    language: str,
+    source_type: str,
+    title: str,
+    body: str,
+) -> tuple[str, bool]:
+    """
+    Returns (prompt, is_structured_news).
+    is_structured_news=True when the response will include headline/body scores.
+    """
+    ctx = _SOURCE_CONTEXT.get(source_type, _SOURCE_CONTEXT["news"])
+
+    if source_type in ("youtube_comment", "reddit_comment"):
+        return _PROMPT_COMMENT.format(text=text[:1500]), False
+
+    if source_type == "news" and title and body:
+        return _PROMPT_NEWS.format(
+            source_context=ctx,
+            title=title[:400],
+            body=body[:2600],
+            language=language,
+        ), True
+
+    # YouTube video, Reddit post, blog, Google review
+    return _PROMPT_SOCIAL_POST.format(
+        source_context=ctx,
+        language=language,
+        text=text[:3000],
+    ), False
+
+
+def _parse_response(
+    data: dict,
+    source_type: str,
+    is_structured: bool,
+    model: str,
+) -> NLPResult:
+    hs = _clip(data.get("headline_sentiment_score")) if is_structured else None
+    bs = _clip(data.get("body_sentiment_score")) if is_structured else None
+    is_comment = source_type in ("youtube_comment", "reddit_comment")
+
+    return NLPResult(
+        sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
+        sentiment_label=_parse_label(data.get("sentiment_label", "neutral")),
+        entities=data.get("entities", []),
+        model_used=model,
+        confidence=float(data.get("confidence", 0.0)),
+        source_type=source_type,
+        headline_sentiment_score=hs,
+        body_sentiment_score=bs,
+        editorial_tone=_parse_tone(data.get("editorial_tone", "")) if is_structured else "",
+        issue_category=_parse_category(data.get("issue_category", "other")) if not is_comment else "other",
+        creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
+    )
+
+
+def analyse_with_gemini(
+    text: str,
+    language: str,
+    source_type: str = "news",
+    *,
+    title: str = "",
+    body: str = "",
+    client: genai.Client | None = None,
+    client_label: str = "gemini_paid",
+) -> tuple[NLPResult | None, bool]:
+    """
+    Returns (result, was_rate_limited).
+
+    Pass `client` and `client_label` from APIRouter for free/paid routing.
+    Falls back to the paid singleton when called without a client (AI summary path).
+    """
+    if client is None:
+        client = _get_client()
+        client_label = "gemini_paid"
+
+    prompt, is_structured = _build_prompt(text, language, source_type, title, body)
+    rate_limited = False
+
+    from app.nlp.api_router import APIRouter
+    for model in _GEMINI_MODELS:
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(model=model, contents=prompt)
+                raw = _strip_fences(response.text.strip())
+                data = _json.loads(raw)
+                return _parse_response(data, source_type, is_structured, model), False
+
+            except Exception as e:
+                err = str(e)
+                if "404" in err:
+                    break  # model not found → try next model
+                if "429" in err or "rate" in err.lower() or "quota" in err.lower():
+                    rate_limited = True
+                    APIRouter.mark_rate_limited(client_label, seconds=65)
+                    backoff = 2 ** attempt * 5
+                    log.warning("Gemini '%s' rate-limited (attempt %d) — waiting %ds", client_label, attempt + 1, backoff)
+                    time.sleep(backoff)
+                    continue
+                log.warning("Gemini error (%s/%s, attempt %d): %s", client_label, model, attempt + 1, err[:200])
+                break  # non-retryable error
+
+    return None, rate_limited
+
+
+# ── Competitor discovery (paid tier, called once per brand) ───────────────────
 
 _COMPETITOR_PROMPT = """You are a competitive intelligence analyst for Indian markets.
 
@@ -169,117 +288,36 @@ Task: Identify the 3–5 closest DIRECT competitors to this brand.
 Rules:
 - Include only genuine competitors (same product/service category, competing for same customers)
 - Exclude: government bodies, regulatory authorities, news outlets, raw material suppliers, banks/lenders
-- Prefer names already in the entity list above (they are confirmed to appear in coverage)
-- Use your own knowledge of the Indian market to fill gaps when the entity list is sparse
+- Prefer names already in the entity list above (confirmed to appear in coverage)
+- Use your knowledge of the Indian market to fill gaps when the entity list is sparse
 
 Return ONLY valid JSON, no explanation:
 {{"competitors": ["Name1", "Name2", "Name3"]}}"""
 
 
 def discover_competitors(brand_name: str, keywords: list[str], entities: list[str]) -> list[str]:
-    entity_list = ", ".join(entities[:20]) if entities else "No entities found in coverage yet."
+    entity_list = ", ".join(entities[:20]) if entities else "No entities found yet."
     prompt = _COMPETITOR_PROMPT.format(
         brand_name=brand_name,
         keywords=", ".join(keywords[:10]),
         entity_list=entity_list,
     )
+    client = _get_client()
     for model in _GEMINI_MODELS:
         for attempt in range(3):
             try:
-                response = _get_client().models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
+                response = client.models.generate_content(model=model, contents=prompt)
                 raw = _strip_fences(response.text.strip())
-                data = json.loads(raw)
+                data = _json.loads(raw)
                 competitors = [str(c).strip() for c in data.get("competitors", []) if c]
                 return competitors[:5]
             except Exception as e:
                 err = str(e)
                 if "404" in err:
-                    log.warning("Gemini model '%s' not found (404), trying next model", model)
-                    break  # next model
+                    break
                 if "429" in err or "rate" in err.lower():
                     time.sleep(2 ** attempt * 5)
                     continue
-                log.warning("Gemini competitor discovery error (%s, attempt %d): %s", model, attempt + 1, err[:200])
-                break  # next model
+                log.warning("Competitor discovery error (%s, attempt %d): %s", model, attempt + 1, err[:200])
+                break
     return []
-
-
-def analyse_with_gemini(
-    text: str,
-    language: str,
-    source_type: str = "news",
-    *,
-    title: str = "",
-    body: str = "",
-) -> tuple[NLPResult | None, bool]:
-    """Returns (result, was_rate_limited).
-
-    When `title` and `body` are both supplied (news articles), uses the
-    structured HEADLINE/BODY prompt that returns separate sentiment scores
-    and editorial tone (A2 + B1). Falls back to combined-text prompt for
-    YouTube and any source where body is not available separately.
-    """
-    context = _SOURCE_CONTEXT.get(source_type, _SOURCE_CONTEXT["news"])
-    use_structured = bool(title and body and source_type == "news")
-
-    if use_structured:
-        prompt = _PROMPT_NEWS.format(
-            source_context=context,
-            title=title[:400],
-            body=body[:2600],
-            states=_INDIAN_STATES,
-            language=language,
-        )
-    else:
-        prompt = _PROMPT_COMBINED.format(
-            source_context=context,
-            states=_INDIAN_STATES,
-            language=language,
-            text=text[:3000],
-        )
-
-    rate_limited = False
-    for model in _GEMINI_MODELS:
-        for attempt in range(3):
-            try:
-                response = _get_client().models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
-                raw = _strip_fences(response.text.strip())
-                data = json.loads(raw)
-
-                hs = _clip(data.get("headline_sentiment_score")) if use_structured else None
-                bs = _clip(data.get("body_sentiment_score")) if use_structured else None
-
-                return NLPResult(
-                    sentiment_score=max(-1.0, min(1.0, float(data["sentiment_score"]))),
-                    sentiment_label=_parse_label(data["sentiment_label"]),
-                    entities=data.get("entities", []),
-                    topics=data.get("topics", []),
-                    keywords=data.get("keywords", []),
-                    states_mentioned=data.get("states_mentioned", []),
-                    model_used=model,
-                    confidence=float(data.get("confidence", 0.0)),
-                    source_type=source_type,
-                    headline_sentiment_score=hs,
-                    body_sentiment_score=bs,
-                    editorial_tone=_parse_tone(data.get("editorial_tone", "")) if use_structured else "",
-                    issue_category=_parse_category(data.get("issue_category", "other")),
-                    creator_type=_parse_creator_type(data.get("creator_type", "unknown")) if source_type == "youtube_video" else "unknown",
-                ), False
-            except Exception as e:
-                err = str(e)
-                if "404" in err:
-                    log.warning("Gemini model '%s' not found (404), falling back to next model", model)
-                    break  # next model
-                if "429" in err or "rate" in err.lower():
-                    rate_limited = True
-                    time.sleep(2 ** attempt * 5)
-                    continue
-                log.warning("Gemini error (%s, attempt %d): %s", model, attempt + 1, err[:200])
-                break  # non-retryable error — try next model
-    return None, rate_limited

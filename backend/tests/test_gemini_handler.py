@@ -23,7 +23,7 @@ def test_gemini_returns_nlp_result():
     assert result.sentiment_label == "positive"
     assert result.sentiment_score == 0.75
     assert "Amul" in result.entities
-    assert result.model_used == "gemini-2.0-flash"
+    assert result.model_used == "gemini-2.5-flash"
     assert rate_limited is False
 
 def test_gemini_handles_invalid_json():

@@ -19,10 +19,14 @@ def _make_mock_client(content: str) -> MagicMock:
     mock_client.chat.completions.create.return_value.choices = [mock_choice]
     return mock_client
 
+# APIRouter.get_groq_client now owns client selection.
+# Tests patch it to return (mock_client, "groq_0") so _get_client is bypassed.
+_ROUTER_PATCH = "app.nlp.api_router.APIRouter.get_groq_client"
+
 def test_groq_returns_nlp_result():
     mock_client = _make_mock_client(MOCK_RESPONSE)
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, rate_limited = analyse_with_groq("Amul hikes prices again", "en")
 
     assert isinstance(result, NLPResult)
@@ -34,14 +38,14 @@ def test_groq_returns_none_on_failure():
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = Exception("API error")
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, rate_limited = analyse_with_groq("Some text", "ta")
 
     assert result is None
     assert rate_limited is False
 
 
-# ── Item 9: creator_type tests ─────────────────────────────────────────────────
+# ── creator_type tests ─────────────────────────────────────────────────────────
 
 def test_parse_creator_type_valid():
     assert _parse_creator_type("journalist") == "journalist"
@@ -68,16 +72,13 @@ def test_groq_creator_type_set_for_youtube_video():
         "sentiment_score": 0.6,
         "sentiment_label": "positive",
         "entities": [],
-        "topics": [],
-        "keywords": [],
-        "states_mentioned": [],
         "issue_category": "other",
         "creator_type": "influencer",
         "confidence": 0.88,
     })
     mock_client = _make_mock_client(payload)
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, _ = analyse_with_groq("Check out this product!", "en", source_type="youtube_video")
 
     assert result is not None
@@ -89,14 +90,12 @@ def test_groq_creator_type_unknown_for_non_youtube():
         "sentiment_score": 0.1,
         "sentiment_label": "neutral",
         "entities": [],
-        "topics": [],
-        "keywords": [],
         "creator_type": "journalist",  # LLM may return this but source is reddit
         "confidence": 0.7,
     })
     mock_client = _make_mock_client(payload)
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, _ = analyse_with_groq("Reddit post text", "en", source_type="reddit_post")
 
     assert result is not None
@@ -107,14 +106,12 @@ def test_groq_creator_type_defaults_unknown_when_missing_in_response():
         "sentiment_score": 0.4,
         "sentiment_label": "neutral",
         "entities": [],
-        "topics": [],
-        "keywords": [],
         "confidence": 0.7,
         # creator_type absent
     })
     mock_client = _make_mock_client(payload)
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, _ = analyse_with_groq("YT video text", "en", source_type="youtube_video")
 
     assert result is not None
@@ -125,14 +122,12 @@ def test_groq_creator_type_invalid_value_falls_back_to_unknown():
         "sentiment_score": 0.5,
         "sentiment_label": "positive",
         "entities": [],
-        "topics": [],
-        "keywords": [],
         "creator_type": "vlogger",  # not a valid type
         "confidence": 0.8,
     })
     mock_client = _make_mock_client(payload)
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, _ = analyse_with_groq("YT video text", "en", source_type="youtube_video")
 
     assert result is not None
@@ -143,14 +138,12 @@ def test_groq_creator_type_in_to_dict():
         "sentiment_score": 0.7,
         "sentiment_label": "positive",
         "entities": [],
-        "topics": [],
-        "keywords": [],
         "creator_type": "activist",
         "confidence": 0.9,
     })
     mock_client = _make_mock_client(payload)
 
-    with patch("app.nlp.groq_handler._get_client", return_value=mock_client):
+    with patch(_ROUTER_PATCH, return_value=(mock_client, "groq_0")):
         result, _ = analyse_with_groq("YT video", "en", source_type="youtube_video")
 
     assert result is not None
