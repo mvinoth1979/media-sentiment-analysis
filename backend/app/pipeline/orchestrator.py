@@ -197,6 +197,34 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         else:
             log.info("AmbitionBox skipped for brand %s", brand_id[:8])
 
+        if config.get("team_bhp_enabled", False):
+            try:
+                from app.ingestion.teambhp_collector import collect_teambhp_for_brand
+                tbhp_raw = collect_teambhp_for_brand(brand, config)
+                tbhp_new = filter_new_articles(tbhp_raw, brand_id)
+                tbhp_new = [a for a in tbhp_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(tbhp_new)
+                stats["collected"] += len(tbhp_raw)
+            except Exception as e:
+                log.error("Team-BHP collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("Team-BHP skipped for brand %s", brand_id[:8])
+
+        if config.get("tripadvisor_enabled", False):
+            try:
+                from app.ingestion.tripadvisor_collector import collect_tripadvisor_for_brand
+                ta_raw = collect_tripadvisor_for_brand(brand, config)
+                ta_new = filter_new_articles(ta_raw, brand_id)
+                ta_new = [a for a in ta_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(ta_new)
+                stats["collected"] += len(ta_raw)
+            except Exception as e:
+                log.error("TripAdvisor collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("TripAdvisor skipped for brand %s", brand_id[:8])
+
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)
             return stats
