@@ -1442,11 +1442,14 @@ def get_ai_summary(
         date_to=current_end.isoformat(),
     )
 
+    brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "the brand"
+
     if not all_articles:
         result = {
-            "what_changed": "No articles collected in this period. Run the pipeline to start gathering coverage.",
-            "why": "The pipeline has not yet processed articles for the selected date range.",
-            "actions": ["Trigger a pipeline run", "Verify brand keywords are configured", "Check portal RSS feeds are accessible"],
+            "what_changed": f"No media coverage collected for {brand_name} in this period.",
+            "why": "The pipeline has not yet processed articles for the selected date range. Trigger a run to start collecting coverage.",
+            "actions": ["Trigger a pipeline run from the admin panel", "Verify brand keywords are correctly configured", "Check that portal RSS feeds are accessible"],
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
@@ -1455,6 +1458,7 @@ def get_ai_summary(
     total = len(all_articles)
     neg = sum(1 for a in all_articles if a.get("sentiment_label") == "negative")
     pos = sum(1 for a in all_articles if a.get("sentiment_label") == "positive")
+    neu = total - neg - pos
     neg_pct = round(neg / total * 100, 1) if total else 0
     pos_pct = round(pos / total * 100, 1) if total else 0
 
@@ -1465,25 +1469,53 @@ def get_ai_summary(
     )
     top_issues = [cat.replace("_", " ") for cat, _ in issue_counter.most_common(3)]
 
+    # Top negative + positive articles by reach
     neg_articles = sorted(
         [a for a in all_articles if a.get("sentiment_label") == "negative"],
         key=lambda a: a.get("reach_score") or 0,
         reverse=True,
     )[:3]
-    neg_headlines = [a.get("title", "")[:80] for a in neg_articles]
+    pos_articles = sorted(
+        [a for a in all_articles if a.get("sentiment_label") == "positive"],
+        key=lambda a: a.get("reach_score") or 0,
+        reverse=True,
+    )[:2]
+    neg_headlines = [a.get("title", "")[:90] for a in neg_articles if a.get("title")]
+    pos_headlines = [a.get("title", "")[:90] for a in pos_articles if a.get("title")]
+
+    # Source type breakdown
+    source_counter: Counter = Counter(
+        a.get("source_type", "news") for a in all_articles
+    )
+    source_summary = ", ".join(
+        f"{k.replace('_', ' ')} ({v})"
+        for k, v in source_counter.most_common(4)
+    )
+
+    # Regulatory + critical tone flags
+    reg_count = sum(1 for a in all_articles if a.get("is_regulatory_source"))
+    critical_count = sum(1 for a in all_articles if a.get("editorial_tone") in ("critical", "negative_frame"))
+
+    neg_block = "\n".join(f"  • {h}" for h in neg_headlines) if neg_headlines else "  • none"
+    pos_block = "\n".join(f"  • {h}" for h in pos_headlines) if pos_headlines else "  • none"
 
     prompt = (
-        f"You are a brand reputation analyst. Provide an executive summary for a brand's media coverage.\n\n"
-        f"Data for the last {days} days:\n"
-        f"- Total articles: {total}\n"
-        f"- Positive: {pos} ({pos_pct}%)\n"
-        f"- Negative: {neg} ({neg_pct}%)\n"
-        f"- Top issue categories: {', '.join(top_issues) if top_issues else 'general coverage'}\n"
-        f"- Sample negative headlines: {'; '.join(neg_headlines) if neg_headlines else 'none'}\n\n"
-        "Respond in JSON only — no markdown, no explanation:\n"
-        '{"what_changed": "One clear sentence about the dominant sentiment shift or trend.", '
-        '"why": "One clear sentence on the root cause driving this change.", '
-        '"actions": ["Concise action 1 (max 8 words)", "Concise action 2", "Concise action 3"]}'
+        f"You are a senior brand reputation analyst writing a concise executive briefing for the CMO.\n"
+        f"Brand: {brand_name} | Period: last {days} days\n\n"
+        f"Coverage snapshot:\n"
+        f"  Total articles: {total} | Positive: {pos} ({pos_pct}%) | Negative: {neg} ({neg_pct}%) | Neutral: {neu}\n"
+        f"  Top issue categories: {', '.join(top_issues) if top_issues else 'general coverage'}\n"
+        f"  Sources: {source_summary}\n"
+        + (f"  Regulatory/government sources flagged: {reg_count}\n" if reg_count else "")
+        + (f"  Critical/negative-framed editorial tone: {critical_count} articles\n" if critical_count else "")
+        + f"\nHighest-reach negative coverage:\n{neg_block}\n"
+        + f"\nTop positive signals:\n{pos_block}\n\n"
+        "Write a tight 3-part executive briefing. Be specific — name actual issues, sources, or patterns from the data above. "
+        "Respond in JSON only — no markdown, no preamble:\n"
+        '{"what_changed": "1-2 sentences on the dominant trend or risk — be specific, cite the issue category or a headline.", '
+        '"why": "1 sentence on the root cause or context driving this trend.", '
+        '"actions": ["Specific action referencing a named issue or source (max 10 words)", '
+        '"Second specific action", "Third specific action"]}'
     )
 
     try:
@@ -1515,14 +1547,23 @@ def get_ai_summary(
         log.warning("AI summary generation failed: %s", e)
 
     # Fallback: data-driven summary without LLM
-    trend_word = "rising" if neg_pct > 30 else "stable" if neg_pct > 15 else "positive"
+    if neg_pct > 35:
+        situation = f"{brand_name} faces elevated negative coverage — {neg_pct}% of {total} articles carry negative sentiment over the last {days} days."
+    elif neg_pct > 20:
+        situation = f"{brand_name}'s sentiment is mixed at {neg_pct}% negative across {total} articles — {top_issues[0].title() if top_issues else 'key issues'} is the primary concern."
+    else:
+        situation = f"{brand_name} coverage is largely positive ({pos_pct}%) across {total} articles. {top_issues[0].title() if top_issues else 'Brand visibility'} is the most active topic."
+    root_cause = (
+        f"Coverage concentrated in {', '.join(top_issues[:2]) if top_issues else 'general news'}."
+        + (f" {reg_count} regulatory source mention{'s' if reg_count != 1 else ''} detected." if reg_count else "")
+    )
     result = {
-        "what_changed": f"Negative coverage is {trend_word} at {neg_pct}% across {total} articles in {days} days.",
-        "why": f"Primary issue areas: {', '.join(top_issues[:2]) if top_issues else 'general coverage'}.",
+        "what_changed": situation,
+        "why": root_cause,
         "actions": [
-            "Review high-impact negative articles",
-            f"Address {top_issues[0].title() if top_issues else 'key concerns'} proactively",
-            "Monitor coverage daily for escalation signals",
+            f"Review top negative {top_issues[0] if top_issues else 'coverage'} articles by reach",
+            f"Engage proactively on {top_issues[1].title() if len(top_issues) > 1 else (top_issues[0].title() if top_issues else 'key concerns')}",
+            "Monitor daily for escalation — set alert threshold at 35% negative",
         ],
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }

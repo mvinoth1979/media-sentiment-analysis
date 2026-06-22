@@ -54,19 +54,28 @@ export function AIExecutiveSummary({ brandId, queryParams }: Props) {
         {data && !isLoading && (
           <div className="grid grid-cols-3 gap-0 divide-x divide-white/10">
             <div className="pr-4">
-              <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">What changed?</div>
-              <p className="text-[11px] text-white/75 leading-relaxed">{data.what_changed}</p>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                <div className="text-[9px] font-semibold text-white/50 uppercase tracking-wider">Situation</div>
+              </div>
+              <p className="text-[11px] text-white/80 leading-relaxed">{data.what_changed}</p>
             </div>
             <div className="px-4">
-              <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">Why?</div>
-              <p className="text-[11px] text-white/75 leading-relaxed">{data.why}</p>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                <div className="text-[9px] font-semibold text-white/50 uppercase tracking-wider">Root Cause</div>
+              </div>
+              <p className="text-[11px] text-white/80 leading-relaxed">{data.why}</p>
             </div>
             <div className="pl-4">
-              <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">What should we do?</div>
-              <ul className="space-y-0.5">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <div className="text-[9px] font-semibold text-white/50 uppercase tracking-wider">Recommended Actions</div>
+              </div>
+              <ul className="space-y-1">
                 {data.actions.map((action: string, i: number) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-white/75">
-                    <span className="text-blue-400 mt-0.5 shrink-0 text-[8px]">▸</span>
+                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-white/80">
+                    <span className="text-emerald-400 mt-0.5 shrink-0 font-bold text-[9px]">{i + 1}.</span>
                     <span>{action}</span>
                   </li>
                 ))}
