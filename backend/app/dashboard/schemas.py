@@ -517,6 +517,23 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Regional Summary ─────────────────────────────────────────────────────────
+
+class StateHighlight(BaseModel):
+    state: str
+    direction: str          # "improving" | "declining" | "stable"
+    sentiment_pct: float    # dominant sentiment %
+    dominant_sentiment: str # "negative" | "positive" | "neutral"
+    article_count: int
+
+
+class RegionalSummaryResponse(BaseModel):
+    summary: str                           # "South India sentiment improving. West declining."
+    state_highlights: list[StateHighlight] # top 5 notable states
+    confidence_pct: int
+    generated_at: str
+
+
 # ── Morning Brief ────────────────────────────────────────────────────────────
 
 class MorningBriefResponse(BaseModel):

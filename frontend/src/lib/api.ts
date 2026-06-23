@@ -263,6 +263,26 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface StateHighlight {
+  state: string;
+  direction: "improving" | "declining" | "stable";
+  sentiment_pct: number;
+  dominant_sentiment: string;
+  article_count: number;
+}
+
+export interface RegionalSummaryData {
+  summary: string;
+  state_highlights: StateHighlight[];
+  confidence_pct: number;
+  generated_at: string;
+}
+
+export const fetchRegionalSummary = (brandId: string, days = 30) =>
+  api
+    .get<RegionalSummaryData>(`/dashboard/regional-summary/${brandId}`, { params: { days }, timeout: 30000 })
+    .then(r => r.data);
+
 export interface MorningBriefData {
   greeting: string;
   score_change: number;

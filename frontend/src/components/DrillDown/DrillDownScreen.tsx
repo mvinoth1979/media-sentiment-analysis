@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { MentionsList } from "../mentions/MentionsList";
 import { ArticleDetail } from "./ArticleDetail";
+import { AIExplainerInline } from "./explainer/AIExplainerInline";
 import type { DrillEntry, DrillFilters, ArticleItem } from "../../lib/types";
 
 interface StackFrame {
@@ -100,6 +101,18 @@ export function DrillDownScreen({ brandId, brandName, entry }: Props) {
           </button>
         )}
       </div>
+
+      {/* ── AI Analysis strip (between breadcrumb and content) ──────────── */}
+      {!article && (
+        <div className="flex-none px-4 pt-2">
+          <AIExplainerInline
+            metric="investigation_context"
+            brandId={brandId}
+            context={{ topic: current.label }}
+            autoLoad={false}
+          />
+        </div>
+      )}
 
       {/* ── Content area ─────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-auto p-4">

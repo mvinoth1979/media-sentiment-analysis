@@ -4,6 +4,7 @@ import type { StateStat } from "../../lib/types";
 interface Props {
   data: StateStat[];
   onStateClick?: (state: string) => void;
+  onExplain?: (zone: string) => void;
   variant?: "states" | "regions";
 }
 
@@ -75,7 +76,7 @@ function ZoneDonut({ pos, total, hex, size = 36 }: { pos: number; total: number;
   );
 }
 
-export function IndiaStateMap({ data, onStateClick, variant = "states" }: Props) {
+export function IndiaStateMap({ data, onStateClick, onExplain, variant = "states" }: Props) {
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
 
   const sorted = [...data].sort((a, b) => b.count - a.count);
@@ -120,25 +121,37 @@ export function IndiaStateMap({ data, onStateClick, variant = "states" }: Props)
               const col = ZONE_COLOR[zone];
               const pct = total > 0 ? Math.round((z.count / total) * 100) : 0;
               return (
-                <button
+                <div
                   key={zone}
-                  onClick={() => z.states.forEach(s => onStateClick?.(s))}
-                  className={`flex flex-col items-start p-2.5 rounded-lg border transition-all hover:brightness-110 ${col.active}`}
+                  className={`flex flex-col items-start p-2.5 rounded-lg border transition-all ${col.active}`}
                 >
-                  <div className="flex items-center justify-between w-full mb-1">
-                    <span className="text-[11px] font-bold">{zone}</span>
-                    <ZoneDonut pos={z.positive} total={z.count} hex={col.hex} size={34} />
-                  </div>
-                  <div className="text-[13px] font-bold leading-none">{z.count.toLocaleString()}</div>
-                  <div className="text-[9px] opacity-60 mt-0.5">{pct}% of total · {z.states.length} state{z.states.length !== 1 ? "s" : ""}</div>
-                  <div className="flex items-center gap-1.5 mt-1.5 text-[8px] opacity-70">
-                    <span className="text-emerald-400">+{z.positive}</span>
-                    <span className="text-white/30">·</span>
-                    <span className="text-red-400">−{z.negative}</span>
-                    <span className="text-white/30">·</span>
-                    <span className="text-white/40">~{z.neutral}</span>
-                  </div>
-                </button>
+                  <button
+                    className="w-full text-left"
+                    onClick={() => z.states.forEach(s => onStateClick?.(s))}
+                  >
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span className="text-[11px] font-bold">{zone}</span>
+                      <ZoneDonut pos={z.positive} total={z.count} hex={col.hex} size={34} />
+                    </div>
+                    <div className="text-[13px] font-bold leading-none">{z.count.toLocaleString()}</div>
+                    <div className="text-[9px] opacity-60 mt-0.5">{pct}% of total · {z.states.length} state{z.states.length !== 1 ? "s" : ""}</div>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[8px] opacity-70">
+                      <span className="text-emerald-400">+{z.positive}</span>
+                      <span className="text-white/30">·</span>
+                      <span className="text-red-400">−{z.negative}</span>
+                      <span className="text-white/30">·</span>
+                      <span className="text-white/40">~{z.neutral}</span>
+                    </div>
+                  </button>
+                  {onExplain && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onExplain(zone); }}
+                      className="mt-1.5 text-[9px] text-blue-400/60 hover:text-blue-300 transition-colors"
+                    >
+                      🧠 Explain
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

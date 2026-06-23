@@ -50,6 +50,7 @@ from app.dashboard.schemas import (
     ExplainRequest, ExplainResponse,
     ChatMessage, ChatRequest,
     MorningBriefResponse,
+    StateHighlight, RegionalSummaryResponse,
 )
 
 router = APIRouter()
@@ -2065,6 +2066,169 @@ def get_competitor_sentiment(
 
 
 # ── Virality Alerts ───────────────────────────────────────────────────────────
+
+# ── Regional Summary ─────────────────────────────────────────────────────────
+
+_REGIONAL_SUMMARY_CACHE: dict = {}
+_REGIONAL_SUMMARY_TTL = 60 * 60  # 1 hour
+
+_STATE_ZONE_MAP = {
+    "Delhi": "North", "Haryana": "North", "Punjab": "North", "Rajasthan": "North",
+    "Uttar Pradesh": "North", "Himachal Pradesh": "North", "Uttarakhand": "North",
+    "Jammu & Kashmir": "North", "J&K": "North", "Chandigarh": "North", "Ladakh": "North",
+    "Tamil Nadu": "South", "Kerala": "South", "Karnataka": "South",
+    "Andhra Pradesh": "South", "Telangana": "South", "Puducherry": "South", "Goa": "South",
+    "West Bengal": "East", "Bihar": "East", "Odisha": "East", "Jharkhand": "East",
+    "Assam": "East", "Meghalaya": "East", "Nagaland": "East", "Manipur": "East",
+    "Mizoram": "East", "Tripura": "East", "Arunachal Pradesh": "East", "Sikkim": "East",
+    "Maharashtra": "West", "Gujarat": "West", "Madhya Pradesh": "West", "Chhattisgarh": "West",
+}
+
+
+@router.get("/regional-summary/{brand_id}", response_model=RegionalSummaryResponse)
+def get_regional_summary(
+    brand_id: str,
+    days: int = Query(30, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cache_key = f"{brand_id}:{days}"
+    now = time.time()
+    if cache_key in _REGIONAL_SUMMARY_CACHE and _REGIONAL_SUMMARY_CACHE[cache_key]["expires_at"] > now:
+        return RegionalSummaryResponse(**_REGIONAL_SUMMARY_CACHE[cache_key]["data"])
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=500, date_from=start.isoformat(), date_to=end.isoformat())
+
+    # Aggregate per-state sentiment
+    state_map: dict[str, dict] = {}
+    for a in articles:
+        label = a.get("sentiment_label", "neutral")
+        for state in a.get("states_mentioned") or []:
+            if state not in state_map:
+                state_map[state] = {"state": state, "count": 0, "positive": 0, "negative": 0, "neutral": 0}
+            state_map[state]["count"] += 1
+            state_map[state][label] = state_map[state].get(label, 0) + 1
+
+    if not state_map:
+        result = {
+            "summary": "No regional data available for this period.",
+            "state_highlights": [],
+            "confidence_pct": 0,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _REGIONAL_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _REGIONAL_SUMMARY_TTL}
+        return RegionalSummaryResponse(**result)
+
+    # Classify each state as improving/declining/stable by pos/neg ratio
+    highlights_raw = []
+    for state, s in state_map.items():
+        total = s["count"]
+        if total < 3:
+            continue
+        pos_pct = round(s["positive"] / total * 100, 1)
+        neg_pct = round(s["negative"] / total * 100, 1)
+        if pos_pct >= 55:
+            direction = "improving"
+            dominant = "positive"
+            pct = pos_pct
+        elif neg_pct >= 55:
+            direction = "declining"
+            dominant = "negative"
+            pct = neg_pct
+        else:
+            direction = "stable"
+            dominant = "neutral"
+            pct = round(max(pos_pct, neg_pct), 1)
+        highlights_raw.append({
+            "state": state, "direction": direction,
+            "sentiment_pct": pct, "dominant_sentiment": dominant,
+            "article_count": total, "zone": _STATE_ZONE_MAP.get(state, "Other"),
+        })
+
+    highlights_raw.sort(key=lambda x: x["article_count"], reverse=True)
+    top_highlights = highlights_raw[:6]
+
+    # Zone-level summary for the Gemini prompt
+    zone_totals: dict[str, dict] = {}
+    for h in highlights_raw:
+        z = h["zone"]
+        if z not in zone_totals:
+            zone_totals[z] = {"count": 0, "improving": 0, "declining": 0, "stable": 0}
+        zone_totals[z]["count"] += 1
+        zone_totals[z][h["direction"]] += 1
+
+    zone_lines = []
+    for zone, z in zone_totals.items():
+        if z["improving"] > z["declining"]:
+            trend = "improving"
+        elif z["declining"] > z["improving"]:
+            trend = "declining"
+        else:
+            trend = "stable"
+        zone_lines.append(f"{zone}: {trend} ({z['count']} states)")
+
+    zone_summary = "; ".join(zone_lines) or "mixed"
+    notable_states = ", ".join(
+        f"{h['state']} ({h['direction']})" for h in top_highlights[:4]
+    )
+
+    # Gemini for summary sentence
+    from google import genai as _genai
+    summary_prompt = (
+        f"Write a 2-sentence regional media sentiment summary for a brand analyst. "
+        f"Zone trends: {zone_summary}. Notable states: {notable_states}. "
+        f"Mention the strongest trend and one specific state or region by name. "
+        f"Respond with ONLY the 2 sentences — no quotes, no preamble."
+    )
+    summary = f"Regional coverage spans {len(state_map)} states. " + (zone_lines[0] if zone_lines else "Sentiment mixed across regions.")
+    confidence_pct = 70
+
+    _attempts = [
+        (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key, "gemini-2.0-flash"),
+        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+    ]
+    for _api_key, _model in _attempts:
+        if not _api_key:
+            continue
+        try:
+            _client = _genai.Client(api_key=_api_key, http_options={"timeout": 8})
+            _resp = _client.models.generate_content(model=_model, contents=summary_prompt)
+            raw = _resp.text.strip().strip('"').strip("'")
+            if raw and len(raw) > 15:
+                summary = raw
+                confidence_pct = 78
+                break
+        except Exception as e:
+            err = str(e)
+            if any(k in err for k in ("RESOURCE_EXHAUSTED", "429", "404")):
+                continue
+            break
+
+    result = {
+        "summary": summary,
+        "state_highlights": [
+            StateHighlight(
+                state=h["state"], direction=h["direction"],
+                sentiment_pct=h["sentiment_pct"], dominant_sentiment=h["dominant_sentiment"],
+                article_count=h["article_count"],
+            )
+            for h in top_highlights[:5]
+        ],
+        "confidence_pct": confidence_pct,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    # Pydantic objects → dicts for cache
+    cache_data = {
+        "summary": result["summary"],
+        "state_highlights": [h.model_dump() for h in result["state_highlights"]],
+        "confidence_pct": result["confidence_pct"],
+        "generated_at": result["generated_at"],
+    }
+    _REGIONAL_SUMMARY_CACHE[cache_key] = {"data": cache_data, "expires_at": now + _REGIONAL_SUMMARY_TTL}
+    return RegionalSummaryResponse(**cache_data)
+
 
 # ── Morning Brief ────────────────────────────────────────────────────────────
 

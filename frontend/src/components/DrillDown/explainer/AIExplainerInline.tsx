@@ -10,6 +10,7 @@ interface Props {
   value?: number;
   days?: number;
   autoLoad?: boolean;
+  context?: Record<string, unknown>;
   className?: string;
 }
 
@@ -41,6 +42,7 @@ export function AIExplainerInline({
   value,
   days = 7,
   autoLoad = false,
+  context,
   className = "",
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -49,7 +51,7 @@ export function AIExplainerInline({
   // Auto-fetch on mount if requested
   useEffect(() => {
     if (autoLoad) {
-      explain({ metric, value }).then(() => setExpanded(true)).catch(() => {});
+      explain({ metric, value, context }).then(() => setExpanded(true)).catch(() => {});
     }
     // Only run on mount — intentionally empty dep array except autoLoad guard
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,11 +59,10 @@ export function AIExplainerInline({
 
   const handleLoadClick = () => {
     if (data) {
-      // Already fetched — just toggle
       setExpanded((prev) => !prev);
       return;
     }
-    explain({ metric, value })
+    explain({ metric, value, context })
       .then(() => setExpanded(true))
       .catch(() => {});
   };

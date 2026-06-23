@@ -155,7 +155,20 @@ export function AskBar({ brandId, days = 7 }: Props) {
           >
             {open ? "▾" : "▸"}
           </button>
-          <span className="text-white/20 text-xs shrink-0">⌘K</span>
+          <span className="text-white/15 text-xs shrink-0">⌘K</span>
+          {!open && messages.length === 0 && (
+            <div className="flex gap-1.5 overflow-hidden">
+              {EXAMPLE_QUERIES.slice(0, 2).map(q => (
+                <button
+                  key={q}
+                  onClick={() => send(q)}
+                  className="text-[10px] text-white/30 border border-white/8 rounded-full px-2 py-0.5 hover:text-white/60 hover:border-white/20 transition-colors whitespace-nowrap"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
           <input
             ref={inputRef}
             value={input}

@@ -28,6 +28,7 @@ import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainer
 import { AskBar } from "../components/AskBar";
 import { MorningBrief } from "../components/MorningBrief";
 import { WhatChangedCards } from "../components/WhatChangedCards";
+import { AIRegionalSummary } from "../components/AIRegionalSummary";
 
 // Panels that remain as overlay views (non-article-list)
 type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
@@ -681,12 +682,22 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               compact
             />
           </div>
-          <div className="min-h-0">
-            <IndiaStateMap
-              variant="regions"
-              data={data.state_breakdown}
-              onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
-            />
+          <div className="min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <IndiaStateMap
+                variant="regions"
+                data={data.state_breakdown}
+                onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
+                onExplain={(zone) => openDrillDown(`${zone} Region Sentiment`, { state: zone })}
+              />
+            </div>
+            <div className="flex-none">
+              <AIRegionalSummary
+                brandId={brandId}
+                days={days}
+                onStateExplain={(state) => openDrillDown(`State: ${state}`, { state })}
+              />
+            </div>
           </div>
           <div className="min-h-0">
             <TopBrandAdvocates brandId={brandId} days={days} />
