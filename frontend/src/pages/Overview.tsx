@@ -24,6 +24,7 @@ import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { SituationRoomPanel } from "../components/SituationRoomPanel";
 import { ContentGenerator } from "../components/ContentGenerator";
 import { EntityGraph } from "../components/DrillDown/narrative/EntityGraph";
+import { NarrativeDNA } from "../components/DrillDown/narrative/NarrativeDNA";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
@@ -807,15 +808,11 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onEntityDrill={(entity) => openDrillDown(`Entity: ${entity}`, { entity })}
             />
           </div>
-          {/* Right 1/3: emerging narratives + issue radar */}
+          {/* Right 1/3: emerging narratives + Narrative DNA radar */}
           <div className="flex-1 min-h-0 flex flex-col gap-2">
             <EmergingNarrativeBanner brandId={brandId} days={days} />
-            <div className="flex-1 min-h-0">
-              <IssueRadarBubble
-                brandId={brandId}
-                days={days}
-                onIssueDrill={(issue) => openDrillDown(`Issue: ${issue.replace(/_/g, " ")}`, { issueCategory: issue })}
-              />
+            <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+              <NarrativeDNA brandId={brandId} days={days} />
             </div>
           </div>
         </div>

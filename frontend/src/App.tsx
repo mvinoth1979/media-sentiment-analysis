@@ -11,6 +11,7 @@ import { JournalistCoverage } from "./pages/JournalistCoverage";
 import { MentionsMonitor } from "./pages/MentionsMonitor";
 import { BrandConfig } from "./pages/BrandConfig";
 import { ReviewQueue } from "./pages/ReviewQueue";
+import { BoardMode } from "./pages/BoardMode";
 import { Sidebar } from "./components/Sidebar";
 import type { Tab } from "./components/Sidebar";
 
@@ -137,6 +138,14 @@ function App() {
           )}
           {tab === "users"       && isAdmin && (
             <UserManagement brandId={brand.id} brandName={brand.name} />
+          )}
+          {tab === "board" && (
+            <BoardMode
+              brandId={brand.id}
+              brandName={brand.name}
+              days={days}
+              onBack={() => setTab("overview")}
+            />
           )}
         </div>
       </main>

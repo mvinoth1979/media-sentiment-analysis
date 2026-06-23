@@ -57,6 +57,7 @@ from app.dashboard.schemas import (
     ScoredAdvocate, ScoredAdvocatesResponse,
     GenerateRequest, GenerateResponse,
     EntityNode, EntityEdge, EntityGraphResponse,
+    NarrativeDNAResponse,
 )
 
 router = APIRouter()
@@ -2022,6 +2023,54 @@ def get_top_advocates_endpoint(
         for r in results[:5]
     ]
     return TopAdvocatesResponse(advocates=advocates)
+
+
+# ── Narrative DNA ────────────────────────────────────────────────────────────
+
+_REVIEW_SOURCE_TYPES = {"google_review", "trustpilot", "mouthshut", "justdial", "ambitionbox", "tripadvisor", "play_store"}
+_POLITICAL_ISSUES   = {"political", "regulatory", "legal", "government"}
+
+
+@router.get("/narrative-dna/{brand_id}", response_model=NarrativeDNAResponse)
+def get_narrative_dna(
+    brand_id: str,
+    days: int = Query(30, ge=7, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=1000, date_from=start.isoformat(), date_to=end.isoformat())
+
+    if not articles:
+        return NarrativeDNAResponse(
+            fear=0, criticism=0, consumer_trust=50, political=0, brand_safety=100,
+            period_days=days, brand_id=brand_id,
+        )
+
+    total = len(articles)
+    regulatory  = sum(1 for a in articles if a.get("is_regulatory_source") or a.get("issue_category") in _POLITICAL_ISSUES)
+    critical    = sum(1 for a in articles if a.get("editorial_tone") in ("critical", "negative_frame") or a.get("sentiment_label") == "negative")
+    review_arts = [a for a in articles if a.get("source_type") in _REVIEW_SOURCE_TYPES]
+    political   = sum(1 for a in articles if a.get("issue_category") in _POLITICAL_ISSUES)
+    negative    = sum(1 for a in articles if a.get("sentiment_label") == "negative")
+
+    # Consumer trust: positive % of review-source articles (or general if no reviews)
+    if review_arts:
+        rev_pos = sum(1 for a in review_arts if a.get("sentiment_label") == "positive")
+        consumer_trust = round((rev_pos / len(review_arts)) * 100)
+    else:
+        neg_pct = negative / total
+        consumer_trust = round((1 - neg_pct * 0.8) * 100)
+
+    return NarrativeDNAResponse(
+        fear          = round(min(100, (regulatory / total) * 200)),   # amplified — fear is low-frequency signal
+        criticism     = round((critical / total) * 100),
+        consumer_trust= consumer_trust,
+        political     = round((political / total) * 100),
+        brand_safety  = round((1 - negative / total) * 100),
+        period_days   = days,
+        brand_id      = brand_id,
+    )
 
 
 # ── Entity Graph ─────────────────────────────────────────────────────────────

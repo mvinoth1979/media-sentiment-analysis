@@ -517,6 +517,18 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Narrative DNA ────────────────────────────────────────────────────────────
+
+class NarrativeDNAResponse(BaseModel):
+    fear: float           # 0-100: regulatory/crisis signals
+    criticism: float      # 0-100: critical editorial tone %
+    consumer_trust: float # 0-100: review-source sentiment
+    political: float      # 0-100: political issue %
+    brand_safety: float   # 0-100: inverse of negative %
+    period_days: int
+    brand_id: str
+
+
 # ── Entity Graph ─────────────────────────────────────────────────────────────
 
 class EntityNode(BaseModel):

@@ -263,6 +263,21 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface NarrativeDNAData {
+  fear: number;
+  criticism: number;
+  consumer_trust: number;
+  political: number;
+  brand_safety: number;
+  period_days: number;
+  brand_id: string;
+}
+
+export const fetchNarrativeDNA = (brandId: string, days = 30) =>
+  api
+    .get<NarrativeDNAData>(`/dashboard/narrative-dna/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export interface EntityNode {
   entity: string;
   count: number;
