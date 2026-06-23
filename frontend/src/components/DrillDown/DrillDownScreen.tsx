@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { MentionsList } from "../mentions/MentionsList";
 import { ArticleDetail } from "./ArticleDetail";
 import { AIExplainerInline } from "./explainer/AIExplainerInline";
+import { EntityIntelligence } from "./investigation/EntityIntelligence";
 import type { DrillEntry, DrillFilters, ArticleItem } from "../../lib/types";
 
 interface StackFrame {
@@ -102,14 +103,19 @@ export function DrillDownScreen({ brandId, brandName, entry }: Props) {
         )}
       </div>
 
-      {/* ── AI Analysis strip (between breadcrumb and content) ──────────── */}
+      {/* ── AI Analysis + Entity Intelligence strip ─────────────────────── */}
       {!article && (
-        <div className="flex-none px-4 pt-2">
+        <div className="flex-none px-4 pt-2 space-y-2">
           <AIExplainerInline
             metric="investigation_context"
             brandId={brandId}
             context={{ topic: current.label }}
             autoLoad={false}
+          />
+          <EntityIntelligence
+            brandId={brandId}
+            days={30}
+            onEntityDrill={(entity) => drillInto(`Entity: ${entity}`, { entity })}
           />
         </div>
       )}

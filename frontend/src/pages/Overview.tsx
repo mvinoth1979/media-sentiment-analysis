@@ -23,6 +23,7 @@ import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { SituationRoomPanel } from "../components/SituationRoomPanel";
 import { ContentGenerator } from "../components/ContentGenerator";
+import { EntityGraph } from "../components/DrillDown/narrative/EntityGraph";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
@@ -786,6 +787,36 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <svg className="w-3 h-3 text-white/60 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════ SCREEN 7 — Narrative Explorer ════════════════════ */}
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+        <div className="flex items-center gap-3 flex-none">
+          <h2 className="text-sm font-semibold text-white">Narrative Explorer</h2>
+          <span className="text-[10px] text-white/30">— entity relationships &amp; co-occurrence</span>
+        </div>
+        <div className="flex gap-2 flex-1 min-h-0">
+          {/* Left 2/3: Entity graph */}
+          <div className="flex-[2] min-h-0">
+            <EntityGraph
+              brandId={brandId}
+              brandName={brandName}
+              days={days}
+              onEntityDrill={(entity) => openDrillDown(`Entity: ${entity}`, { entity })}
+            />
+          </div>
+          {/* Right 1/3: emerging narratives + issue radar */}
+          <div className="flex-1 min-h-0 flex flex-col gap-2">
+            <EmergingNarrativeBanner brandId={brandId} days={days} />
+            <div className="flex-1 min-h-0">
+              <IssueRadarBubble
+                brandId={brandId}
+                days={days}
+                onIssueDrill={(issue) => openDrillDown(`Issue: ${issue.replace(/_/g, " ")}`, { issueCategory: issue })}
+              />
+            </div>
           </div>
         </div>
       </div>

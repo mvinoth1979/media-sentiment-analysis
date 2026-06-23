@@ -263,6 +263,28 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface EntityNode {
+  entity: string;
+  count: number;
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
+}
+
+export interface EntityEdge {
+  entity_a: string;
+  entity_b: string;
+  co_count: number;
+}
+
+export const fetchEntityGraph = (brandId: string, days = 30) =>
+  api
+    .get<{ nodes: EntityNode[]; edges: EntityEdge[]; period_days: number; brand_id: string }>(
+      `/dashboard/entity-graph/${brandId}`,
+      { params: { days } }
+    )
+    .then(r => r.data);
+
 export interface ScoredAdvocate {
   name: string;
   source_type: string;

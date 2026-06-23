@@ -56,6 +56,7 @@ from app.dashboard.schemas import (
     RiskDayPoint, RiskForecastPoint, RiskForecastResponse,
     ScoredAdvocate, ScoredAdvocatesResponse,
     GenerateRequest, GenerateResponse,
+    EntityNode, EntityEdge, EntityGraphResponse,
 )
 
 router = APIRouter()
@@ -2021,6 +2022,62 @@ def get_top_advocates_endpoint(
         for r in results[:5]
     ]
     return TopAdvocatesResponse(advocates=advocates)
+
+
+# ── Entity Graph ─────────────────────────────────────────────────────────────
+
+@router.get("/entity-graph/{brand_id}", response_model=EntityGraphResponse)
+def get_entity_graph(
+    brand_id: str,
+    days: int = Query(30, ge=7, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=500, date_from=start.isoformat(), date_to=end.isoformat())
+
+    node_data: dict[str, dict] = {}
+    edge_counts: Counter = Counter()
+
+    for a in articles:
+        ents = [e for e in (a.get("entities") or []) if isinstance(e, str) and len(e) > 2]
+        lbl = a.get("sentiment_label", "neutral")
+        for ent in ents:
+            if ent not in node_data:
+                node_data[ent] = {"count": 0, "pos": 0, "neg": 0, "neu": 0}
+            node_data[ent]["count"] += 1
+            if lbl == "positive": node_data[ent]["pos"] += 1
+            elif lbl == "negative": node_data[ent]["neg"] += 1
+            else: node_data[ent]["neu"] += 1
+        # Co-occurrence edges (all pairs in same article)
+        for i in range(len(ents)):
+            for j in range(i + 1, min(len(ents), 8)):  # cap pairs per article
+                pair = tuple(sorted([ents[i], ents[j]]))
+                edge_counts[pair] += 1
+
+    # Top 20 nodes by frequency
+    top_nodes = sorted(node_data.items(), key=lambda x: x[1]["count"], reverse=True)[:20]
+    top_set = {n for n, _ in top_nodes}
+
+    nodes = [
+        EntityNode(
+            entity=n,
+            count=d["count"],
+            positive_count=d["pos"],
+            negative_count=d["neg"],
+            neutral_count=d["neu"],
+        )
+        for n, d in top_nodes
+    ]
+
+    # Top 30 edges between top nodes only
+    edges = [
+        EntityEdge(entity_a=a, entity_b=b, co_count=c)
+        for (a, b), c in edge_counts.most_common(60)
+        if a in top_set and b in top_set
+    ][:30]
+
+    return EntityGraphResponse(nodes=nodes, edges=edges, period_days=days, brand_id=brand_id)
 
 
 # ── Advocate Scoring ─────────────────────────────────────────────────────────

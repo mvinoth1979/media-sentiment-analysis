@@ -517,6 +517,29 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Entity Graph ─────────────────────────────────────────────────────────────
+
+class EntityNode(BaseModel):
+    entity: str
+    count: int
+    positive_count: int
+    negative_count: int
+    neutral_count: int
+
+
+class EntityEdge(BaseModel):
+    entity_a: str
+    entity_b: str
+    co_count: int
+
+
+class EntityGraphResponse(BaseModel):
+    nodes: list[EntityNode]
+    edges: list[EntityEdge]
+    period_days: int
+    brand_id: str
+
+
 # ── Advocate Scoring ─────────────────────────────────────────────────────────
 
 class ScoredAdvocate(BaseModel):
