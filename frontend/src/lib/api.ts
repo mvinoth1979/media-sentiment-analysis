@@ -128,6 +128,8 @@ export const updateBrandConfig = (brandId: string, payload: {
   tripadvisor_listing_url?: string;
   team_bhp_enabled?: boolean;
   team_bhp_keywords?: string[];
+  play_store_enabled?: boolean;
+  play_store_app_id?: string;
 }) => api.put(`/tenants/brands/${brandId}/config`, payload).then(r => r.data);
 
 export const deleteBrand = (brandId: string) =>

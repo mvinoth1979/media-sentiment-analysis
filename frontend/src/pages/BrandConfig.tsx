@@ -74,6 +74,9 @@ export function BrandConfig({ brandId, brandName }: Props) {
   // Team-BHP
   const [tbhpEnabled, setTbhpEnabled]         = useState(false);
   const [tbhpKeywords, setTbhpKeywords]       = useState("");
+  // Play Store
+  const [psEnabled, setPsEnabled]             = useState(false);
+  const [psAppId, setPsAppId]                 = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -97,6 +100,8 @@ export function BrandConfig({ brandId, brandName }: Props) {
         setTaUrl((cfg.tripadvisor_listing_url as string) || "");
         setTbhpEnabled(Boolean(cfg.team_bhp_enabled));
         setTbhpKeywords(((cfg.team_bhp_keywords as string[]) || []).join("\n"));
+        setPsEnabled(Boolean(cfg.play_store_enabled));
+        setPsAppId((cfg.play_store_app_id as string) || "");
       })
       .catch(() => setError("Failed to load brand config."))
       .finally(() => setLoading(false));
@@ -124,6 +129,8 @@ export function BrandConfig({ brandId, brandName }: Props) {
         tripadvisor_listing_url: taUrl.trim(),
         team_bhp_enabled: tbhpEnabled,
         team_bhp_keywords: tbhpKeywords.split("\n").map(s => s.trim()).filter(Boolean),
+        play_store_enabled: psEnabled,
+        play_store_app_id: psAppId.trim(),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -326,6 +333,27 @@ export function BrandConfig({ brandId, brandName }: Props) {
             <textarea value={tbhpKeywords} onChange={e => setTbhpKeywords(e.target.value)}
               rows={4} placeholder={"Maruti Swift\nMaruti Baleno\nWagonR\nErtiga"}
               className={inputCls + " resize-none focus:ring-red-600/50"} />
+          </Field>
+        )}
+      </section>
+
+      {/* ── Google Play Store ───────────────────────────────────────── */}
+      <section className="mb-8">
+        <SectionHeader
+          label="Google Play Store"
+          enabled={psEnabled}
+          onToggle={() => setPsEnabled(v => !v)}
+          color="bg-lime-500"
+          icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3.18 23.76a1.5 1.5 0 0 1-.68-.16A1.56 1.56 0 0 1 1.75 22V2a1.56 1.56 0 0 1 .75-1.6 1.5 1.5 0 0 1 1.56.07l18 10a1.56 1.56 0 0 1 0 2.7l-18 10a1.5 1.5 0 0 1-.88.59z" fill="#00C853"/></svg>}
+        />
+        {psEnabled && (
+          <Field
+            label="App package name"
+            hint="Package name from the Play Store URL: play.google.com/store/apps/details?id=com.example.app — e.g. com.jio.myjio, com.iob.mobilebanking."
+          >
+            <input type="text" value={psAppId} onChange={e => setPsAppId(e.target.value)}
+              placeholder="com.example.appname"
+              className={inputCls + " focus:ring-lime-400/50"} />
           </Field>
         )}
       </section>
