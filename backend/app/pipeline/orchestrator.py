@@ -225,6 +225,20 @@ def run_brand_pipeline(brand: dict, config: dict) -> dict:
         else:
             log.info("TripAdvisor skipped for brand %s", brand_id[:8])
 
+        if config.get("play_store_enabled", False):
+            try:
+                from app.ingestion.playstore_collector import collect_playstore_for_brand
+                ps_raw = collect_playstore_for_brand(brand, config)
+                ps_new = filter_new_articles(ps_raw, brand_id)
+                ps_new = [a for a in ps_new if not is_rejected(brand_id, a.get("url", ""), a.get("title", ""))]
+                new_articles.extend(ps_new)
+                stats["collected"] += len(ps_raw)
+            except Exception as e:
+                log.error("Play Store collection failed for brand %s: %s", brand_id[:8], e)
+                stats["errors"] += 1
+        else:
+            log.info("Play Store skipped for brand %s", brand_id[:8])
+
         if not new_articles:
             update_pipeline_status(brand_id, "idle", stats)
             return stats

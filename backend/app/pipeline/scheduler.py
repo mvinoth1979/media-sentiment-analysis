@@ -47,6 +47,8 @@ def _enqueue_all_brands():
             "reddit_subreddits":         config.get("reddit_subreddits") or [],
             "google_reviews_enabled":    config.get("google_reviews_enabled", False),
             "google_places_id":          config.get("google_places_id") or "",
+            "play_store_enabled":        config.get("play_store_enabled", False),
+            "play_store_app_id":         config.get("play_store_app_id") or "",
         })
     bootstrap_count = sum(1 for c in configs.values() if c.get("bootstrap_runs_remaining", 0) > 0)
     log.info("Enqueued %d brands (%d in bootstrap priority)", len(brands), bootstrap_count)

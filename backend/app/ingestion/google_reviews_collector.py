@@ -26,10 +26,11 @@ from app.config import settings
 
 log = logging.getLogger(__name__)
 
-_TEXTSEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
-_DETAILS_BASE   = "https://places.googleapis.com/v1/places"
-_TIMEOUT        = 12.0
-_MAX_REVIEWS    = 5
+_TEXTSEARCH_URL  = "https://places.googleapis.com/v1/places:searchText"
+_DETAILS_BASE    = "https://places.googleapis.com/v1/places"
+_SERPAPI_URL     = "https://serpapi.com/search"
+_TIMEOUT         = 12.0
+_MAX_REVIEWS     = 5
 
 
 def _content_hash(brand_id: str, author: str, publish_key: str) -> str:
@@ -164,10 +165,91 @@ def _map_review(review: dict, brand_id: str, places_id: str) -> dict | None:
     }
 
 
+def _fetch_reviews_via_serpapi(places_id: str, serpapi_key: str) -> list[dict]:
+    """Fallback: fetch Google Maps reviews via SerpAPI when Places API returns none."""
+    try:
+        resp = httpx.get(
+            _SERPAPI_URL,
+            params={
+                "engine":   "google_maps_reviews",
+                "place_id": places_id,
+                "sort_by":  "2",   # 2 = newest
+                "hl":       "en",
+                "api_key":  serpapi_key,
+            },
+            timeout=_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if "error" in data:
+            log.warning("SerpAPI error for place_id=%s: %s", places_id, data["error"])
+            return []
+        reviews = data.get("reviews", [])
+        log.info("SerpAPI returned %d reviews for place_id=%s", len(reviews), places_id)
+        return reviews
+    except Exception as e:
+        log.warning("SerpAPI fallback failed for place_id=%s: %s", places_id, e)
+        return []
+
+
+def _map_serpapi_review(review: dict, brand_id: str, places_id: str) -> dict | None:
+    """Convert a SerpAPI google_maps_reviews entry to a pipeline article dict."""
+    author      = review.get("user", {}).get("name", "")
+    rating      = review.get("rating")
+    body        = (review.get("snippet") or "").strip()
+    publish_iso = review.get("iso_date", "")
+    relative    = review.get("date", "")
+
+    if not body:
+        return None
+
+    if publish_iso:
+        try:
+            published_at = datetime.fromisoformat(publish_iso.replace("Z", "+00:00")).isoformat()
+            publish_key  = publish_iso
+        except (ValueError, TypeError):
+            published_at = datetime.now(tz=timezone.utc).isoformat()
+            publish_key  = body[:40]
+    else:
+        published_at = datetime.now(tz=timezone.utc).isoformat()
+        publish_key  = body[:40]
+
+    stars    = int(rating) if rating else 0
+    star_str = f"{'★' * stars}{'☆' * (5 - stars)}" if stars else ""
+    title    = f"Google Review {star_str}".strip() if star_str else "Google Review"
+
+    return {
+        "brand_id":           brand_id,
+        "content_hash":       _content_hash(brand_id, author, publish_key),
+        "story_hash":         _content_hash(brand_id, places_id, publish_key),
+        "portal_id":          "google_business",
+        "portal_name":        "Google Business",
+        "url":                f"https://maps.google.com/?cid={places_id}",
+        "title":              title,
+        "body":               body[:2000],
+        "author":             author,
+        "published_at":       published_at,
+        "language":           "en",
+        "source_type":        "google_review",
+        "source_credibility": 0.70,
+        "is_regulatory_source": False,
+        "reach_metadata": {
+            "rating":        rating,
+            "places_id":     places_id,
+            "relative_time": relative,
+            "via":           "serpapi",
+        },
+    }
+
+
 def collect_google_reviews_for_brand(brand: dict, config: dict) -> list[dict]:
-    """Collect up to 5 most recent Google Business reviews for a brand."""
-    api_key   = settings.google_places_api_key
-    brand_id  = brand["id"]
+    """Collect up to 5 most recent Google Business reviews for a brand.
+
+    Strategy: try Places API (New) first — free but only returns "featured"
+    reviews. If it returns nothing, fall back to SerpAPI (free tier: 100/month).
+    """
+    api_key    = settings.google_places_api_key
+    brand_id   = brand["id"]
     brand_name = brand.get("name", "")
 
     if not api_key:
@@ -188,12 +270,19 @@ def collect_google_reviews_for_brand(brand: dict, config: dict) -> list[dict]:
         _save_places_id(brand_id, places_id)
 
     raw_reviews = _fetch_place_reviews(places_id, api_key)
+    use_serpapi = False
+    if not raw_reviews and settings.serpapi_key:
+        log.info("Brand %s: Places API returned 0 reviews, trying SerpAPI fallback", brand_id[:8])
+        raw_reviews = _fetch_reviews_via_serpapi(places_id, settings.serpapi_key)
+        use_serpapi = True
+
     articles: list[dict] = []
+    mapper = _map_serpapi_review if use_serpapi else _map_review
     for review in raw_reviews[:_MAX_REVIEWS]:
-        article = _map_review(review, brand_id, places_id)
+        article = mapper(review, brand_id, places_id)
         if article:
             articles.append(article)
 
-    log.info("Brand %s (%s): Google reviews collected %d / %d",
-             brand_id[:8], brand_name, len(articles), len(raw_reviews))
+    log.info("Brand %s (%s): Google reviews collected %d (via %s)",
+             brand_id[:8], brand_name, len(articles), "SerpAPI" if use_serpapi else "Places API")
     return articles

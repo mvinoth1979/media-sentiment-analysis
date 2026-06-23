@@ -204,6 +204,7 @@ _SOURCE_TYPE_CATEGORY: dict[str, str] = {
     "flipkart_review":     "review_site",
     "glassdoor_review":    "review_site",
     "indiamart_review":    "review_site",
+    "play_store_review":   "review_site",
     "reddit_post": "reddit_post", "reddit_comment": "reddit_post", "forum": "reddit_post",
 }
 _SOURCE_CATEGORIES = ("news", "youtube", "blog", "review_site", "reddit_post")
@@ -737,7 +738,8 @@ _REVIEW_PLATFORM_NAMES: dict[str, str] = {
     "amazon_review":     "Amazon",
     "flipkart_review":   "Flipkart",
     "glassdoor_review":  "Glassdoor",
-    "indiamart_review":  "IndiaMART",
+    "indiamart_review":   "IndiaMART",
+    "play_store_review":  "Google Play Store",
 }
 
 
