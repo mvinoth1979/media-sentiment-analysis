@@ -26,6 +26,8 @@ import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
 import { AskBar } from "../components/AskBar";
+import { MorningBrief } from "../components/MorningBrief";
+import { WhatChangedCards } from "../components/WhatChangedCards";
 
 // Panels that remain as overlay views (non-article-list)
 type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
@@ -610,23 +612,28 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           </div>
         </div>
 
-        {/* ── Row 2: AI Executive Summary (58%) | Sentiment Trend (42%) ── flex-none */}
-        <div className="grid grid-cols-12 gap-2 flex-none">
-          <div className="col-span-7 min-w-0">
-            <AIExecutiveSummary brandId={brandId} queryParams={queryParams} />
-          </div>
-          <div className="col-span-5 min-w-0">
-            <SentimentTrendChart brandId={brandId} compact onClick={() => setActivePanel("sentiment-trend")} />
-          </div>
+        {/* ── Row 2: Morning Brief ──────────────────────────────────── flex-none */}
+        <MorningBrief brandId={brandId} days={days} />
+
+        {/* ── Row 2b: What Changed cards (horizontal scroll) ─────── flex-none */}
+        <div className="flex-none">
+          <WhatChangedCards brandId={brandId} queryParams={queryParams} />
         </div>
 
-        {/* ── Row 3: Mentions by Source | Top Headlines ─────────────── flex-1 */}
+        {/* ── Row 3: AI Executive Summary (58%) | Sentiment Trend + Mentions (42%) ── flex-1 */}
         <div className="grid grid-cols-12 gap-2 flex-1 min-h-0">
-          <div className="col-span-5 min-h-0">
-            <MentionsBySourceCards data={data?.by_source_type ?? {}} />
+          <div className="col-span-7 min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <AIExecutiveSummary brandId={brandId} queryParams={queryParams} />
+            </div>
           </div>
-          <div className="col-span-7 min-h-0">
-            <TopHeadlines brandId={brandId} compact onClick={() => openDrillDown("Top Headlines", {})} />
+          <div className="col-span-5 min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <SentimentTrendChart brandId={brandId} compact onClick={() => setActivePanel("sentiment-trend")} />
+            </div>
+            <div className="flex-none">
+              <MentionsBySourceCards data={data?.by_source_type ?? {}} />
+            </div>
           </div>
         </div>
 

@@ -517,6 +517,17 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Morning Brief ────────────────────────────────────────────────────────────
+
+class MorningBriefResponse(BaseModel):
+    greeting: str           # "Good morning. Brand reputation stable."
+    score_change: float     # +4.2 (delta vs prior period)
+    score_direction: str    # "up" | "down" | "stable"
+    highlights: list[str]   # 3-4 data-driven bullet points
+    confidence_pct: int     # AI confidence 0-100
+    generated_at: str
+
+
 # ── AI Chat ──────────────────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):

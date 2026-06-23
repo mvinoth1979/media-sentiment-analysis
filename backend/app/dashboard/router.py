@@ -49,6 +49,7 @@ from app.dashboard.schemas import (
     ViralityFlag, ViralityAlertsResponse,
     ExplainRequest, ExplainResponse,
     ChatMessage, ChatRequest,
+    MorningBriefResponse,
 )
 
 router = APIRouter()
@@ -2064,6 +2065,124 @@ def get_competitor_sentiment(
 
 
 # ── Virality Alerts ───────────────────────────────────────────────────────────
+
+# ── Morning Brief ────────────────────────────────────────────────────────────
+
+_MORNING_BRIEF_CACHE: dict = {}
+_MORNING_BRIEF_TTL = 60 * 60  # 1 hour
+
+
+@router.get("/morning-brief/{brand_id}", response_model=MorningBriefResponse)
+def get_morning_brief(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    cache_key = f"{brand_id}:{days}"
+    now = time.time()
+    if cache_key in _MORNING_BRIEF_CACHE and _MORNING_BRIEF_CACHE[cache_key]["expires_at"] > now:
+        return MorningBriefResponse(**_MORNING_BRIEF_CACHE[cache_key]["data"])
+
+    end = datetime.now(timezone.utc)
+    current_start = end - timedelta(days=days)
+    prior_start = current_start - timedelta(days=days)
+
+    current = _window_kpi(brand_id, current_start.isoformat(), end.isoformat())
+    prior = _window_kpi(brand_id, prior_start.isoformat(), current_start.isoformat())
+
+    score_change = round(current["perception_score"] - prior["perception_score"], 1) if prior["count"] > 0 else 0.0
+    if abs(score_change) < 1.5:
+        direction = "stable"
+    elif score_change > 0:
+        direction = "up"
+    else:
+        direction = "down"
+
+    # Build highlights from actual data
+    articles = get_articles(brand_id, limit=300, date_from=current_start.isoformat(), date_to=end.isoformat())
+    db = get_db()
+    brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "the brand"
+
+    total = len(articles)
+    neg = sum(1 for a in articles if a.get("sentiment_label") == "negative")
+    pos = sum(1 for a in articles if a.get("sentiment_label") == "positive")
+    neg_pct = round(neg / total * 100, 1) if total else 0
+    pos_pct = round(pos / total * 100, 1) if total else 0
+
+    issue_counter: Counter = Counter(
+        a.get("issue_category", "other") for a in articles
+        if a.get("issue_category") and a.get("issue_category") != "other"
+    )
+    top_issues = [c.replace("_", " ") for c, _ in issue_counter.most_common(2)]
+    reg_count = sum(1 for a in articles if a.get("is_regulatory_source"))
+
+    highlights: list[str] = []
+    if abs(score_change) >= 1.5:
+        direction_word = "increased" if score_change > 0 else "decreased"
+        highlights.append(f"Reputation score {direction_word} by {abs(score_change):.1f} pts vs prior {days} days")
+    else:
+        highlights.append(f"Reputation score stable at {current['perception_score']:.0f}/100")
+    if neg_pct > 30:
+        highlights.append(f"Negative coverage elevated at {neg_pct}% of {total} articles")
+    elif pos_pct > 50:
+        highlights.append(f"Positive coverage strong at {pos_pct}% of {total} articles")
+    else:
+        highlights.append(f"{total} articles collected — {pos_pct}% positive, {neg_pct}% negative")
+    if top_issues:
+        highlights.append(f"Top issue: {top_issues[0].title()}" + (f" and {top_issues[1].title()}" if len(top_issues) > 1 else ""))
+    if reg_count:
+        highlights.append(f"{reg_count} regulatory source mention{'s' if reg_count != 1 else ''} detected — review recommended")
+    else:
+        highlights.append("No regulatory or crisis signals detected")
+
+    # Gemini greeting sentence
+    from google import genai as _genai
+    from app.nlp.gemini_handler import _strip_fences
+    score_line = f"Score {'up' if direction == 'up' else 'down' if direction == 'down' else 'stable'} {abs(score_change):.1f} pts." if abs(score_change) >= 1.5 else "Score stable."
+    greeting_prompt = (
+        f"Write a single-sentence executive morning greeting for {brand_name}. "
+        f"Tone: calm, professional, brief — like a senior analyst speaking to a CMO. "
+        f"Include: {score_line} Top concern: {top_issues[0] if top_issues else 'general coverage'}. "
+        f"Coverage: {total} articles, {neg_pct}% negative. "
+        f"Respond with ONLY the greeting sentence — no quotes, no punctuation beyond the sentence itself."
+    )
+    greeting = f"Good morning. {brand_name} coverage: {score_line} {total} articles monitored."
+    confidence_pct = 72
+
+    _attempts = [
+        (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key, "gemini-2.0-flash"),
+        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+    ]
+    for _api_key, _model in _attempts:
+        if not _api_key:
+            continue
+        try:
+            _client = _genai.Client(api_key=_api_key, http_options={"timeout": 8})
+            _resp = _client.models.generate_content(model=_model, contents=greeting_prompt)
+            raw = _resp.text.strip().strip('"').strip("'")
+            if raw and len(raw) > 10:
+                greeting = raw
+                confidence_pct = min(95, 68 + round(pos_pct * 0.3))
+                break
+        except Exception as e:
+            err = str(e)
+            if any(k in err for k in ("RESOURCE_EXHAUSTED", "429", "404")):
+                continue
+            break
+
+    result = {
+        "greeting": greeting,
+        "score_change": score_change,
+        "score_direction": direction,
+        "highlights": highlights[:4],
+        "confidence_pct": confidence_pct,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _MORNING_BRIEF_CACHE[cache_key] = {"data": result, "expires_at": now + _MORNING_BRIEF_TTL}
+    return MorningBriefResponse(**result)
+
 
 # ── AI Chat (streaming SSE) ───────────────────────────────────────────────────
 

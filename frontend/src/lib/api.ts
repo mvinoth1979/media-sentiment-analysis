@@ -263,4 +263,18 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface MorningBriefData {
+  greeting: string;
+  score_change: number;
+  score_direction: "up" | "down" | "stable";
+  highlights: string[];
+  confidence_pct: number;
+  generated_at: string;
+}
+
+export const fetchMorningBrief = (brandId: string, days = 7) =>
+  api
+    .get<MorningBriefData>(`/dashboard/morning-brief/${brandId}`, { params: { days }, timeout: 30000 })
+    .then(r => r.data);
+
 export default api;
