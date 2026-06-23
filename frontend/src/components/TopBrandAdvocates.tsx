@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAdvocatesScored, type ScoredAdvocate } from "../lib/api";
 
@@ -31,7 +32,10 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   );
 }
 
+type AdvocateAction = "engaged" | "monitoring" | null;
+
 function AdvocateRow({ advocate }: { advocate: ScoredAdvocate }) {
+  const [action, setAction] = useState<AdvocateAction>(null);
   const initial = advocate.name.charAt(0).toUpperCase();
   const style = SOURCE_STYLE[advocate.source_type] ?? SOURCE_STYLE.Media;
 
@@ -66,9 +70,29 @@ function AdvocateRow({ advocate }: { advocate: ScoredAdvocate }) {
         <ScoreBar label="Trust"     value={advocate.trust}     color="bg-purple-500" />
       </div>
 
-      {/* Row 3: suggested engagement */}
-      <div className="pl-8">
-        <span className="text-[8px] text-white/25">💡 {advocate.suggested_engagement}</span>
+      {/* Row 3: suggested engagement + actions */}
+      <div className="pl-8 flex items-center gap-2 flex-wrap">
+        <span className="text-[8px] text-white/25 flex-1 min-w-0 truncate">💡 {advocate.suggested_engagement}</span>
+        {action ? (
+          <span className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-full ${action === "engaged" ? "bg-blue-500/15 text-blue-400" : "bg-white/10 text-white/35"}`}>
+            {action === "engaged" ? "✓ Engaged" : "👁 Monitoring"}
+          </span>
+        ) : (
+          <div className="flex gap-1 shrink-0">
+            <button
+              onClick={() => setAction("engaged")}
+              className="text-[7px] border border-blue-500/25 text-blue-400/60 hover:text-blue-400 hover:border-blue-400/50 rounded px-1.5 py-0.5 transition-colors"
+            >
+              Engage
+            </button>
+            <button
+              onClick={() => setAction("monitoring")}
+              className="text-[7px] border border-white/10 text-white/30 hover:text-white/50 rounded px-1.5 py-0.5 transition-colors"
+            >
+              Monitor
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

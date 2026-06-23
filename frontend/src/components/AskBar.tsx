@@ -11,6 +11,12 @@ const EXAMPLE_QUERIES = [
   "Compare with competitors",
 ];
 
+const FOLLOW_UPS = [
+  ["Which journalist is driving this?", "What's the timeline?", "What should we do next?"],
+  ["How does this compare to last week?", "Which states are affected?", "Is this escalating?"],
+  ["Who are our top advocates?", "What content should we create?", "Is this a crisis?"],
+];
+
 interface Props {
   brandId: string;
   days?: number;
@@ -128,7 +134,23 @@ export function AskBar({ brandId, days = 7 }: Props) {
       <div className="bg-[#1a2744] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Chat thread — only shown when open and there are messages */}
         {open && messages.length > 0 && (
-          <ChatThread messages={messages} isStreaming={streaming} />
+          <>
+            <ChatThread messages={messages} isStreaming={streaming} />
+            {/* Follow-up chips — shown after AI responds */}
+            {!streaming && messages.at(-1)?.role === "assistant" && messages.at(-1)?.content && (
+              <div className="flex flex-wrap gap-1.5 px-3 pb-2">
+                {FOLLOW_UPS[Math.floor(Math.random() * FOLLOW_UPS.length)].map(q => (
+                  <button
+                    key={q}
+                    onClick={() => send(q)}
+                    className="text-[10px] text-blue-400/60 border border-blue-500/20 rounded-full px-2.5 py-0.5 hover:text-blue-400 hover:border-blue-400/40 transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Example query chips — shown when open and no messages yet */}

@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { postGenerate, type GenerateResponse } from "../lib/api";
 
+type ReviewState = "draft" | "review" | "approved";
+
 interface Props {
   brandId: string;
   defaultTopic?: string;
@@ -31,11 +33,12 @@ export function ContentGenerator({ brandId, defaultTopic = "" }: Props) {
   const [topic, setTopic] = useState(defaultTopic);
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [reviewState, setReviewState] = useState<ReviewState>("draft");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => postGenerate(brandId, format, topic),
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => { setResult(data); setReviewState("draft"); },
   });
 
   const selectedFormat = FORMATS.find(f => f.key === format)!;
@@ -140,8 +143,20 @@ export function ContentGenerator({ brandId, defaultTopic = "" }: Props) {
                 )}
               </div>
 
+              {/* Approval workflow */}
+              {reviewState !== "draft" && (
+                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px] ${reviewState === "approved" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border border-amber-500/20 text-amber-400"}`}>
+                  {reviewState === "approved" ? "✓ Approved — ready to publish" : "⏳ Submitted for review"}
+                  {reviewState === "review" && (
+                    <button onClick={() => setReviewState("approved")} className="ml-auto text-[9px] bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 px-2 py-0.5 rounded transition-colors">
+                      Approve
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={handleCopy}
                   className="text-[10px] border border-white/15 hover:border-white/30 text-white/60 hover:text-white px-2.5 py-1 rounded transition-colors"
@@ -149,12 +164,20 @@ export function ContentGenerator({ brandId, defaultTopic = "" }: Props) {
                   {copied ? "✓ Copied" : "Copy"}
                 </button>
                 <button
-                  onClick={() => { setResult(null); mutate(); }}
+                  onClick={() => { setResult(null); setReviewState("draft"); mutate(); }}
                   disabled={isPending}
                   className="text-[10px] border border-white/10 hover:border-white/20 text-white/40 hover:text-white/70 px-2.5 py-1 rounded transition-colors disabled:opacity-40"
                 >
                   Regenerate
                 </button>
+                {reviewState === "draft" && (
+                  <button
+                    onClick={() => setReviewState("review")}
+                    className="text-[10px] border border-blue-500/25 text-blue-400/70 hover:text-blue-400 hover:border-blue-400/50 px-2.5 py-1 rounded transition-colors ml-auto"
+                  >
+                    Submit for Review →
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchMorningBrief, fetchRiskForecast, fetchIssueRadar, type IssueRadarPoint } from "../lib/api";
+import { fetchMorningBrief, fetchRiskForecast, fetchIssueRadar, fetchStoryFeed, type IssueRadarPoint } from "../lib/api";
 
 interface Props {
   brandId: string;
@@ -62,6 +62,12 @@ export function BoardMode({ brandId, brandName, days, onBack }: Props) {
   const { data: radar } = useQuery({
     queryKey: ["issue-radar", brandId, days],
     queryFn: () => fetchIssueRadar(brandId, days),
+    staleTime: 15 * 60_000,
+  });
+
+  const { data: stories } = useQuery({
+    queryKey: ["story-feed", brandId, days, 5],
+    queryFn: () => fetchStoryFeed(brandId, days, 5),
     staleTime: 15 * 60_000,
   });
 
@@ -181,6 +187,34 @@ export function BoardMode({ brandId, brandName, days, onBack }: Props) {
             )}
           </div>
         </div>
+
+        {/* Top Headlines */}
+        {stories && stories.stories.length > 0 && (
+          <div className="border-t border-white/8 pt-8">
+            <div className="text-[9px] uppercase tracking-widest text-white/30 mb-4">Top Stories This Period</div>
+            <div className="space-y-3">
+              {stories.stories.slice(0, 4).map((s, i) => {
+                const impColor = s.impact_score >= 70 ? "text-red-400" : s.impact_score >= 40 ? "text-amber-400" : "text-white/30";
+                const sentColor = s.sentiment_label === "negative" ? "bg-red-500/15 text-red-400" : s.sentiment_label === "positive" ? "bg-emerald-500/15 text-emerald-400" : "bg-white/8 text-white/35";
+                return (
+                  <div key={s.article_id} className="flex items-start gap-3">
+                    <span className="text-[12px] text-white/20 tabular-nums w-4 shrink-0 pt-0.5">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-white/70 hover:text-white leading-snug line-clamp-2 transition-colors">
+                        {s.title}
+                      </a>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[9px] text-white/25">{s.portal_name}</span>
+                        <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${sentColor}`}>{s.sentiment_label}</span>
+                        <span className={`text-[9px] font-semibold ml-auto ${impColor}`}>Impact {s.impact_score}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* AI Recommendation */}
         {risk?.narrative && (

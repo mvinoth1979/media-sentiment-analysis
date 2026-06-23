@@ -19,7 +19,6 @@ import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
 import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
 import { ReviewSitesDashboard } from "../components/ReviewSitesDashboard";
 import { CompetitorComparison } from "../components/CompetitorComparison";
-import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { SituationRoomPanel } from "../components/SituationRoomPanel";
 import { ContentGenerator } from "../components/ContentGenerator";
@@ -27,6 +26,7 @@ import { EntityGraph } from "../components/DrillDown/narrative/EntityGraph";
 import { NarrativeDNA } from "../components/DrillDown/narrative/NarrativeDNA";
 import { GeoStateRankings } from "../components/GeoStateRankings";
 import { PeriodDiffStrip } from "../components/PeriodDiffStrip";
+import { JournalistIntelligenceStrip } from "../components/JournalistIntelligenceStrip";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
@@ -779,8 +779,12 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                 topTopics={data.top_topics}
               />
             </div>
-            <div className="flex-[1] min-h-0" style={{ minHeight: "100px" }}>
-              <DrillDownJourneyExample />
+            <div className="flex-[2] min-h-0">
+              <JournalistIntelligenceStrip
+                brandId={brandId}
+                days={days}
+                onJournalistDrill={(author) => openDrillDown(`Journalist: ${author}`, { q: author })}
+              />
             </div>
           </div>
 
