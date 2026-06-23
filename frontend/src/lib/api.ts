@@ -237,7 +237,7 @@ export const fetchAiSummary = (
   api
     .get<{ what_changed: string; why: string; actions: string[]; generated_at: string }>(
       `/dashboard/ai-summary/${brandId}`,
-      { params }
+      { params, timeout: 60000 }
     )
     .then(r => r.data);
 

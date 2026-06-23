@@ -1635,7 +1635,7 @@ def get_ai_summary(
         if not _api_key:
             continue
         try:
-            _client = _genai.Client(api_key=_api_key)
+            _client = _genai.Client(api_key=_api_key, http_options={"timeout": 10})
             response = _client.models.generate_content(model=_model, contents=prompt)
             raw = _strip_fences(response.text.strip())
             match = re.search(r"\{.*\}", raw, re.DOTALL)
@@ -1656,6 +1656,9 @@ def get_ai_summary(
                 log.warning("AI summary: %s quota exhausted, trying next", _model)
                 continue
             if "404" in err:
+                continue
+            if "timeout" in err.lower() or "deadline" in err.lower() or "timed out" in err.lower():
+                log.warning("AI summary: %s timed out, trying next", _model)
                 continue
             log.warning("AI summary LLM error (%s): %s", _model, err[:150])
             break
