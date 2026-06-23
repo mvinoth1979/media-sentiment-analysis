@@ -58,6 +58,7 @@ from app.dashboard.schemas import (
     GenerateRequest, GenerateResponse,
     EntityNode, EntityEdge, EntityGraphResponse,
     NarrativeDNAResponse,
+    PeriodDiffResponse,
 )
 
 router = APIRouter()
@@ -2027,6 +2028,58 @@ def get_top_advocates_endpoint(
         for r in results[:5]
     ]
     return TopAdvocatesResponse(advocates=advocates)
+
+
+# ── Period Diff ──────────────────────────────────────────────────────────────
+
+@router.get("/diff/{brand_id}", response_model=PeriodDiffResponse)
+def get_period_diff(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    cur_start  = end - timedelta(days=days)
+    prev_end   = cur_start
+    prev_start = prev_end - timedelta(days=days)
+
+    current = get_articles(brand_id, limit=500, date_from=cur_start.isoformat(), date_to=end.isoformat())
+    prev    = get_articles(brand_id, limit=500, date_from=prev_start.isoformat(), date_to=prev_end.isoformat())
+
+    def _stats(arts):
+        total = len(arts)
+        if not total:
+            return total, 0.0, 0.0, {}
+        pos_pct = sum(1 for a in arts if a.get("sentiment_label") == "positive") / total * 100
+        neg_pct = sum(1 for a in arts if a.get("sentiment_label") == "negative") / total * 100
+        risk    = neg_pct * 0.7 + (100 - pos_pct) * 0.3
+        topics: dict = {}
+        for a in arts:
+            for t in (a.get("topics") or []):
+                topics[t] = topics.get(t, 0) + 1
+        return total, round(pos_pct, 1), round(risk, 1), topics
+
+    cur_count, cur_pos, cur_risk, cur_topics   = _stats(current)
+    prev_count, prev_pos, prev_risk, prev_topics = _stats(prev)
+
+    # Topics that gained / lost share
+    all_topics = set(cur_topics) | set(prev_topics)
+    diffs = {t: cur_topics.get(t, 0) - prev_topics.get(t, 0) for t in all_topics}
+    gained = [t for t, d in sorted(diffs.items(), key=lambda x: -x[1]) if d > 0][:5]
+    lost   = [t for t, d in sorted(diffs.items(), key=lambda x: x[1]) if d < 0][:5]
+
+    return PeriodDiffResponse(
+        mention_delta    = cur_count - prev_count,
+        sentiment_delta  = round(cur_pos - prev_pos, 1),
+        risk_delta       = round(cur_risk - prev_risk, 1),
+        top_gained       = gained,
+        top_lost         = lost,
+        period_label     = f"vs prev {days}d",
+        current_count    = cur_count,
+        prev_count       = prev_count,
+        current_pos_pct  = cur_pos,
+        prev_pos_pct     = prev_pos,
+    )
 
 
 # ── Narrative DNA ────────────────────────────────────────────────────────────

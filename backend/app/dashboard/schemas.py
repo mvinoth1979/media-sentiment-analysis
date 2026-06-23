@@ -518,6 +518,21 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Period Diff ──────────────────────────────────────────────────────────────
+
+class PeriodDiffResponse(BaseModel):
+    mention_delta: int
+    sentiment_delta: float          # change in positive % (positive = better)
+    risk_delta: float               # change in risk score (positive = worse)
+    top_gained: list[str]           # topics gaining momentum
+    top_lost: list[str]             # topics losing momentum
+    period_label: str               # e.g. "vs prev 7d"
+    current_count: int
+    prev_count: int
+    current_pos_pct: float
+    prev_pos_pct: float
+
+
 # ── Narrative DNA ────────────────────────────────────────────────────────────
 
 class NarrativeDNAResponse(BaseModel):

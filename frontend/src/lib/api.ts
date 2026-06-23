@@ -263,6 +263,24 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface PeriodDiffData {
+  mention_delta: number;
+  sentiment_delta: number;
+  risk_delta: number;
+  top_gained: string[];
+  top_lost: string[];
+  period_label: string;
+  current_count: number;
+  prev_count: number;
+  current_pos_pct: number;
+  prev_pos_pct: number;
+}
+
+export const fetchPeriodDiff = (brandId: string, days = 7) =>
+  api
+    .get<PeriodDiffData>(`/dashboard/diff/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
 export interface NarrativeDNAData {
   fear: number;
   criticism: number;

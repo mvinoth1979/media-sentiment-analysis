@@ -25,6 +25,8 @@ import { SituationRoomPanel } from "../components/SituationRoomPanel";
 import { ContentGenerator } from "../components/ContentGenerator";
 import { EntityGraph } from "../components/DrillDown/narrative/EntityGraph";
 import { NarrativeDNA } from "../components/DrillDown/narrative/NarrativeDNA";
+import { GeoStateRankings } from "../components/GeoStateRankings";
+import { PeriodDiffStrip } from "../components/PeriodDiffStrip";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
@@ -665,9 +667,12 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ══════════════════ SCREEN 2 ══════════════════════════════════════════ */}
       <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
 
-        {/* ── Emerging Narrative Banner (auto-shows only when novelty ≥ 3.0) ── */}
-        <div className="flex-none">
-          <EmergingNarrativeBanner brandId={brandId} days={days} />
+        {/* ── Header: period diff strip + emerging banner ──────────────────── */}
+        <div className="flex items-center gap-3 flex-none flex-wrap">
+          <PeriodDiffStrip brandId={brandId} days={days} />
+          <div className="flex-1 min-w-0">
+            <EmergingNarrativeBanner brandId={brandId} days={days} />
+          </div>
         </div>
 
         {/* ── Row 1: Issue Radar | Top Influential Sources | Stories Feed ── flex-[3] */}
@@ -797,6 +802,44 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <svg className="w-3 h-3 text-white/60 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════ SCREEN 8 — Geo Intelligence ══════════════════════ */}
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+        <div className="flex items-center gap-3 flex-none">
+          <h2 className="text-sm font-semibold text-white">Geo Intelligence</h2>
+          <span className="text-[10px] text-white/30">— state-level sentiment distribution</span>
+          <div className="ml-auto">
+            <PeriodDiffStrip brandId={brandId} days={days} />
+          </div>
+        </div>
+        <div className="flex gap-2 flex-1 min-h-0">
+          {/* Left 3/5: full-size India map */}
+          <div className="flex-[3] min-h-0 bg-[#111e36] border border-white/10 rounded-xl overflow-hidden">
+            <IndiaStateMap
+              variant="regions"
+              data={data.state_breakdown}
+              onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
+              onExplain={(zone) => openDrillDown(`${zone} Region`, { state: zone })}
+            />
+          </div>
+          {/* Right 2/5: rankings + regional AI */}
+          <div className="flex-[2] min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <GeoStateRankings
+                stateBreakdown={data.state_breakdown}
+                onStateDrill={(state) => openDrillDown(`State: ${state}`, { state })}
+              />
+            </div>
+            <div className="flex-none">
+              <AIRegionalSummary
+                brandId={brandId}
+                days={days}
+                onStateExplain={(state) => openDrillDown(`State: ${state}`, { state })}
+              />
+            </div>
           </div>
         </div>
       </div>
