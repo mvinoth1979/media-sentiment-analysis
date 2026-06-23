@@ -22,6 +22,7 @@ import { CompetitorComparison } from "../components/CompetitorComparison";
 import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { SituationRoomPanel } from "../components/SituationRoomPanel";
+import { ContentGenerator } from "../components/ContentGenerator";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
@@ -785,6 +786,24 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <svg className="w-3 h-3 text-white/60 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════ SCREEN 6 — Response Studio ════════════════════════ */}
+      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+        {/* Header */}
+        <div className="flex items-center gap-3 flex-none">
+          <h2 className="text-sm font-semibold text-white">Response Studio</h2>
+          <span className="text-[10px] text-white/30">— AI-generated PR content</span>
+        </div>
+        {/* 2-col: ContentGenerator | Advocacy Hub */}
+        <div className="grid grid-cols-3 gap-2 flex-1 min-h-0">
+          <div className="col-span-2 min-h-0">
+            <ContentGenerator brandId={brandId} />
+          </div>
+          <div className="min-h-0">
+            <TopBrandAdvocates brandId={brandId} days={days} />
           </div>
         </div>
       </div>

@@ -517,6 +517,42 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Advocate Scoring ─────────────────────────────────────────────────────────
+
+class ScoredAdvocate(BaseModel):
+    name: str
+    source_type: str
+    article_count: int
+    total_reach: float
+    affinity: int        # 0-100: positive%
+    influence: int       # 0-100: volume proxy
+    trust: int           # 0-100: inverse of negative%
+    total_score: int     # weighted composite
+    emerging: bool       # first seen < 30 days ago
+    suggested_engagement: str
+
+
+class ScoredAdvocatesResponse(BaseModel):
+    advocates: list[ScoredAdvocate]
+
+
+# ── Content Generation ────────────────────────────────────────────────────────
+
+class GenerateRequest(BaseModel):
+    brand_id: str
+    format: str   # "press_release" | "faq" | "tweet" | "linkedin" | "ceo_statement"
+    topic: str
+
+
+class GenerateResponse(BaseModel):
+    content: str
+    format: str
+    word_count: int
+    char_count: int
+    confidence_pct: int
+    generated_at: str
+
+
 # ── Risk Forecast ────────────────────────────────────────────────────────────
 
 class RiskDayPoint(BaseModel):

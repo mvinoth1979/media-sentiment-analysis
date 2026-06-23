@@ -54,6 +54,8 @@ from app.dashboard.schemas import (
     StoryCard, StoryFeedResponse, StoryActionRequest,
     IssueRadarPoint, IssueRadarResponse, EmergingTopic, EmergingTopicsResponse,
     RiskDayPoint, RiskForecastPoint, RiskForecastResponse,
+    ScoredAdvocate, ScoredAdvocatesResponse,
+    GenerateRequest, GenerateResponse,
 )
 
 router = APIRouter()
@@ -2019,6 +2021,206 @@ def get_top_advocates_endpoint(
         for r in results[:5]
     ]
     return TopAdvocatesResponse(advocates=advocates)
+
+
+# ── Advocate Scoring ─────────────────────────────────────────────────────────
+
+_ENGAGEMENT_RULES = [
+    (lambda a: a["count"] > 10 and a["pos_pct"] > 0.8,   "Long-form interview or press preview"),
+    (lambda a: a["pos_pct"] > 0.6 and a["src"] in ("youtube_video", "youtube_comment"), "Product review invitation"),
+    (lambda a: a["emerging"],                              "Follow and engage — early relationship"),
+    (lambda a: True,                                       "Monitor"),
+]
+
+
+def _suggest_engagement(attrs: dict) -> str:
+    for rule, label in _ENGAGEMENT_RULES:
+        try:
+            if rule(attrs):
+                return label
+        except Exception:
+            continue
+    return "Monitor"
+
+
+@router.get("/advocates-scored/{brand_id}", response_model=ScoredAdvocatesResponse)
+def get_advocates_scored(
+    brand_id: str,
+    days: int = Query(30, ge=7, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    start_early = end - timedelta(days=max(days * 2, 60))
+
+    all_arts = get_articles(brand_id, limit=1000, date_from=start.isoformat(), date_to=end.isoformat())
+    all_arts = [a for a in all_arts if a.get("source_type") in _ADVOCATE_SOURCE_TYPES]
+
+    # Also fetch older window to detect "emerging" (not seen before)
+    older_arts = get_articles(brand_id, limit=500, date_from=start_early.isoformat(), date_to=start.isoformat())
+    older_authors = {
+        (a.get("author") or (a.get("author_info") or {}).get("display_name", "") or a.get("portal_id", ""))
+        for a in older_arts
+    }
+
+    from collections import defaultdict
+    buckets: dict = defaultdict(lambda: {"name": "", "src": "", "count": 0, "pos": 0, "neg": 0, "reach": 0.0, "first": ""})
+    for a in all_arts:
+        author_info = a.get("author_info")
+        author = a.get("author") or (author_info.get("display_name") if isinstance(author_info, dict) else None)
+        key = author or a.get("portal_id", "unknown")
+        b = buckets[key]
+        b["name"] = author or a.get("portal_id", "Unknown")
+        b["src"] = a.get("source_type", "blog")
+        b["count"] += 1
+        lbl = a.get("sentiment_label", "neutral")
+        if lbl == "positive": b["pos"] += 1
+        elif lbl == "negative": b["neg"] += 1
+        reach_meta = a.get("reach_metadata") or {}
+        b["reach"] += float(reach_meta.get("estimated_reach", 1)) if isinstance(reach_meta, dict) else 1.0
+        raw_date = a.get("collected_at") or ""
+        if not b["first"] or raw_date < b["first"]:
+            b["first"] = raw_date
+
+    scored: list[ScoredAdvocate] = []
+    for key, b in buckets.items():
+        total = b["count"] or 1
+        pos_pct = b["pos"] / total
+        neg_pct = b["neg"] / total
+        emerging = key not in older_authors
+
+        affinity  = min(100, round(pos_pct * 100))
+        influence = min(100, round((b["count"] / 20) * 100))
+        trust     = min(100, round((1 - neg_pct) * 100))
+        composite = round(affinity * 0.4 + influence * 0.3 + trust * 0.3)
+
+        attrs = {"count": b["count"], "pos_pct": pos_pct, "src": b["src"], "emerging": emerging}
+        scored.append(ScoredAdvocate(
+            name=b["name"],
+            source_type=_ADVOCATE_TYPE_LABEL.get(b["src"], "Media"),
+            article_count=b["count"],
+            total_reach=b["reach"],
+            affinity=affinity,
+            influence=influence,
+            trust=trust,
+            total_score=composite,
+            emerging=emerging,
+            suggested_engagement=_suggest_engagement(attrs),
+        ))
+
+    scored.sort(key=lambda a: a.total_score, reverse=True)
+    return ScoredAdvocatesResponse(advocates=scored[:8])
+
+
+# ── Content Generation ────────────────────────────────────────────────────────
+
+_FORMAT_PROMPTS: dict[str, str] = {
+    "press_release": (
+        "Write a formal press release for {brand} addressing: {topic}. "
+        "Include: FOR IMMEDIATE RELEASE header, a compelling headline, two substantive paragraphs (400 words total), a boilerplate 'About {brand}' paragraph, and a media contact line. "
+        "Tone: professional, factual, credibility-focused. No markdown."
+    ),
+    "faq": (
+        "Write 5 consumer-facing FAQs for {brand} addressing: {topic}. "
+        "Format: Q: [question]\\nA: [empathetic, clear answer]\\n for each. "
+        "Tone: warm, transparent, solution-oriented. No markdown headers."
+    ),
+    "tweet": (
+        "Write a single tweet from {brand} addressing: {topic}. "
+        "Max 280 characters. Professional but warm. Include a call to action. No hashtag spam (max 2). No markdown."
+    ),
+    "linkedin": (
+        "Write a LinkedIn post from {brand} addressing: {topic}. "
+        "150 words. Business audience. Lead with insight, not apology. End with a question to drive engagement. No markdown."
+    ),
+    "ceo_statement": (
+        "Write a CEO statement from {brand} on: {topic}. "
+        "200 words. Executive register — decisive, accountable, forward-looking. First person. No markdown."
+    ),
+}
+
+_GENERATE_CACHE: dict = {}
+_GENERATE_TTL = 3600
+
+
+@router.post("/generate", response_model=GenerateResponse)
+def generate_content(
+    req: GenerateRequest,
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    from fastapi import HTTPException
+    if req.format not in _FORMAT_PROMPTS:
+        raise HTTPException(status_code=422, detail=f"format must be one of: {', '.join(_FORMAT_PROMPTS)}")
+    if not req.topic.strip():
+        raise HTTPException(status_code=422, detail="topic must not be empty")
+
+    cache_key = f"gen:{req.brand_id}:{req.format}:{req.topic.strip().lower()[:80]}"
+    now = time.time()
+    if cache_key in _GENERATE_CACHE:
+        entry = _GENERATE_CACHE[cache_key]
+        if entry["expires_at"] > now:
+            return GenerateResponse(**entry["data"])
+
+    db = get_db()
+    brand_row = db.table("brands").select("name").eq("id", req.brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "the brand"
+
+    prompt = _FORMAT_PROMPTS[req.format].format(brand=brand_name, topic=req.topic.strip())
+    content = ""
+    confidence_pct = 60
+
+    try:
+        from google import genai as _genai
+        _GEN_ATTEMPTS = [
+            (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_free_api_key, "gemini-2.0-flash"),
+            (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        ]
+        for _key, _model in _GEN_ATTEMPTS:
+            if not _key:
+                continue
+            try:
+                _resp = _genai.Client(api_key=_key, http_options={"timeout": 20}).models.generate_content(
+                    model=_model, contents=prompt
+                )
+                _text = (_resp.text or "").strip()
+                if _text:
+                    content = _text
+                    confidence_pct = 82
+                    break
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    if not content:
+        content = f"[AI generation unavailable. Topic: {req.topic}. Please try again.]"
+        confidence_pct = 0
+
+    result = {
+        "content": content,
+        "format": req.format,
+        "word_count": len(content.split()),
+        "char_count": len(content),
+        "confidence_pct": confidence_pct,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _GENERATE_CACHE[cache_key] = {"data": result, "expires_at": now + _GENERATE_TTL}
+
+    # Optionally persist to generated_content table (graceful if table absent)
+    try:
+        user_id = _user.get("user_id") or _user.get("sub") or ""
+        db.table("generated_content").insert({
+            "brand_id": req.brand_id,
+            "content_type": req.format,
+            "content_text": content,
+            "context_json": {"topic": req.topic},
+            "created_by": user_id or None,
+        }).execute()
+    except Exception:
+        pass
+
+    return GenerateResponse(**result)
 
 
 # ── Screen 3: Competitor Sentiment Comparison ──────────────────────────────────

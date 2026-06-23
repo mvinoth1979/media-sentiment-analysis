@@ -263,6 +263,38 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface ScoredAdvocate {
+  name: string;
+  source_type: string;
+  article_count: number;
+  total_reach: number;
+  affinity: number;
+  influence: number;
+  trust: number;
+  total_score: number;
+  emerging: boolean;
+  suggested_engagement: string;
+}
+
+export const fetchAdvocatesScored = (brandId: string, days = 30) =>
+  api
+    .get<{ advocates: ScoredAdvocate[] }>(`/dashboard/advocates-scored/${brandId}`, { params: { days } })
+    .then(r => r.data);
+
+export interface GenerateResponse {
+  content: string;
+  format: string;
+  word_count: number;
+  char_count: number;
+  confidence_pct: number;
+  generated_at: string;
+}
+
+export const postGenerate = (brandId: string, format: string, topic: string) =>
+  api
+    .post<GenerateResponse>("/dashboard/generate", { brand_id: brandId, format, topic }, { timeout: 30000 })
+    .then(r => r.data);
+
 export interface RiskDayPoint {
   date: string;
   risk_score: number;
