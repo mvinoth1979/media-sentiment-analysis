@@ -517,6 +517,38 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Issue Radar ──────────────────────────────────────────────────────────────
+
+class IssueRadarPoint(BaseModel):
+    issue: str
+    count: int
+    positive_count: int
+    negative_count: int
+    neutral_count: int
+    velocity: float     # current 7d rate / 30d baseline rate (normalised to daily)
+    reach: int          # summed reach_score proxy
+
+
+class IssueRadarResponse(BaseModel):
+    points: list[IssueRadarPoint]
+    period_days: int
+    brand_id: str
+
+
+class EmergingTopic(BaseModel):
+    topic: str
+    novelty_score: float   # current_daily_rate / baseline_daily_rate
+    current_count: int
+    baseline_daily_rate: float
+
+
+class EmergingTopicsResponse(BaseModel):
+    emerging: list[EmergingTopic]   # novelty_score >= 3.0 AND count >= 5
+    brand_id: str
+    period_days: int
+    baseline_days: int
+
+
 # ── Story Feed ───────────────────────────────────────────────────────────────
 
 class StoryCard(BaseModel):

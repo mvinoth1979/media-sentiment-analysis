@@ -6,7 +6,8 @@ import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { MentionsBySourceCards } from "../components/MentionsBySourceCards";
 import { DrillDownScreen } from "../components/DrillDown/DrillDownScreen";
-import { TopIssuesTable } from "../components/TopIssuesTable";
+import { IssueRadarBubble } from "../components/charts/IssueRadarBubble";
+import { EmergingNarrativeBanner } from "../components/EmergingNarrativeBanner";
 import { EditorialToneChart } from "../components/EditorialToneChart";
 import { YouTubeSentimentSplit } from "../components/YouTubeSentimentSplit";
 import { IndiaStateMap } from "../components/charts/IndiaStateMap";
@@ -651,15 +652,18 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ══════════════════ SCREEN 2 ══════════════════════════════════════════ */}
       <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
 
-        {/* ── Row 1: Top Issues | Top Influential Sources | Top Negative ── flex-[3] */}
+        {/* ── Emerging Narrative Banner (auto-shows only when novelty ≥ 3.0) ── */}
+        <div className="flex-none">
+          <EmergingNarrativeBanner brandId={brandId} days={days} />
+        </div>
+
+        {/* ── Row 1: Issue Radar | Top Influential Sources | Stories Feed ── flex-[3] */}
         <div className="grid grid-cols-3 gap-2 flex-[3] min-h-0">
           <div className="min-h-0">
-            <TopIssuesTable
+            <IssueRadarBubble
               brandId={brandId}
-              compact
-              onClick={() => openDrillDown("Top Issues", {})}
-              onClusterClick={(name) => openDrillDown(`Issue: ${name.replace(/_/g, " ")}`, { issueCategory: name })}
-              onCategoryClick={(cat) => openDrillDown(`Category: ${cat.replace(/_/g, " ")}`, { issueCategory: cat })}
+              days={days}
+              onIssueDrill={(issue) => openDrillDown(`Issue: ${issue.replace(/_/g, " ")}`, { issueCategory: issue })}
             />
           </div>
           <div className="min-h-0">

@@ -52,6 +52,7 @@ from app.dashboard.schemas import (
     MorningBriefResponse,
     StateHighlight, RegionalSummaryResponse,
     StoryCard, StoryFeedResponse, StoryActionRequest,
+    IssueRadarPoint, IssueRadarResponse, EmergingTopic, EmergingTopicsResponse,
 )
 
 router = APIRouter()
@@ -2347,6 +2348,112 @@ def get_morning_brief(
     }
     _MORNING_BRIEF_CACHE[cache_key] = {"data": result, "expires_at": now + _MORNING_BRIEF_TTL}
     return MorningBriefResponse(**result)
+
+
+# ── Issue Radar ──────────────────────────────────────────────────────────────
+
+@router.get("/issue-radar/{brand_id}", response_model=IssueRadarResponse)
+def get_issue_radar(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start_current = end - timedelta(days=days)
+    start_baseline = end - timedelta(days=days * 5)  # 5× window as baseline
+
+    current_arts = get_articles(brand_id, limit=1000, date_from=start_current.isoformat(), date_to=end.isoformat())
+    baseline_arts = get_articles(brand_id, limit=2000, date_from=start_baseline.isoformat(), date_to=start_current.isoformat())
+
+    def _bucket(arts: list[dict]) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for a in arts:
+            cat = a.get("issue_category") or "other"
+            if cat not in out:
+                out[cat] = {"count": 0, "pos": 0, "neg": 0, "neu": 0, "reach": 0}
+            out[cat]["count"] += 1
+            lbl = a.get("sentiment_label", "neutral")
+            if lbl == "positive":
+                out[cat]["pos"] += 1
+            elif lbl == "negative":
+                out[cat]["neg"] += 1
+            else:
+                out[cat]["neu"] += 1
+            out[cat]["reach"] += int(a.get("reach_score") or 0)
+        return out
+
+    cur = _bucket(current_arts)
+    base = _bucket(baseline_arts)
+    baseline_multiplier = max(1.0, days * 5 / days)  # normalise to daily rate
+
+    points: list[IssueRadarPoint] = []
+    for issue, d in cur.items():
+        if d["count"] < 2:
+            continue
+        base_count = (base.get(issue, {}).get("count", 0) or 0)
+        base_daily = base_count / baseline_multiplier if baseline_multiplier else 0
+        current_daily = d["count"]  # already for `days` window — use as-is for velocity
+        velocity = round(current_daily / (base_daily + 1), 2)  # +1 avoids div-by-zero
+        points.append(IssueRadarPoint(
+            issue=issue,
+            count=d["count"],
+            positive_count=d["pos"],
+            negative_count=d["neg"],
+            neutral_count=d["neu"],
+            velocity=velocity,
+            reach=d["reach"],
+        ))
+
+    points.sort(key=lambda p: p.count, reverse=True)
+    return IssueRadarResponse(points=points[:20], period_days=days, brand_id=brand_id)
+
+
+@router.get("/emerging-topics/{brand_id}", response_model=EmergingTopicsResponse)
+def get_emerging_topics(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=30),
+    baseline_days: int = Query(30, ge=7, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start_current = end - timedelta(days=days)
+    start_baseline = end - timedelta(days=days + baseline_days)
+
+    current_arts = get_articles(brand_id, limit=1000, date_from=start_current.isoformat(), date_to=end.isoformat())
+    baseline_arts = get_articles(brand_id, limit=2000, date_from=start_baseline.isoformat(), date_to=start_current.isoformat())
+
+    def _topic_counts(arts: list[dict]) -> Counter:
+        c: Counter = Counter()
+        for a in arts:
+            for t in (a.get("topics") or []):
+                c[t] += 1
+        return c
+
+    cur_counts = _topic_counts(current_arts)
+    base_counts = _topic_counts(baseline_arts)
+
+    emerging: list[EmergingTopic] = []
+    for topic, current_count in cur_counts.items():
+        if current_count < 5:
+            continue
+        base_count = base_counts.get(topic, 0)
+        base_daily = (base_count / baseline_days) if baseline_days > 0 else 0
+        novelty = current_count / (base_daily * days + 1)   # ratio: current vs expected from baseline
+        if novelty >= 3.0:
+            emerging.append(EmergingTopic(
+                topic=topic,
+                novelty_score=round(novelty, 2),
+                current_count=current_count,
+                baseline_daily_rate=round(base_daily, 3),
+            ))
+
+    emerging.sort(key=lambda e: e.novelty_score, reverse=True)
+    return EmergingTopicsResponse(
+        emerging=emerging[:10],
+        brand_id=brand_id,
+        period_days=days,
+        baseline_days=baseline_days,
+    )
 
 
 # ── Story Feed ───────────────────────────────────────────────────────────────

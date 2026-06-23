@@ -263,6 +263,39 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface IssueRadarPoint {
+  issue: string;
+  count: number;
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
+  velocity: number;
+  reach: number;
+}
+
+export const fetchIssueRadar = (brandId: string, days = 7) =>
+  api
+    .get<{ points: IssueRadarPoint[]; period_days: number; brand_id: string }>(
+      `/dashboard/issue-radar/${brandId}`,
+      { params: { days } }
+    )
+    .then(r => r.data);
+
+export interface EmergingTopic {
+  topic: string;
+  novelty_score: number;
+  current_count: number;
+  baseline_daily_rate: number;
+}
+
+export const fetchEmergingTopics = (brandId: string, days = 7, baselineDays = 30) =>
+  api
+    .get<{ emerging: EmergingTopic[]; brand_id: string; period_days: number; baseline_days: number }>(
+      `/dashboard/emerging-topics/${brandId}`,
+      { params: { days, baseline_days: baselineDays } }
+    )
+    .then(r => r.data);
+
 export interface StoryCard {
   article_id: string;
   title: string;
