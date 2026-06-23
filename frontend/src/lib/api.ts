@@ -263,6 +263,28 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface StoryCard {
+  article_id: string;
+  title: string;
+  url: string;
+  portal_name: string;
+  published_at: string | null;
+  sentiment_label: string;
+  impact_score: number;
+  source_type: string;
+  action: "watch" | "investigate" | "ignore" | null;
+}
+
+export const fetchStoryFeed = (brandId: string, days = 7, limit = 20) =>
+  api
+    .get<{ stories: StoryCard[]; total: number }>(`/dashboard/story-feed/${brandId}`, { params: { days, limit } })
+    .then(r => r.data);
+
+export const postStoryAction = (brandId: string, articleId: string, action: string) =>
+  api
+    .post<{ ok: boolean }>("/dashboard/story-action", { brand_id: brandId, article_id: articleId, action })
+    .then(r => r.data);
+
 export interface StateHighlight {
   state: string;
   direction: "improving" | "declining" | "stable";

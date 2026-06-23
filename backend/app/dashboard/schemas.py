@@ -517,6 +517,31 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Story Feed ───────────────────────────────────────────────────────────────
+
+class StoryCard(BaseModel):
+    article_id: str
+    title: str
+    url: str
+    portal_name: str
+    published_at: str | None
+    sentiment_label: str
+    impact_score: int       # 0–100 composite
+    source_type: str
+    action: str | None = None  # "watch" | "investigate" | "ignore" | None
+
+
+class StoryFeedResponse(BaseModel):
+    stories: list[StoryCard]
+    total: int
+
+
+class StoryActionRequest(BaseModel):
+    brand_id: str
+    article_id: str
+    action: str   # "watch" | "investigate" | "ignore"
+
+
 # ── Regional Summary ─────────────────────────────────────────────────────────
 
 class StateHighlight(BaseModel):

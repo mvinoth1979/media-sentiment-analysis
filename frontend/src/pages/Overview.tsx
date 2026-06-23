@@ -13,7 +13,6 @@ import { IndiaStateMap } from "../components/charts/IndiaStateMap";
 import { AIExecutiveSummary } from "../components/AIExecutiveSummary";
 import { ReputationRiskGauge } from "../components/ReputationRiskGauge";
 import { TopInfluentialSources } from "../components/TopInfluentialSources";
-import { TopNegativeMentions } from "../components/TopNegativeMentions";
 import { TopBrandAdvocates } from "../components/TopBrandAdvocates";
 import { NewsRSSMentionsPanel } from "../components/NewsRSSMentionsPanel";
 import { ReviewSiteAnalysisPanel } from "../components/ReviewSiteAnalysisPanel";
@@ -28,6 +27,7 @@ import { AskBar } from "../components/AskBar";
 import { MorningBrief } from "../components/MorningBrief";
 import { WhatChangedCards } from "../components/WhatChangedCards";
 import { AIRegionalSummary } from "../components/AIRegionalSummary";
+import { StoriesFeed } from "../components/StoriesFeed";
 
 // Panels that remain as overlay views (non-article-list)
 type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
@@ -666,7 +666,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <TopInfluentialSources brandId={brandId} days={days} />
           </div>
           <div className="min-h-0">
-            <TopNegativeMentions brandId={brandId} days={days} />
+            <StoriesFeed brandId={brandId} days={days} />
           </div>
         </div>
 

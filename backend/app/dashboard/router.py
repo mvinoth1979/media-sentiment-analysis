@@ -51,6 +51,7 @@ from app.dashboard.schemas import (
     ChatMessage, ChatRequest,
     MorningBriefResponse,
     StateHighlight, RegionalSummaryResponse,
+    StoryCard, StoryFeedResponse, StoryActionRequest,
 )
 
 router = APIRouter()
@@ -2346,6 +2347,101 @@ def get_morning_brief(
     }
     _MORNING_BRIEF_CACHE[cache_key] = {"data": result, "expires_at": now + _MORNING_BRIEF_TTL}
     return MorningBriefResponse(**result)
+
+
+# ── Story Feed ───────────────────────────────────────────────────────────────
+
+import math as _math
+
+
+@router.get("/story-feed/{brand_id}", response_model=StoryFeedResponse)
+def get_story_feed(
+    brand_id: str,
+    days: int = Query(7, ge=1, le=90),
+    limit: int = Query(20, ge=1, le=50),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=200, date_from=start.isoformat(), date_to=end.isoformat())
+
+    if not articles:
+        return StoryFeedResponse(stories=[], total=0)
+
+    # Batch portal name lookup
+    db = get_db()
+    portal_ids = list({a.get("portal_id", "") for a in articles if a.get("portal_id")})
+    portal_name_map: dict[str, str] = {}
+    if portal_ids:
+        rows = db.table("portals").select("id,name").in_("id", portal_ids).execute().data or []
+        portal_name_map = {r["id"]: r["name"] for r in rows}
+
+    # Compute impact scores
+    reaches = [float(a.get("reach_score") or 0) for a in articles]
+    max_reach = max(reaches) if reaches else 1.0
+
+    def impact(a: dict) -> int:
+        reach = float(a.get("reach_score") or 0)
+        r_norm = _math.log(reach + 1) / _math.log(max_reach + 1) if max_reach > 0 else 0
+        sent = abs(float(a.get("sentiment_score") or 0))
+        cred = float(a.get("source_credibility") or 0.5)
+        return max(1, min(100, round(r_norm * sent * cred * 100 + sent * 30 + cred * 10)))
+
+    # Fetch existing user actions for this brand
+    user_id = _user.get("user_id") or _user.get("sub") or ""
+    action_map: dict[str, str] = {}
+    if user_id:
+        try:
+            rows = db.table("story_actions").select("article_id,action").eq("brand_id", brand_id).eq("user_id", user_id).execute().data or []
+            action_map = {r["article_id"]: r["action"] for r in rows}
+        except Exception:
+            pass  # table may not exist yet — graceful degradation
+
+    # Sort by impact descending, take top `limit`
+    scored = sorted(articles, key=lambda a: impact(a), reverse=True)[:limit]
+
+    stories = [
+        StoryCard(
+            article_id=a["id"],
+            title=a.get("title", ""),
+            url=a.get("url", ""),
+            portal_name=portal_name_map.get(a.get("portal_id", ""), a.get("portal_id", "Unknown")),
+            published_at=a.get("published_at") or a.get("collected_at"),
+            sentiment_label=a.get("sentiment_label", "neutral"),
+            impact_score=impact(a),
+            source_type=a.get("source_type", "news"),
+            action=action_map.get(a["id"]),
+        )
+        for a in scored
+    ]
+
+    return StoryFeedResponse(stories=stories, total=len(articles))
+
+
+@router.post("/story-action", status_code=200)
+def log_story_action(
+    req: StoryActionRequest,
+    _user: dict = Depends(require_brand_role(*WRITE_ROLES)),
+):
+    if req.action not in ("watch", "investigate", "ignore"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="action must be watch | investigate | ignore")
+
+    user_id = _user.get("user_id") or _user.get("sub") or ""
+    db = get_db()
+    try:
+        db.table("story_actions").upsert(
+            {
+                "brand_id": req.brand_id,
+                "article_id": req.article_id,
+                "action": req.action,
+                "user_id": user_id,
+            },
+            on_conflict="brand_id,article_id,user_id",
+        ).execute()
+    except Exception as e:
+        log.warning("story-action upsert failed: %s", e)
+    return {"ok": True}
 
 
 # ── AI Chat (streaming SSE) ───────────────────────────────────────────────────
