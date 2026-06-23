@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 
 log = logging.getLogger(__name__)
 from app.auth.dependencies import require_brand_role, require_role, READ_ROLES, WRITE_ROLES
+from app.config import settings
 from app.storage.postgres import (
     get_articles, get_kpi_summary, get_db, delete_articles,
     get_pipeline_info, get_state_breakdown,
