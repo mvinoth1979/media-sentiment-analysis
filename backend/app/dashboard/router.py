@@ -1547,6 +1547,7 @@ def get_ai_summary(
         date_to=current_end.isoformat(),
     )
 
+    db = get_db()
     brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
     brand_name = brand_row[0]["name"] if brand_row else "the brand"
 
