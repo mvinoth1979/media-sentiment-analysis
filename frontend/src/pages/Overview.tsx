@@ -23,6 +23,8 @@ import { CompetitorComparison } from "../components/CompetitorComparison";
 import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { formatCount } from "../lib/utils";
+import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
+import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
 
 // Panels that remain as overlay views (non-article-list)
 type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
@@ -522,57 +524,89 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           </div>
         </div>
 
+        {/* ── AI Explainer Banner — auto-fires when reputation drops > 10pts ── */}
+        <AIExplainerBanner
+          brandId={brandId}
+          perceptionScoreDelta={kpi.perception_score_delta}
+          days={days}
+        />
+
         {/* ── Row 1: KPI cards ──────────────────────────────────────── flex-none */}
         <div className="grid grid-cols-5 gap-2 flex-none">
-          <KPICard
-            variant="sparkline"
-            label="Reputation Score"
-            value={`${kpi.perception_score.toFixed(0)}`}
-            delta={kpi.perception_score_delta}
-            deltaUnit=" pts"
-            sub="out of 100"
-            icon="📊"
-            accentColor="purple"
-            sparklineData={data.trend.map(t => t.value)}
-            riskLabel={kpi.perception_score >= 65 ? "Good" : kpi.perception_score >= 40 ? "Medium" : "High"}
-            onClick={() => setActivePanel("alerts")}
-          />
-          <KPICard
-            variant="sparkline"
-            label="Total Mentions"
-            value={formatCount(kpi.total)}
-            delta={kpi.mentions_delta_pct}
-            sub="vs last period"
-            icon="📰"
-            accentColor="blue"
-            sparklineData={data.trend.map(t => t.value)}
-            onClick={() => openDrillDown("All Mentions", {})}
-          />
-          <SoVKPICard
-            brandId={brandId}
-            days={days}
-            onClick={() => openDrillDown("Competitor Share of Voice", {})}
-          />
-          <KPICard
-            variant="donut"
-            label="Reputation Risk"
-            value={`${riskScore}`}
-            pct={riskScore}
-            icon="⚠️"
-            accentColor="red"
-            riskLabel={riskScore < 35 ? "Good" : riskScore < 60 ? "Medium" : "High"}
-            onClick={() => setActivePanel("alerts")}
-          />
-          <KPICard
-            variant="sparkline"
-            label="Total Reach"
-            value={formatCount(kpi.total_reach ?? 0)}
-            sub="estimated impressions"
-            icon="📡"
-            accentColor="green"
-            sparklineData={data.trend.map(t => t.value)}
-            onClick={() => openDrillDown("All Mentions", {})}
-          />
+          <div className="relative">
+            <KPICard
+              variant="sparkline"
+              label="Reputation Score"
+              value={`${kpi.perception_score.toFixed(0)}`}
+              delta={kpi.perception_score_delta}
+              deltaUnit=" pts"
+              sub="out of 100"
+              icon="📊"
+              accentColor="purple"
+              sparklineData={data.trend.map(t => t.value)}
+              riskLabel={kpi.perception_score >= 65 ? "Good" : kpi.perception_score >= 40 ? "Medium" : "High"}
+              onClick={() => setActivePanel("alerts")}
+            />
+            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
+              <AIExplainerChip metric="reputation_score" brandId={brandId} value={kpi.perception_score} days={days} />
+            </div>
+          </div>
+          <div className="relative">
+            <KPICard
+              variant="sparkline"
+              label="Total Mentions"
+              value={formatCount(kpi.total)}
+              delta={kpi.mentions_delta_pct}
+              sub="vs last period"
+              icon="📰"
+              accentColor="blue"
+              sparklineData={data.trend.map(t => t.value)}
+              onClick={() => openDrillDown("All Mentions", {})}
+            />
+            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
+              <AIExplainerChip metric="mention_growth" brandId={brandId} value={kpi.total} days={days} />
+            </div>
+          </div>
+          <div className="relative">
+            <SoVKPICard
+              brandId={brandId}
+              days={days}
+              onClick={() => openDrillDown("Competitor Share of Voice", {})}
+            />
+            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
+              <AIExplainerChip metric="executive_summary" brandId={brandId} days={days} />
+            </div>
+          </div>
+          <div className="relative">
+            <KPICard
+              variant="donut"
+              label="Reputation Risk"
+              value={`${riskScore}`}
+              pct={riskScore}
+              icon="⚠️"
+              accentColor="red"
+              riskLabel={riskScore < 35 ? "Good" : riskScore < 60 ? "Medium" : "High"}
+              onClick={() => setActivePanel("alerts")}
+            />
+            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
+              <AIExplainerChip metric="risk_score" brandId={brandId} value={riskScore} days={days} />
+            </div>
+          </div>
+          <div className="relative">
+            <KPICard
+              variant="sparkline"
+              label="Total Reach"
+              value={formatCount(kpi.total_reach ?? 0)}
+              sub="estimated impressions"
+              icon="📡"
+              accentColor="green"
+              sparklineData={data.trend.map(t => t.value)}
+              onClick={() => openDrillDown("All Mentions", {})}
+            />
+            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
+              <AIExplainerChip metric="board_recommendation" brandId={brandId} value={kpi.total_reach ?? 0} days={days} />
+            </div>
+          </div>
         </div>
 
         {/* ── Row 2: AI Executive Summary (58%) | Sentiment Trend (42%) ── flex-none */}
