@@ -48,6 +48,7 @@ from app.dashboard.schemas import (
     AISummaryResponse,
     ViralityFlag, ViralityAlertsResponse,
     ExplainRequest, ExplainResponse,
+    ChatMessage, ChatRequest,
 )
 
 router = APIRouter()
@@ -2063,6 +2064,131 @@ def get_competitor_sentiment(
 
 
 # ── Virality Alerts ───────────────────────────────────────────────────────────
+
+# ── AI Chat (streaming SSE) ───────────────────────────────────────────────────
+
+_CHAT_SYSTEM = (
+    "You are BrandPulse AI, a senior media intelligence analyst. "
+    "Brand: {brand_name}. Coverage period: last {days} days.\n"
+    "Context: {total} articles — {pos_pct}% positive, {neg_pct}% negative, {neu_pct}% neutral. "
+    "Top issues: {top_issues}. Top sources: {top_sources}.\n"
+    "Recent negative headlines: {neg_headlines}\n\n"
+    "Answer the user's question concisely and specifically, always referencing the actual data above. "
+    "Never give generic answers — cite issue categories, source types, or specific article patterns. "
+    "If asked to predict, extrapolate from visible trends. "
+    "If asked to generate content (tweet, statement, FAQ), produce it directly. "
+    "Keep responses under 200 words unless generating content."
+)
+
+
+def _build_chat_context(brand_id: str, days: int) -> dict:
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=200, date_from=start.isoformat(), date_to=end.isoformat())
+    db = get_db()
+    brand_row = db.table("brands").select("name").eq("id", brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "the brand"
+
+    total = len(articles)
+    if total == 0:
+        return {"brand_name": brand_name, "total": 0, "pos_pct": 0, "neg_pct": 0, "neu_pct": 0,
+                "top_issues": "none", "top_sources": "none", "neg_headlines": "none"}
+
+    neg = sum(1 for a in articles if a.get("sentiment_label") == "negative")
+    pos = sum(1 for a in articles if a.get("sentiment_label") == "positive")
+    neu = total - neg - pos
+    neg_pct = round(neg / total * 100, 1)
+    pos_pct = round(pos / total * 100, 1)
+    neu_pct = round(neu / total * 100, 1)
+
+    issue_counter: Counter = Counter(
+        a.get("issue_category", "other") for a in articles
+        if a.get("issue_category") and a.get("issue_category") != "other"
+    )
+    top_issues = ", ".join(c.replace("_", " ") for c, _ in issue_counter.most_common(4)) or "general coverage"
+
+    portal_counter: Counter = Counter(a.get("portal_id", "") for a in articles)
+    db2 = get_db()
+    portal_ids = [pid for pid, _ in portal_counter.most_common(5) if pid]
+    portal_names_map: dict[str, str] = {}
+    if portal_ids:
+        rows = db2.table("portals").select("id,name").in_("id", portal_ids).execute().data or []
+        portal_names_map = {r["id"]: r["name"] for r in rows}
+    top_sources = ", ".join(
+        portal_names_map.get(pid, pid) for pid, _ in portal_counter.most_common(3) if pid
+    ) or "various sources"
+
+    neg_articles = sorted(
+        [a for a in articles if a.get("sentiment_label") == "negative"],
+        key=lambda a: a.get("reach_score") or 0, reverse=True
+    )[:3]
+    neg_headlines = "; ".join(a.get("title", "")[:80] for a in neg_articles if a.get("title")) or "none"
+
+    return {
+        "brand_name": brand_name, "days": days, "total": total,
+        "pos_pct": pos_pct, "neg_pct": neg_pct, "neu_pct": neu_pct,
+        "top_issues": top_issues, "top_sources": top_sources, "neg_headlines": neg_headlines,
+    }
+
+
+def _stream_chat(prompt: str, context_messages: list[ChatMessage]) -> object:
+    from google import genai as _genai
+    from app.nlp.gemini_handler import _strip_fences
+
+    attempts = [
+        (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key, "gemini-2.0-flash"),
+        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+    ]
+
+    full_text = None
+    for api_key, model in attempts:
+        if not api_key:
+            continue
+        try:
+            client = _genai.Client(api_key=api_key, http_options={"timeout": 30})
+            # Build conversation contents (system + history + new message)
+            contents = [prompt]
+            response = client.models.generate_content(model=model, contents=contents)
+            full_text = response.text.strip()
+            break
+        except Exception as e:
+            err = str(e)
+            if any(k in err for k in ("RESOURCE_EXHAUSTED", "429", "404")):
+                continue
+            log.warning("Chat LLM error (%s): %s", model, err[:120])
+            break
+
+    if not full_text:
+        full_text = "I couldn't generate a response right now. Please try again in a moment."
+
+    # Word-by-word SSE simulation
+    import json as _js
+    words = full_text.split()
+    for word in words:
+        yield f'data: {_js.dumps({"token": word + " ", "done": False})}\n\n'
+    yield f'data: {_js.dumps({"token": "", "done": True})}\n\n'
+
+
+@router.post("/chat")
+def chat_with_brand(
+    req: ChatRequest,
+    days: int = Query(7, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    ctx = _build_chat_context(req.brand_id, days)
+    system = _CHAT_SYSTEM.format(**ctx)
+    prompt = f"{system}\n\nUser question: {req.message}"
+
+    return StreamingResponse(
+        _stream_chat(prompt, req.context_messages),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 @router.get("/virality-alerts/{brand_id}", response_model=ViralityAlertsResponse)
 async def get_virality_alerts(

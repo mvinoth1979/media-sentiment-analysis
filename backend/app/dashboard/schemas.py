@@ -517,6 +517,19 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── AI Chat ──────────────────────────────────────────────────────────────────
+
+class ChatMessage(BaseModel):
+    role: str   # "user" | "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    brand_id: str
+    context_messages: list[ChatMessage] = []
+
+
 # ── Virality Alerts ───────────────────────────────────────────────────────────
 
 class ViralityFlag(BaseModel):

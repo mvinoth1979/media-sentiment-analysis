@@ -25,6 +25,7 @@ import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
+import { AskBar } from "../components/AskBar";
 
 // Panels that remain as overlay views (non-article-list)
 type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
@@ -795,6 +796,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
         </div>
       </div>
 
+      <AskBar brandId={brandId} days={days} />
     </div>
   );
 }
