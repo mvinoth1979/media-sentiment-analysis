@@ -5,7 +5,6 @@ import type { AlertConfig, DivergenceSummaryData, DrillEntry, DrillFilters } fro
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { MentionsBySourceCards } from "../components/MentionsBySourceCards";
-import { TopHeadlines } from "../components/TopHeadlines";
 import { DrillDownScreen } from "../components/DrillDown/DrillDownScreen";
 import { TopIssuesTable } from "../components/TopIssuesTable";
 import { EditorialToneChart } from "../components/EditorialToneChart";
