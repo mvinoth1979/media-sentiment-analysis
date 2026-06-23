@@ -493,6 +493,7 @@ class AISummaryResponse(BaseModel):
     why: str
     actions: list[str]
     generated_at: str
+    confidence_pct: int = 0
 
 
 

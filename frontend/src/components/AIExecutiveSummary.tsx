@@ -39,9 +39,16 @@ export function AIExecutiveSummary({ brandId, queryParams }: Props) {
           </svg>
           <span className="text-[11px] font-semibold text-white/85 tracking-wide">AI Executive Summary</span>
           {data && (
-            <span className="ml-auto text-[9px] text-white/25 font-normal">
-              {new Date(data.generated_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {data.confidence_pct > 0 && (
+                <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${data.confidence_pct >= 70 ? "bg-emerald-500/15 text-emerald-400" : data.confidence_pct >= 45 ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
+                  {data.confidence_pct}% confidence
+                </span>
+              )}
+              <span className="text-[9px] text-white/25 font-normal">
+                {new Date(data.generated_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
           )}
         </div>
 

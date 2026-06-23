@@ -1657,11 +1657,13 @@ def get_ai_summary(
             if not match:
                 continue
             parsed = _json.loads(match.group())
+            _conf_pct = round(min(92, 55 + (total / 10) + (source_div * 20)))
             result = {
                 "what_changed": str(parsed.get("what_changed", "")).strip() or f"Negative sentiment at {neg_pct}% of {total} articles.",
                 "why": str(parsed.get("why", "")).strip() or f"Coverage driven by {top_issues[0] if top_issues else 'general news'}.",
                 "actions": [str(a).strip() for a in parsed.get("actions", []) if a][:3] or ["Review coverage", "Monitor trends", "Engage stakeholders"],
                 "generated_at": datetime.now(timezone.utc).isoformat(),
+                "confidence_pct": _conf_pct,
             }
             _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
             return AISummaryResponse(**result)
@@ -1689,6 +1691,7 @@ def get_ai_summary(
         f"Coverage concentrated in {', '.join(top_issues[:2]) if top_issues else 'general news'}."
         + (f" {reg_count} regulatory source mention{'s' if reg_count != 1 else ''} detected." if reg_count else "")
     )
+    _fallback_conf = round(min(70, 35 + (total / 20)))
     result = {
         "what_changed": situation,
         "why": root_cause,
@@ -1698,6 +1701,7 @@ def get_ai_summary(
             "Monitor daily for escalation — set alert threshold at 35% negative",
         ],
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "confidence_pct": _fallback_conf,
     }
     _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
     return AISummaryResponse(**result)

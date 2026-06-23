@@ -237,7 +237,7 @@ export const fetchAiSummary = (
   params: { days?: number; date_from?: string; date_to?: string } = { days: 7 }
 ) =>
   api
-    .get<{ what_changed: string; why: string; actions: string[]; generated_at: string }>(
+    .get<{ what_changed: string; why: string; actions: string[]; generated_at: string; confidence_pct: number }>(
       `/dashboard/ai-summary/${brandId}`,
       { params, timeout: 60000 }
     )

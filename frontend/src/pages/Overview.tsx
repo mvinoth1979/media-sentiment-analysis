@@ -29,6 +29,7 @@ import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
 import { AskBar } from "../components/AskBar";
+import { CoPilotPanel } from "../components/CoPilotPanel";
 import { MorningBrief } from "../components/MorningBrief";
 import { WhatChangedCards } from "../components/WhatChangedCards";
 import { AIRegionalSummary } from "../components/AIRegionalSummary";
@@ -318,6 +319,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
   const [drillEntry, setDrillEntry] = useState<DrillEntry | null>(null);
   const [divergenceData, setDivergenceData] = useState<DivergenceSummaryData | null>(null);
   const [divOpen, setDivOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const screen5Ref = useRef<HTMLDivElement>(null);
@@ -528,6 +530,13 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               className="text-[10px] text-white/40 hover:text-white/70 border border-white/15 rounded px-2 py-0.5 hover:border-white/30 transition-colors"
             >
               State Map
+            </button>
+            <button
+              onClick={() => setCopilotOpen(o => !o)}
+              className="text-[10px] flex items-center gap-1.5 text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50 rounded px-2 py-0.5 transition-colors"
+              title="AI Co-Pilot panel"
+            >
+              <span>✦</span> Co-Pilot
             </button>
           </div>
         </div>
@@ -871,6 +880,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       <AskBar brandId={brandId} days={days} />
+
+      <CoPilotPanel
+        brandId={brandId}
+        brandName={brandName ?? "Brand"}
+        days={days}
+        open={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+      />
     </div>
   );
 }
