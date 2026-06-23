@@ -263,6 +263,35 @@ export const fetchViralityAlerts = (brandId: string, days = 7) =>
     .get<import("./types").ViralityAlertsData>(`/dashboard/virality-alerts/${brandId}`, { params: { days } })
     .then(r => r.data);
 
+export interface RiskDayPoint {
+  date: string;
+  risk_score: number;
+  article_count: number;
+  negative_count: number;
+}
+
+export interface RiskForecastPoint {
+  days_ahead: number;
+  predicted_risk: number;
+  lower: number;
+  upper: number;
+}
+
+export interface RiskForecastData {
+  historical: RiskDayPoint[];
+  forecasts: RiskForecastPoint[];
+  narrative: string;
+  slope: number;
+  confidence: string;
+  confidence_pct: number;
+  brand_id: string;
+}
+
+export const fetchRiskForecast = (brandId: string, days = 14) =>
+  api
+    .get<RiskForecastData>(`/dashboard/risk-forecast/${brandId}`, { params: { days }, timeout: 30000 })
+    .then(r => r.data);
+
 export interface IssueRadarPoint {
   issue: string;
   count: number;

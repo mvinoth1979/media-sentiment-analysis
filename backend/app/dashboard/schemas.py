@@ -517,6 +517,32 @@ class ExplainResponse(BaseModel):
     drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
 
 
+# ── Risk Forecast ────────────────────────────────────────────────────────────
+
+class RiskDayPoint(BaseModel):
+    date: str           # "2026-06-18"
+    risk_score: float   # 0-100
+    article_count: int
+    negative_count: int
+
+
+class RiskForecastPoint(BaseModel):
+    days_ahead: int
+    predicted_risk: float
+    lower: float
+    upper: float
+
+
+class RiskForecastResponse(BaseModel):
+    historical: list[RiskDayPoint]
+    forecasts: list[RiskForecastPoint]   # 1d, 3d, 7d
+    narrative: str
+    slope: float         # points per day (positive = worsening)
+    confidence: str      # "high" | "medium" | "low"
+    confidence_pct: int
+    brand_id: str
+
+
 # ── Issue Radar ──────────────────────────────────────────────────────────────
 
 class IssueRadarPoint(BaseModel):

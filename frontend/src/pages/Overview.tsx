@@ -21,6 +21,7 @@ import { ReviewSitesDashboard } from "../components/ReviewSitesDashboard";
 import { CompetitorComparison } from "../components/CompetitorComparison";
 import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
+import { SituationRoomPanel } from "../components/SituationRoomPanel";
 import { formatCount } from "../lib/utils";
 import { AIExplainerChip } from "../components/DrillDown/explainer/AIExplainerChip";
 import { AIExplainerBanner } from "../components/DrillDown/explainer/AIExplainerBanner";
@@ -766,9 +767,14 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             </div>
           </div>
 
-          {/* Right column — Virality Alerts (full height) */}
-          <div className="flex-[2] min-h-0 min-w-0">
-            <ViralityAlertsPanel brandId={brandId} days={days} />
+          {/* Right column — Situation Room (Crisis Timeline + Risk Forecast + AI Copilot) */}
+          <div className="flex-[2] min-h-0 min-w-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <SituationRoomPanel brandId={brandId} days={14} />
+            </div>
+            <div className="flex-none" style={{ minHeight: "120px", maxHeight: "140px" }}>
+              <ViralityAlertsPanel brandId={brandId} days={days} />
+            </div>
           </div>
         </div>
 

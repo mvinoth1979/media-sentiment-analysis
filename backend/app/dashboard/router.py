@@ -53,6 +53,7 @@ from app.dashboard.schemas import (
     StateHighlight, RegionalSummaryResponse,
     StoryCard, StoryFeedResponse, StoryActionRequest,
     IssueRadarPoint, IssueRadarResponse, EmergingTopic, EmergingTopicsResponse,
+    RiskDayPoint, RiskForecastPoint, RiskForecastResponse,
 )
 
 router = APIRouter()
@@ -2348,6 +2349,131 @@ def get_morning_brief(
     }
     _MORNING_BRIEF_CACHE[cache_key] = {"data": result, "expires_at": now + _MORNING_BRIEF_TTL}
     return MorningBriefResponse(**result)
+
+
+# ── Risk Forecast ────────────────────────────────────────────────────────────
+
+def _linregress_slope(ys: list[float]) -> float:
+    n = len(ys)
+    if n < 2:
+        return 0.0
+    xs = list(range(n))
+    x_mean = sum(xs) / n
+    y_mean = sum(ys) / n
+    num = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, ys))
+    den = sum((x - x_mean) ** 2 for x in xs)
+    return num / den if den else 0.0
+
+
+@router.get("/risk-forecast/{brand_id}", response_model=RiskForecastResponse)
+def get_risk_forecast(
+    brand_id: str,
+    days: int = Query(14, ge=7, le=60),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
+    articles = get_articles(brand_id, limit=2000, date_from=start.isoformat(), date_to=end.isoformat())
+
+    # Group by date
+    day_buckets: dict[str, dict] = {}
+    for a in articles:
+        raw = a.get("collected_at") or a.get("published_at") or ""
+        try:
+            day = raw[:10]
+        except Exception:
+            continue
+        if day not in day_buckets:
+            day_buckets[day] = {"count": 0, "neg": 0, "cred_sum": 0.0}
+        day_buckets[day]["count"] += 1
+        if a.get("sentiment_label") == "negative":
+            day_buckets[day]["neg"] += 1
+        day_buckets[day]["cred_sum"] += float(a.get("source_credibility") or 0.5)
+
+    historical: list[RiskDayPoint] = []
+    for day in sorted(day_buckets.keys()):
+        b = day_buckets[day]
+        total = b["count"] or 1
+        avg_cred = b["cred_sum"] / total
+        neg_pct = b["neg"] / total
+        risk = round(neg_pct * 100 * max(0.3, avg_cred), 1)
+        historical.append(RiskDayPoint(
+            date=day,
+            risk_score=risk,
+            article_count=b["count"],
+            negative_count=b["neg"],
+        ))
+
+    # Fill any missing days with 0
+    all_days = [historical[0].date] if historical else []
+    filled: list[RiskDayPoint] = historical
+
+    # Compute slope on last 7 points (or all if fewer)
+    recent_scores = [p.risk_score for p in filled[-7:]]
+    slope = round(_linregress_slope(recent_scores), 2)
+    current = filled[-1].risk_score if filled else 50.0
+
+    forecasts = []
+    for d in [1, 3, 7]:
+        predicted = max(0.0, min(100.0, current + slope * d))
+        uncertainty = abs(slope) * d * 0.5 + 2.0
+        forecasts.append(RiskForecastPoint(
+            days_ahead=d,
+            predicted_risk=round(predicted, 1),
+            lower=round(max(0.0, predicted - uncertainty), 1),
+            upper=round(min(100.0, predicted + uncertainty), 1),
+        ))
+
+    # Confidence: based on how many days of data we have and variance
+    n_days = len(filled)
+    confidence_pct = min(90, 50 + n_days * 2)
+    confidence = "high" if confidence_pct >= 75 else "medium" if confidence_pct >= 55 else "low"
+
+    # LLM narrative — inline 3-LLM cascade
+    direction = "rising" if slope > 0.5 else "easing" if slope < -0.5 else "stable"
+    trend_7d = forecasts[-1].predicted_risk
+    narrative = (
+        f"Risk is {direction} at {abs(slope):.1f} points/day. "
+        f"Projected 7-day score: {trend_7d:.0f}/100 — {'monitor closely' if trend_7d > 60 else 'situation manageable'}."
+    )
+    _forecast_prompt = (
+        f"Brand risk analysis: current risk score {current:.0f}/100, "
+        f"trending {direction} at {abs(slope):.1f} points/day over the last {n_days} days. "
+        f"7-day projected score: {trend_7d:.0f}/100. "
+        f"Write 2 concise sentences for a PR team: one describing the trajectory, one on urgency. No markdown, no lists."
+    )
+    try:
+        from google import genai as _genai
+        _FORECAST_ATTEMPTS = [
+            (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_free_api_key, "gemini-2.0-flash"),
+            (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        ]
+        for _key, _model in _FORECAST_ATTEMPTS:
+            if not _key:
+                continue
+            try:
+                _resp = _genai.Client(api_key=_key, http_options={"timeout": 8}).models.generate_content(
+                    model=_model, contents=_forecast_prompt
+                )
+                _text = (_resp.text or "").strip()
+                if _text:
+                    narrative = _text
+                    break
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    return RiskForecastResponse(
+        historical=filled,
+        forecasts=forecasts,
+        narrative=narrative,
+        slope=slope,
+        confidence=confidence,
+        confidence_pct=confidence_pct,
+        brand_id=brand_id,
+    )
 
 
 # ── Issue Radar ──────────────────────────────────────────────────────────────
