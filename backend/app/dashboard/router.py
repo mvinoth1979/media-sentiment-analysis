@@ -47,6 +47,7 @@ from app.dashboard.schemas import (
     VideoRiskItem, BrandRiskScoresResponse,
     AISummaryResponse,
     ViralityFlag, ViralityAlertsResponse,
+    ExplainRequest, ExplainResponse,
 )
 
 router = APIRouter()
@@ -1690,6 +1691,234 @@ def get_ai_summary(
     }
     _AI_SUMMARY_CACHE[cache_key] = {"data": result, "expires_at": now + _AI_SUMMARY_TTL}
     return AISummaryResponse(**result)
+
+
+# ── AI Explainer ─────────────────────────────────────────────────────────────
+
+_EXPLAIN_CACHE: dict = {}
+_EXPLAIN_TTL   = 30 * 60   # 30 minutes
+
+_METRIC_PROMPTS = {
+    "reputation_score": (
+        "Explain in 2-3 sentences why this brand's reputation score is {value}/100. "
+        "Identify the 3 specific root causes from the coverage data. "
+        "Name actual issue categories, source types, or article patterns — not generic statements."
+    ),
+    "mention_growth": (
+        "Explain why mention volume changed recently for this brand. "
+        "Identify what event, source, or content type is driving the change. "
+        "Be specific about timing, source, and topic."
+    ),
+    "risk_score": (
+        "Explain why this brand's reputation risk score is elevated. "
+        "Identify the 3 specific risk signals from the articles: source type, issue category, velocity. "
+        "Name the dominant negative driver."
+    ),
+    "state_sentiment": (
+        "Explain why {state} has this sentiment pattern for this brand. "
+        "Identify what specific sources, channels, or topics are driving regional coverage. "
+        "Name TV, YouTube, or news portals if visible in the data."
+    ),
+    "executive_summary": (
+        "Generate a 2-sentence executive briefing headline for this brand's current media situation. "
+        "Then identify the 3 key drivers. Be specific — cite issue categories and source types."
+    ),
+    "investigation_context": (
+        "Explain why this topic/query is generating coverage for this brand. "
+        "Identify the causal chain: what triggered it, who amplified it, and what type of content is driving it. "
+        "Context: {extra_context}"
+    ),
+    "board_recommendation": (
+        "Based on this brand's current media coverage, generate a single high-priority recommended action for leadership. "
+        "Make it specific, time-bound, and actionable. Include a confidence assessment."
+    ),
+}
+
+_EXPLAIN_SYSTEM = (
+    "You are a media intelligence analyst. Brand: {brand_name}. Period: last {days} days.\n"
+    "Coverage: {total} articles — {pos_pct}% positive, {neg_pct}% negative, {neu_pct}% neutral.\n"
+    "Top issues: {top_issues}. Top sources: {top_sources}.\n"
+    "Highest-reach negatives: {neg_headlines}.\n\n"
+    "{metric_prompt}\n\n"
+    "Respond ONLY in valid JSON — no markdown:\n"
+    '{{"headline": "<1 sentence, specific>", '
+    '"drivers": ["<specific driver 1>", "<specific driver 2>", "<specific driver 3>"], '
+    '"evidence": ["<article title or source>", "<article title or source>"], '
+    '"suggested_action": "<1 concrete action, max 15 words>", '
+    '"drill_tab": "<A|B|C>"}}'
+)
+
+
+@router.post("/explain", response_model=ExplainResponse)
+def explain_metric(
+    req: ExplainRequest,
+    days: int = Query(7, ge=1, le=90),
+    _user: dict = Depends(require_brand_role(*READ_ROLES)),
+):
+    import html as _html
+
+    # sanitise user-supplied strings before embedding in prompts
+    safe_metric  = _html.escape(str(req.metric))[:80]
+    safe_context = {k: _html.escape(str(v))[:200] for k, v in (req.context or {}).items()}
+
+    cache_key = f"explain:{req.brand_id}:{safe_metric}:{req.date_from}:{req.date_to}:{str(sorted(safe_context.items()))}"
+    now = time.time()
+    if cache_key in _EXPLAIN_CACHE and _EXPLAIN_CACHE[cache_key]["expires_at"] > now:
+        return ExplainResponse(**_EXPLAIN_CACHE[cache_key]["data"])
+
+    # date window
+    current_end = datetime.now(timezone.utc)
+    if req.date_from:
+        current_start = datetime.fromisoformat(req.date_from.replace("Z", "+00:00"))
+        current_end   = datetime.fromisoformat(req.date_to.replace("Z", "+00:00")) if req.date_to else current_end
+    else:
+        current_start = current_end - timedelta(days=days)
+
+    # fetch articles for context
+    articles = get_articles(
+        req.brand_id, limit=200,
+        date_from=current_start.isoformat(),
+        date_to=current_end.isoformat(),
+    )
+
+    # brand name
+    db = get_db()
+    brand_row = db.table("brands").select("name").eq("id", req.brand_id).execute().data
+    brand_name = brand_row[0]["name"] if brand_row else "the brand"
+
+    total = len(articles)
+
+    # ── Confidence computation ─────────────────────────────────────────────────
+    recent_cutoff = (current_end - timedelta(days=3)).isoformat()
+    recent_count  = sum(1 for a in articles if (a.get("published_at") or "") >= recent_cutoff)
+    unique_sources = len({a.get("portal_id") for a in articles if a.get("portal_id")})
+
+    base_conf      = min(total / 20.0, 1.0)
+    recency_factor = recent_count / max(total, 1)
+    source_div     = min(unique_sources / 10.0, 1.0)
+    confidence_pct = round((base_conf * 0.5 + recency_factor * 0.3 + source_div * 0.2) * 100)
+    confidence_lbl = "high" if confidence_pct >= 70 else "medium" if confidence_pct >= 40 else "low"
+
+    # ── fallback when no articles ─────────────────────────────────────────────
+    if not articles:
+        result = {
+            "headline": f"No coverage data available for {brand_name} in this period.",
+            "drivers": ["No articles collected", "Pipeline may not have run", "Check brand keyword configuration"],
+            "evidence": [],
+            "confidence": "low",
+            "confidence_pct": 0,
+            "suggested_action": "Trigger a pipeline run and verify brand keywords.",
+            "drill_tab": "A",
+        }
+        _EXPLAIN_CACHE[cache_key] = {"data": result, "expires_at": now + _EXPLAIN_TTL}
+        return ExplainResponse(**result)
+
+    # ── Build context stats ───────────────────────────────────────────────────
+    neg  = sum(1 for a in articles if a.get("sentiment_label") == "negative")
+    pos  = sum(1 for a in articles if a.get("sentiment_label") == "positive")
+    neu  = total - neg - pos
+    neg_pct = round(neg / total * 100, 1) if total else 0
+    pos_pct = round(pos / total * 100, 1) if total else 0
+    neu_pct = round(100 - neg_pct - pos_pct, 1)
+
+    issue_ctr: Counter = Counter(
+        a.get("issue_category", "other") for a in articles
+        if a.get("issue_category") and a.get("issue_category") != "other"
+    )
+    top_issues_str = ", ".join(c.replace("_", " ") for c, _ in issue_ctr.most_common(3)) or "general coverage"
+
+    source_ctr: Counter = Counter(a.get("source_type", "news") for a in articles)
+    top_sources_str = ", ".join(f"{k}({v})" for k, v in source_ctr.most_common(3))
+
+    neg_arts = sorted(
+        [a for a in articles if a.get("sentiment_label") == "negative"],
+        key=lambda a: a.get("reach_score") or 0, reverse=True,
+    )[:3]
+    neg_headlines_str = "; ".join(a.get("title", "")[:80] for a in neg_arts if a.get("title")) or "none"
+
+    # ── Build metric-specific prompt ──────────────────────────────────────────
+    metric_tmpl = _METRIC_PROMPTS.get(safe_metric, _METRIC_PROMPTS["executive_summary"])
+    metric_prompt = metric_tmpl.format(
+        value=req.value or "",
+        state=safe_context.get("state", "this region"),
+        extra_context=str(safe_context),
+    )
+
+    prompt = _EXPLAIN_SYSTEM.format(
+        brand_name=brand_name,
+        days=days,
+        total=total,
+        pos_pct=pos_pct,
+        neg_pct=neg_pct,
+        neu_pct=neu_pct,
+        top_issues=top_issues_str,
+        top_sources=top_sources_str,
+        neg_headlines=neg_headlines_str,
+        metric_prompt=metric_prompt,
+    )
+
+    # ── LLM call (same pattern as ai-summary) ─────────────────────────────────
+    _ATTEMPTS = [
+        (settings.gemini_api_key,      settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key, "gemini-2.0-flash"),
+        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+    ]
+    from app.nlp.gemini_handler import _strip_fences
+    from google import genai as _genai
+
+    parsed: dict | None = None
+    for _api_key, _model in _ATTEMPTS:
+        if not _api_key:
+            continue
+        try:
+            _client = _genai.Client(api_key=_api_key, http_options={"timeout": 12})
+            resp    = _client.models.generate_content(model=_model, contents=prompt)
+            raw     = _strip_fences(resp.text.strip())
+            match   = re.search(r"\{.*\}", raw, re.DOTALL)
+            if not match:
+                continue
+            parsed = _json.loads(match.group())
+            break
+        except Exception as e:
+            err = str(e)
+            if "RESOURCE_EXHAUSTED" in err or "429" in err:
+                continue
+            if "404" in err or "timeout" in err.lower() or "deadline" in err.lower():
+                continue
+            log.warning("Explain LLM error (%s): %s", _model, err[:150])
+            break
+
+    # ── Assemble response (with LLM output or data-driven fallback) ───────────
+    if parsed:
+        drivers  = [str(d).strip() for d in parsed.get("drivers", []) if d][:5]
+        evidence = [str(e).strip() for e in parsed.get("evidence", []) if e][:5]
+        headline = str(parsed.get("headline", "")).strip()
+        action   = str(parsed.get("suggested_action", "")).strip()
+        tab      = str(parsed.get("drill_tab", "A")).strip()
+        tab      = tab if tab in {"A", "B", "C"} else "A"
+    else:
+        # Data-driven fallback — no LLM
+        headline = f"{neg_pct}% negative across {total} articles. Top issue: {issue_ctr.most_common(1)[0][0].replace('_', ' ') if issue_ctr else 'general coverage'}."
+        drivers  = [
+            f"Negative: {neg_pct}% of {total} articles",
+            f"Top issues: {top_issues_str}",
+            f"Sources: {top_sources_str}",
+        ]
+        evidence = [a.get("title", "")[:80] for a in neg_arts[:2] if a.get("title")]
+        action   = "Review the top negative articles and assess escalation risk."
+        tab      = "B"
+
+    result = {
+        "headline":         headline or f"Coverage analysis for {brand_name}.",
+        "drivers":          drivers or ["Insufficient data for detailed analysis"],
+        "evidence":         evidence,
+        "confidence":       confidence_lbl,
+        "confidence_pct":   confidence_pct,
+        "suggested_action": action or "Monitor brand coverage daily.",
+        "drill_tab":        tab,
+    }
+    _EXPLAIN_CACHE[cache_key] = {"data": result, "expires_at": now + _EXPLAIN_TTL}
+    return ExplainResponse(**result)
 
 
 # ── Screen 2: Top Influential Sources ──────────────────────────────────────────

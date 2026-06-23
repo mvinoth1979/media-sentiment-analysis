@@ -496,6 +496,27 @@ class AISummaryResponse(BaseModel):
 
 
 
+# ── AI Explainer ─────────────────────────────────────────────────────────────
+
+class ExplainRequest(BaseModel):
+    metric: str                        # "reputation_score" | "mention_growth" | "risk_score" | "state_sentiment" | "executive_summary" | "investigation_context" | ...
+    brand_id: str
+    value: float | None = None         # current metric value (e.g. 53.2)
+    date_from: str | None = None
+    date_to: str | None = None
+    context: dict = {}                 # extra context: {"state": "Tamil Nadu", "source_type": "youtube", ...}
+
+
+class ExplainResponse(BaseModel):
+    headline: str                      # 1-sentence summary: "Score dropped 12 pts due to Tamil coverage spike"
+    drivers: list[str]                 # 3-5 specific causal factors
+    evidence: list[str]                # article titles or source references supporting the explanation
+    confidence: str                    # "high" | "medium" | "low"
+    confidence_pct: int                # 0–100 numeric confidence
+    suggested_action: str              # 1 concrete recommended action
+    drill_tab: str                     # "A" | "B" | "C" — which drill tab is most relevant
+
+
 # ── Virality Alerts ───────────────────────────────────────────────────────────
 
 class ViralityFlag(BaseModel):
