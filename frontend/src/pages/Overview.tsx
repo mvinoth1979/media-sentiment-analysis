@@ -1,13 +1,14 @@
 import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchOverview, fetchAlerts, createAlert, deleteAlert, fetchDivergenceSummary, fetchCompetitorSoV } from "../lib/api";
-import type { AlertConfig, DivergenceSummaryData } from "../lib/types";
+import type { AlertConfig, DivergenceSummaryData, DrillEntry, DrillFilters } from "../lib/types";
 import { KPICard } from "../components/cards/KPICard";
 import { SentimentTrendChart } from "../components/charts/SentimentTrendChart";
 import { MentionsBySourceDonut } from "../components/charts/MentionsBySourceDonut";
 import { MentionsBySourceCards } from "../components/MentionsBySourceCards";
 import { MentionsList } from "../components/mentions/MentionsList";
 import { TopHeadlines } from "../components/TopHeadlines";
+import { DrillDownScreen } from "../components/DrillDown/DrillDownScreen";
 import { SentimentBySourceTable } from "../components/SentimentBySourceTable";
 import { TopIssuesTable } from "../components/TopIssuesTable";
 import { ReviewSitesSummary } from "../components/ReviewSitesSummary";
@@ -28,39 +29,13 @@ import { DrillDownJourneyExample } from "../components/DrillDownJourneyExample";
 import ViralityAlertsPanel from "../components/ViralityAlertsPanel";
 import { formatCount } from "../lib/utils";
 
-type ActivePanel =
-  | null
-  | "mentions" | "mentions-positive" | "mentions-negative" | "mentions-neutral"
-  | "sentiment-trend" | "mentions-donut" | "top-headlines"
-  | "review-sites" | "top-issues" | "sentiment-by-source"
-  | "competitor-sov" | "alerts" | "state-map"
-  | "mentions-drill";
-
-interface DrillFilter {
-  label: string;
-  topic?: string;
-  sourceCategory?: string;
-  issueCategory?: string;
-  q?: string;
-  entity?: string;
-  state?: string;
-}
+// Panels that remain as overlay views (non-article-list)
+type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
 
 const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
-  "mentions":           "All Mentions",
-  "mentions-positive":  "Positive Mentions",
-  "mentions-negative":  "Negative Mentions",
-  "mentions-neutral":   "Neutral Mentions",
   "sentiment-trend":    "Sentiment Trend",
-  "mentions-donut":     "Mentions by Source",
-  "top-headlines":      "Top Headlines",
-  "review-sites":       "Review Sites Summary",
-  "top-issues":         "Top Issues",
-  "sentiment-by-source":"Sentiment by Source",
-  "competitor-sov":     "Competitor Share of Voice",
   "alerts":             "Alerts & Risks",
   "state-map":          "State-level Sentiment",
-  "mentions-drill":     "Filtered Mentions",
 };
 
 interface Props {
@@ -335,14 +310,21 @@ function AlertsRiskCards({
 
 export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated, days, customFrom, customTo, showCustom, onDaysChange, onCustomFromChange, onCustomToChange, onCustomToggle }: Props) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
-  const [drilldown, setDrilldown] = useState<DrillFilter | null>(null);
+  const [drillEntry, setDrillEntry] = useState<DrillEntry | null>(null);
   const [divergenceData, setDivergenceData] = useState<DivergenceSummaryData | null>(null);
   const [divOpen, setDivOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const screen5Ref = useRef<HTMLDivElement>(null);
 
-  function openDrill(filter: DrillFilter) {
-    setDrilldown(filter);
-    setActivePanel("mentions-drill");
+  function openDrillDown(widgetTitle: string, filters: DrillFilters) {
+    setDrillEntry({ widgetTitle, filters });
+    setActivePanel(null);
+    setTimeout(() => {
+      if (screen5Ref.current && containerRef.current) {
+        containerRef.current.scrollTo({ top: screen5Ref.current.offsetTop, behavior: "smooth" });
+      }
+    }, 30);
   }
 
   const queryParams = showCustom && customFrom && customTo
@@ -381,13 +363,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
 
   const { kpi } = data;
 
-  // ── Detail panel view ───────────────────────────────────────────────────────
+  // ── Overlay panels (non-article-list: alerts, trend charts, state map) ────────
   if (activePanel !== null) {
-    const sentimentFilter =
-      activePanel === "mentions-positive" ? "positive" :
-      activePanel === "mentions-negative" ? "negative" :
-      activePanel === "mentions-neutral"  ? "neutral"  : "";
-
     return (
       <div className="h-full flex flex-col overflow-hidden bg-[#0d1626]">
         {/* Back bar */}
@@ -402,78 +379,17 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             Executive Overview
           </button>
           <span className="text-white/15">|</span>
-          <h2 className="text-xs font-semibold text-white">
-            {activePanel === "mentions-drill" && drilldown ? drilldown.label : PANEL_TITLE[activePanel]}
-          </h2>
-          <div className="ml-auto flex items-center gap-1">
-            {[7, 30, 90].map(d => (
-              <button
-                key={d}
-                onClick={() => { onDaysChange(d); }}
-                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                  !showCustom && days === d
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-white/40 border-white/15 hover:border-white/30"
-                }`}
-              >
-                {d}d
-              </button>
-            ))}
-            <button
-              onClick={onCustomToggle}
-              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                showCustom ? "bg-indigo-600 text-white border-indigo-600" : "text-white/40 border-white/15 hover:border-white/30"
-              }`}
-            >
-              Custom
-            </button>
-            {showCustom && (
-              <div className="flex items-center gap-1 ml-1">
-                <input
-                  type="date"
-                  value={customFrom.slice(0, 10)}
-                  onChange={e => onCustomFromChange(e.target.value + "T00:00:00Z")}
-                  className="text-[10px] bg-[#0d1626] border border-white/15 rounded px-1 py-0.5 text-white/70"
-                />
-                <span className="text-[10px] text-white/35">→</span>
-                <input
-                  type="date"
-                  value={customTo.slice(0, 10)}
-                  onChange={e => onCustomToChange(e.target.value + "T23:59:59Z")}
-                  className="text-[10px] bg-[#0d1626] border border-white/15 rounded px-1 py-0.5 text-white/70"
-                />
-              </div>
-            )}
-          </div>
+          <h2 className="text-xs font-semibold text-white">{PANEL_TITLE[activePanel]}</h2>
         </div>
-
-        {/* Detail content */}
         <div className="flex-1 min-h-0 overflow-auto p-4">
-          {(activePanel === "mentions" || activePanel === "mentions-positive" || activePanel === "mentions-negative" || activePanel === "mentions-neutral") && (
-            <div ref={mentionsRef}>
-              <MentionsList
-                brandId={brandId}
-                brandName={brandName}
-                portals={data.top_sources.map(s => s.portal_id)}
-                topics={data.top_topics}
-                states={data.state_breakdown.map(s => s.state)}
-                initialSentiment={sentimentFilter}
-                selectable
-                syncUrl
-              />
-            </div>
-          )}
           {activePanel === "sentiment-trend" && (
             <div className="space-y-4 max-w-3xl">
               <SentimentTrendChart brandId={brandId} />
               <EditorialToneChart brandId={brandId} />
               <YouTubeSentimentSplit brandId={brandId} />
-              {/* Divergent Headlines */}
               <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
-                <button
-                  className="flex items-center justify-between w-full text-sm font-semibold text-white"
-                  onClick={() => setDivOpen(o => !o)}
-                >
+                <button className="flex items-center justify-between w-full text-sm font-semibold text-white"
+                  onClick={() => setDivOpen(o => !o)}>
                   <span>Divergent Headlines</span>
                   <span className="text-white/40 text-xs">{divOpen ? "▲ hide" : "▼ show"}</span>
                 </button>
@@ -491,25 +407,20 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                     {divergenceData?.articles.map((a, i) => {
                       const hScore = a.headline_sentiment_score;
                       const bScore = a.body_sentiment_score;
-                      const scoreChip = (v: number) => (
+                      const chip = (v: number) => (
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${v >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
                           {v >= 0 ? "+" : ""}{v.toFixed(2)}
                         </span>
                       );
                       return (
                         <div key={i} className="flex items-start gap-2 py-1 border-b border-white/5 last:border-0">
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 text-xs text-blue-400 hover:underline truncate"
-                            title={a.title}
-                          >
+                          <a href={a.url} target="_blank" rel="noopener noreferrer"
+                            className="flex-1 text-xs text-blue-400 hover:underline truncate" title={a.title}>
                             {a.title.slice(0, 80)}{a.title.length > 80 ? "…" : ""}
                           </a>
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[9px] text-white/35">H</span>{scoreChip(hScore)}
-                            <span className="text-[9px] text-white/35">B</span>{scoreChip(bScore)}
+                            <span className="text-[9px] text-white/35">H</span>{chip(hScore)}
+                            <span className="text-[9px] text-white/35">B</span>{chip(bScore)}
                             <span className="text-[9px] font-medium text-amber-400 bg-amber-500/15 px-1 py-0.5 rounded">↕</span>
                           </div>
                         </div>
@@ -520,76 +431,6 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               </div>
             </div>
           )}
-          {activePanel === "mentions-donut" && (
-            <div className="max-w-lg">
-              <MentionsBySourceDonut
-                brandId={brandId}
-                onSourceClick={(category, label) =>
-                  openDrill({ label: `Source: ${label}`, sourceCategory: category })
-                }
-              />
-            </div>
-          )}
-          {activePanel === "top-headlines" && (
-            <div className="max-w-2xl">
-              <TopHeadlines brandId={brandId} onViewAll={() => setActivePanel("mentions")} />
-            </div>
-          )}
-          {activePanel === "review-sites" && (
-            <div className="max-w-lg">
-              <ReviewSitesSummary
-                brandId={brandId}
-                onThemeClick={(topic) =>
-                  openDrill({ label: `Theme: ${topic}`, topic })
-                }
-              />
-            </div>
-          )}
-          {activePanel === "top-issues" && (
-            <div className="max-w-lg">
-              <TopIssuesTable
-                brandId={brandId}
-                onClusterClick={(name) =>
-                  openDrill({ label: `Issue: ${name.replace(/_/g, " ")}`, issueCategory: name })
-                }
-                onCategoryClick={(cat) =>
-                  openDrill({ label: `Category: ${cat.replace(/_/g, " ")}`, issueCategory: cat })
-                }
-              />
-            </div>
-          )}
-          {activePanel === "sentiment-by-source" && (
-            <div className="max-w-lg">
-              <SentimentBySourceTable brandId={brandId} />
-            </div>
-          )}
-          {activePanel === "competitor-sov" && (
-            <div className="max-w-md">
-              <CompetitorShareOfVoice
-                brandId={brandId}
-                onEntityClick={(name) =>
-                  openDrill({ label: `Mentions: ${name}`, entity: name })
-                }
-              />
-            </div>
-          )}
-          {activePanel === "mentions-drill" && drilldown && (
-            <div ref={mentionsRef}>
-              <MentionsList
-                brandId={brandId}
-                brandName={brandName}
-                portals={data.top_sources.map(s => s.portal_id)}
-                topics={data.top_topics}
-                states={data.state_breakdown.map(s => s.state)}
-                initialTopic={drilldown.topic ?? ""}
-                initialSourceCategory={drilldown.sourceCategory ?? ""}
-                initialIssueCategory={drilldown.issueCategory ?? ""}
-                initialQ={drilldown.q ?? ""}
-                initialEntity={drilldown.entity ?? ""}
-                selectable
-              />
-            </div>
-          )}
           {activePanel === "alerts" && (
             <div className="max-w-2xl">
               <AlertsRiskCards brandId={brandId} isAdmin={!!isAdmin} userEmail={userEmail} />
@@ -598,13 +439,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
           {activePanel === "state-map" && (
             <IndiaStateMap
               data={data.state_breakdown}
-              onStateClick={(state) => {
-                const url = new URL(window.location.href);
-                url.searchParams.set("state", state);
-                window.history.pushState({}, "", url.toString());
-                window.dispatchEvent(new PopStateEvent("popstate"));
-                setActivePanel("mentions");
-              }}
+              onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
             />
           )}
         </div>
@@ -615,9 +450,10 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
   const riskScore = Math.round(100 - kpi.perception_score);
   const topIssue = data.top_topics?.[0] ?? undefined;
 
-  // ── 3-screen parallax scroll overview ────────────────────────────────────────
+  // ── 5-screen parallax scroll overview ────────────────────────────────────────
   return (
     <div
+      ref={containerRef}
       className="h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth"
       style={{ scrollbarWidth: "none" }}
     >
@@ -715,12 +551,12 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             icon="📰"
             accentColor="blue"
             sparklineData={data.trend.map(t => t.value)}
-            onClick={() => setActivePanel("mentions")}
+            onClick={() => openDrillDown("All Mentions", {})}
           />
           <SoVKPICard
             brandId={brandId}
             days={days}
-            onClick={() => setActivePanel("competitor-sov")}
+            onClick={() => openDrillDown("Competitor Share of Voice", {})}
           />
           <KPICard
             variant="donut"
@@ -740,7 +576,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             icon="📡"
             accentColor="green"
             sparklineData={data.trend.map(t => t.value)}
-            onClick={() => setActivePanel("mentions")}
+            onClick={() => openDrillDown("All Mentions", {})}
           />
         </div>
 
@@ -760,7 +596,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <MentionsBySourceCards data={data?.by_source_type ?? {}} />
           </div>
           <div className="col-span-7 min-h-0">
-            <TopHeadlines brandId={brandId} compact onClick={() => setActivePanel("top-headlines")} />
+            <TopHeadlines brandId={brandId} compact onClick={() => openDrillDown("Top Headlines", {})} />
           </div>
         </div>
 
@@ -784,9 +620,9 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <TopIssuesTable
               brandId={brandId}
               compact
-              onClick={() => setActivePanel("top-issues")}
-              onClusterClick={(name) => openDrill({ label: `Issue: ${name.replace(/_/g, " ")}`, issueCategory: name })}
-              onCategoryClick={(cat) => openDrill({ label: `Category: ${cat.replace(/_/g, " ")}`, issueCategory: cat })}
+              onClick={() => openDrillDown("Top Issues", {})}
+              onClusterClick={(name) => openDrillDown(`Issue: ${name.replace(/_/g, " ")}`, { issueCategory: name })}
+              onCategoryClick={(cat) => openDrillDown(`Category: ${cat.replace(/_/g, " ")}`, { issueCategory: cat })}
             />
           </div>
           <div className="min-h-0">
@@ -812,7 +648,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             <IndiaStateMap
               variant="regions"
               data={data.state_breakdown}
-              onStateClick={(state) => openDrill({ label: `State: ${state}`, state })}
+              onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
             />
           </div>
           <div className="min-h-0">
@@ -899,6 +735,35 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       {/* ══════════════════ SCREEN 4 — Review Sites Intelligence ═════════════ */}
       <div className="h-full snap-start overflow-hidden shrink-0">
         <ReviewSitesDashboard brandId={brandId} days={days} />
+      </div>
+
+      {/* ══════════════════ SCREEN 5 — Drill-Down Explorer ═══════════════════ */}
+      <div ref={screen5Ref} className="h-full snap-start overflow-hidden shrink-0 bg-[#0d1626]">
+        {/* Header strip */}
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#111e36] border-b border-white/10 flex-none">
+          <h2 className="text-sm font-semibold text-white">Drill-Down Explorer</h2>
+          <span className="text-[10px] text-white/35">
+            {drillEntry ? `— ${drillEntry.widgetTitle}` : "— click any widget above to begin"}
+          </span>
+          <button
+            onClick={() => {
+              if (containerRef.current) {
+                containerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className="ml-auto text-[10px] text-white/30 hover:text-white/60 border border-white/10 hover:border-white/25 rounded px-2 py-0.5 transition-colors"
+          >
+            ↑ Back to overview
+          </button>
+        </div>
+
+        <div className="h-[calc(100%-37px)]">
+          <DrillDownScreen
+            brandId={brandId}
+            brandName={brandName}
+            entry={drillEntry}
+          />
+        </div>
       </div>
 
     </div>

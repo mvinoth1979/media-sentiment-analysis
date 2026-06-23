@@ -17,11 +17,13 @@ interface Props {
   initialState?: string;
   initialSentiment?: string;
   initialSourceCategory?: string;
+  initialSourceType?: string;
   initialIssueCategory?: string;
   initialQ?: string;
   initialEntity?: string;
   selectable?: boolean;
   syncUrl?: boolean;
+  onArticleClick?: (article: ArticleItem) => void;
 }
 
 const PAGE_SIZE = 10;
@@ -75,17 +77,19 @@ export function MentionsList({
   initialState = "",
   initialSentiment,
   initialSourceCategory = "",
+  initialSourceType = "",
   initialIssueCategory = "",
   initialQ = "",
   initialEntity = "",
   selectable = false,
   syncUrl = false,
+  onArticleClick,
 }: Props) {
   const [page, setPage]           = useState(0);
   const [maxKnownPage, setMaxKnownPage] = useState(0);
   const [sentiment, setSentiment]  = useState(() => syncUrl ? readParam("sentiment") : (initialSentiment ?? ""));
   const [language, setLanguage]   = useState(() => syncUrl ? readParam("language") : "");
-  const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : "");
+  const [sourceType, setSourceType] = useState(() => syncUrl ? readParam("source_type") : initialSourceType);
   const [sourceCategory] = useState(initialSourceCategory);
   const [issueCategory] = useState(initialIssueCategory);
   const [entity] = useState(initialEntity);
@@ -412,7 +416,8 @@ export function MentionsList({
             <tbody className="divide-y divide-white/5">
               {articles.map((a, i) => (
                 <tr key={a.id}
-                  className={`hover:bg-white/5 transition-colors ${selected.has(a.id) ? "bg-red-500/10" : ""}`}>
+                  onClick={() => onArticleClick?.(a)}
+                  className={`hover:bg-white/5 transition-colors ${selected.has(a.id) ? "bg-red-500/10" : ""} ${onArticleClick ? "cursor-pointer" : ""}`}>
                   {selectable && (
                     <td className="py-2 pr-3">
                       <input type="checkbox" checked={selected.has(a.id)}
@@ -425,6 +430,7 @@ export function MentionsList({
                   {/* Title + reach metadata + state tags + Phase 1 badges */}
                   <td className="py-2 pr-3 max-w-[180px] sm:max-w-xs">
                     <a href={a.url} target="_blank" rel="noreferrer"
+                       onClick={e => onArticleClick && e.stopPropagation()}
                        className="text-white/70 hover:text-blue-400 line-clamp-2 leading-snug">
                       {a.title}
                     </a>

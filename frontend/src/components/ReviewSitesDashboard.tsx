@@ -88,8 +88,16 @@ function PlatformCard({ p, active, onClick }: { p: ReviewPlatformStat; active: b
   );
 }
 
-function ReviewFeed({ brandId, sourceType }: { brandId: string; sourceType: string | null }) {
-  const params: Record<string, string> = { limit: "15", source_category: "review_site" };
+function ReviewFeed({
+  brandId,
+  sourceType,
+  onReviewClick,
+}: {
+  brandId: string;
+  sourceType: string | null;
+  onReviewClick: (item: ArticleItem) => void;
+}) {
+  const params: Record<string, string> = { limit: "20", source_category: "review_site" };
   if (sourceType) params.source_type = sourceType;
 
   const { data: items = [], isLoading } = useQuery<ArticleItem[]>({
@@ -108,7 +116,7 @@ function ReviewFeed({ brandId, sourceType }: { brandId: string; sourceType: stri
   );
 
   return (
-    <div className="space-y-1 overflow-y-auto flex-1 min-h-0 pr-0.5" style={{ scrollbarWidth: "none" }}>
+    <div className="space-y-0.5 overflow-y-auto flex-1 min-h-0 pr-0.5" style={{ scrollbarWidth: "none" }}>
       {items.map(item => {
         const label = item.sentiment_label;
         const dotColor = label === "positive" ? "bg-emerald-500" : label === "negative" ? "bg-red-500" : "bg-slate-400";
@@ -118,12 +126,10 @@ function ReviewFeed({ brandId, sourceType }: { brandId: string; sourceType: stri
         const platformName = PLATFORM_NAMES[item.source_type ?? ""] ?? (item.source_type ?? "Review");
 
         return (
-          <a
+          <div
             key={item.id}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-start gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-colors group"
+            onClick={() => onReviewClick(item)}
+            className="flex items-start gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-colors group cursor-pointer"
           >
             <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${dotColor}`} />
             <div className="flex-1 min-w-0">
@@ -137,9 +143,92 @@ function ReviewFeed({ brandId, sourceType }: { brandId: string; sourceType: stri
                 {date && <span className="text-[9px] text-white/25">{date}</span>}
               </div>
             </div>
-          </a>
+            <span className="text-[9px] text-white/20 group-hover:text-white/40 shrink-0 self-center">›</span>
+          </div>
         );
       })}
+    </div>
+  );
+}
+
+function ReviewDetail({ item, onBack }: { item: ArticleItem; onBack: () => void }) {
+  const label = item.sentiment_label ?? "neutral";
+  const sentBg = label === "positive" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+    : label === "negative" ? "bg-red-500/15 text-red-400 border-red-500/30"
+    : "bg-slate-500/15 text-slate-400 border-slate-500/30";
+  const rating = item.reach_metadata?.rating ? Math.round(Number(item.reach_metadata.rating)) : null;
+  const platformName = PLATFORM_NAMES[item.source_type ?? ""] ?? (item.source_type ?? "Review");
+  const icon = PLATFORM_ICON[item.source_type ?? ""] ?? "📋";
+  const date = item.published_at
+    ? new Date(item.published_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    : "";
+
+  return (
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pr-0.5" style={{ scrollbarWidth: "none" }}>
+      {/* Back button */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-[10px] text-white/40 hover:text-white/70 transition-colors self-start"
+      >
+        ← back to feed
+      </button>
+
+      {/* Platform + rating */}
+      <div className="flex items-center gap-2">
+        <span className="text-xl">{icon}</span>
+        <div>
+          <div className="text-[10px] font-semibold text-white/70">{platformName}</div>
+          {rating !== null && (
+            <div className="flex items-center gap-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className={`text-[14px] ${i < rating ? "text-amber-400" : "text-white/15"}`}>★</span>
+              ))}
+              <span className="text-[9px] text-white/40 ml-0.5">{rating}/5</span>
+            </div>
+          )}
+        </div>
+        <div className="ml-auto flex flex-col items-end gap-1">
+          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${sentBg}`}>
+            {label}
+          </span>
+          {item.sentiment_score !== null && item.sentiment_score !== undefined && (
+            <span className="text-[9px] text-white/30">score {item.sentiment_score.toFixed(2)}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Review text */}
+      <div className="bg-[#0f1c35] border border-white/8 rounded-xl p-3">
+        <p className="text-[12px] text-white/80 leading-relaxed whitespace-pre-line">{item.title}</p>
+      </div>
+
+      {/* Metadata row */}
+      <div className="flex flex-wrap gap-2 text-[10px] text-white/40">
+        {item.author && <span>by <span className="text-white/60">{item.author}</span></span>}
+        {date && <span>{date}</span>}
+        {item.issue_category && item.issue_category !== "other" && (
+          <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/8 text-white/50">
+            {item.issue_category.replace(/_/g, " ")}
+          </span>
+        )}
+        {item.editorial_tone && (
+          <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/8 text-white/50">
+            {item.editorial_tone}
+          </span>
+        )}
+      </div>
+
+      {/* Original link */}
+      {item.url && (
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="self-start text-[10px] text-blue-400/70 hover:text-blue-300 border border-blue-400/20 hover:border-blue-400/40 rounded px-2 py-1 transition-colors"
+        >
+          View original review ↗
+        </a>
+      )}
     </div>
   );
 }
@@ -151,6 +240,7 @@ interface Props {
 
 export function ReviewSitesDashboard({ brandId, days }: Props) {
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
+  const [activeReview, setActiveReview] = useState<ArticleItem | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["review-sites-breakdown", brandId, days],
@@ -170,6 +260,12 @@ export function ReviewSitesDashboard({ brandId, days }: Props) {
   );
 
   const activeSource = activePlatform;
+
+  // clear active review when platform filter changes
+  const handlePlatformChange = (platform: string | null) => {
+    setActivePlatform(p => p === platform ? null : platform);
+    setActiveReview(null);
+  };
 
   return (
     <div className="h-full flex flex-col bg-[#0d1626] overflow-hidden">
@@ -240,7 +336,7 @@ export function ReviewSitesDashboard({ brandId, days }: Props) {
             <div className="grid grid-cols-2 gap-1.5 flex-1 content-start overflow-y-auto" style={{ scrollbarWidth: "none" }}>
               {/* "All platforms" filter chip */}
               <button
-                onClick={() => setActivePlatform(null)}
+                onClick={() => handlePlatformChange(null)}
                 className={`col-span-2 text-[9px] font-medium px-2 py-1 rounded-lg border transition-all ${
                   activePlatform === null
                     ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
@@ -254,50 +350,56 @@ export function ReviewSitesDashboard({ brandId, days }: Props) {
                   key={p.source_type}
                   p={p}
                   active={activePlatform === p.source_type}
-                  onClick={() => setActivePlatform(s => s === p.source_type ? null : p.source_type)}
+                  onClick={() => handlePlatformChange(p.source_type)}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* ── Right: Review feed ────────────────────────────── */}
+        {/* ── Right: Review feed / Detail ──────────────────── */}
         <div className="flex flex-col flex-1 min-w-0 p-3 gap-2 min-h-0">
-          <div className="flex items-center gap-2 flex-none">
-            <span className="text-[10px] font-semibold text-white/60">
-              {activePlatform
-                ? (platforms.find(p => p.source_type === activePlatform)?.platform_name ?? activePlatform)
-                : "All Reviews"}
-            </span>
-            {activePlatform && (
-              <button
-                onClick={() => setActivePlatform(null)}
-                className="text-[9px] text-white/30 hover:text-white/60 ml-auto"
-              >
-                ✕ clear filter
-              </button>
-            )}
-          </div>
-
-          {/* Best platform spotlight — only when viewing all */}
-          {!activePlatform && best && (
-            <div className="flex-none bg-emerald-900/20 border border-emerald-500/20 rounded-xl px-3 py-2 flex items-center gap-3">
-              <span className="text-xl">{PLATFORM_ICON[best.source_type] ?? "⭐"}</span>
-              <div>
-                <div className="text-[9px] text-emerald-400 font-semibold uppercase tracking-wider">Best Rated</div>
-                <div className="text-[11px] text-white/80 font-medium">{best.platform_name}</div>
-                {best.avg_rating !== null && (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <Stars rating={best.avg_rating} size="sm" />
-                    <span className="text-[9px] text-amber-400">{best.avg_rating.toFixed(1)}</span>
-                    <span className="text-[9px] text-white/35">· {best.count} reviews</span>
-                  </div>
+          {activeReview ? (
+            <ReviewDetail item={activeReview} onBack={() => setActiveReview(null)} />
+          ) : (
+            <>
+              <div className="flex items-center gap-2 flex-none">
+                <span className="text-[10px] font-semibold text-white/60">
+                  {activePlatform
+                    ? (platforms.find(p => p.source_type === activePlatform)?.platform_name ?? activePlatform)
+                    : "All Reviews"}
+                </span>
+                {activePlatform && (
+                  <button
+                    onClick={() => handlePlatformChange(null)}
+                    className="text-[9px] text-white/30 hover:text-white/60 ml-auto"
+                  >
+                    ✕ clear filter
+                  </button>
                 )}
               </div>
-            </div>
-          )}
 
-          <ReviewFeed brandId={brandId} sourceType={activeSource} />
+              {/* Best platform spotlight — only when viewing all */}
+              {!activePlatform && best && (
+                <div className="flex-none bg-emerald-900/20 border border-emerald-500/20 rounded-xl px-3 py-2 flex items-center gap-3">
+                  <span className="text-xl">{PLATFORM_ICON[best.source_type] ?? "⭐"}</span>
+                  <div>
+                    <div className="text-[9px] text-emerald-400 font-semibold uppercase tracking-wider">Best Rated</div>
+                    <div className="text-[11px] text-white/80 font-medium">{best.platform_name}</div>
+                    {best.avg_rating !== null && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Stars rating={best.avg_rating} size="sm" />
+                        <span className="text-[9px] text-amber-400">{best.avg_rating.toFixed(1)}</span>
+                        <span className="text-[9px] text-white/35">· {best.count} reviews</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <ReviewFeed brandId={brandId} sourceType={activeSource} onReviewClick={setActiveReview} />
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -50,7 +50,7 @@ def calculate_perception_score(articles: list[dict]) -> float:
     weighted_sum = 0.0
 
     for a in articles:
-        score = a.get("sentiment_score", 0.0)
+        score = a.get("sentiment_score") or 0.0
         w = _weight(a)
         weighted_sum += score * w
         total_weight += w

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { fetchCompetitorSoV, discoverCompetitors } from "../lib/api";
 import type { CompetitorSoVData, SoVEntry } from "../lib/types";
 
 interface Props {
   brandId: string;
-  brandName?: string;
   compact?: boolean;
   onClick?: () => void;
   onEntityClick?: (name: string) => void;
@@ -31,46 +31,43 @@ const FALLBACK_ENTRIES: SoVEntry[] = [
 ];
 
 export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClick }: Props) {
-  const [data, setData] = useState<CompetitorSoVData | null>(null);
-  const [discovering, setDiscovering] = useState(false);
-  const [discovered, setDiscovered] = useState<string[] | null>(null);
-  const autoTriggered = useRef(false);   // fire once per mount, not on every re-render
+  const queryClient = useQueryClient();
+  const autoTriggered = useRef(false);
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
-  const load = useCallback(() => {
-    fetchCompetitorSoV(brandId).then(setData).catch(() => {});
-  }, [brandId]);
-
-  // Auto-discover competitors on first load when none are configured yet
-  useEffect(() => {
-    fetchCompetitorSoV(brandId).then(result => {
-      setData(result);
+  const { data, isLoading } = useQuery<CompetitorSoVData>({
+    queryKey: ["competitor-sov", brandId],
+    queryFn: async () => {
+      const result = await fetchCompetitorSoV(brandId);
+      // Auto-discover competitors once when in entity_fallback mode
       if (result.source === "entity_fallback" && !autoTriggered.current) {
         autoTriggered.current = true;
-        setDiscovering(true);
         discoverCompetitors(brandId)
           .then(r => {
-            if (r.saved) fetchCompetitorSoV(brandId).then(setData).catch(() => {});
-            setDiscovered(r.competitors);
+            if (r.saved) {
+              // Invalidate both this component's cache and the KPI card's cache
+              queryClient.invalidateQueries({ queryKey: ["competitor-sov", brandId] });
+              queryClient.invalidateQueries({ queryKey: ["competitor-sov-kpi", brandId] });
+            }
           })
-          .catch(() => {})
-          .finally(() => setDiscovering(false));
+          .catch(() => {});
       }
-    }).catch(() => {});
-  }, [brandId]);  // eslint-disable-line react-hooks/exhaustive-deps
+      return result;
+    },
+    staleTime: 5 * 60_000,
+  });
 
-  const handleDiscover = async (e: React.MouseEvent) => {
+  const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setDiscovering(true);
-    setDiscovered(null);
+    autoTriggered.current = false; // allow re-trigger
     try {
-      const result = await discoverCompetitors(brandId);
-      setDiscovered(result.competitors);
-      load();
+      const r = await discoverCompetitors(brandId);
+      if (r.saved) {
+        queryClient.invalidateQueries({ queryKey: ["competitor-sov", brandId] });
+        queryClient.invalidateQueries({ queryKey: ["competitor-sov-kpi", brandId] });
+      }
     } catch {
-      setDiscovered([]);
-    } finally {
-      setDiscovering(false);
+      // silent
     }
   };
 
@@ -82,8 +79,8 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
       <div onClick={onClick} className={`bg-[#1a2744] border border-white/10 rounded-lg p-2 h-full flex flex-col overflow-hidden ${clickable}`}>
         <div className="flex items-center justify-between mb-1 flex-none">
           <span className="text-[11px] font-semibold text-white">Share of Voice</span>
-          {discovering && (
-            <span className="text-[8px] text-blue-400 animate-pulse">AI detecting…</span>
+          {isLoading && (
+            <span className="text-[8px] text-blue-400 animate-pulse">detecting…</span>
           )}
         </div>
         <div className="flex items-center gap-2 flex-1 min-h-0">
@@ -126,10 +123,13 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
             i
           </button>
           <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-lg bg-[#0d1626] border border-white/10 px-3 py-2 text-[11px] text-white/80 leading-snug shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20">
-            Based on YouTube and news portal coverage only. Twitter/X, Instagram, and Facebook are not yet monitored and are excluded from these figures.
+            Based on YouTube and news portal coverage only. Twitter/X, Instagram, and Facebook are not yet monitored.
             <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#0d1626]" />
           </div>
         </div>
+        {isLoading && (
+          <span className="text-[9px] text-blue-400 animate-pulse ml-auto">Auto-detecting…</span>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -175,29 +175,19 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
         YouTube &amp; news coverage only — social media channels excluded.
       </p>
 
-      <div className="mt-2 flex items-start justify-between gap-3">
+      <div className="mt-2 flex items-center justify-between gap-3">
         <p className="text-[10px] text-white/40 leading-relaxed">
           {source === "configured"
             ? "Based on competitor mentions in brand coverage"
-            : "Showing top co-mentioned entities — no competitors configured yet"}
+            : "Showing top co-mentioned entities — competitors auto-detecting…"}
         </p>
-        <div className="shrink-0 text-right">
-          {discovered !== null && discovered.length > 0 && (
-            <p className="text-[10px] text-green-400 mb-1">
-              Saved: {discovered.join(", ")}
-            </p>
-          )}
-          {discovered !== null && discovered.length === 0 && (
-            <p className="text-[10px] text-red-400 mb-1">Discovery failed — try again</p>
-          )}
-          <button
-            onClick={handleDiscover}
-            disabled={discovering}
-            className="text-[10px] font-medium px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {discovering ? "Detecting…" : "✦ Auto-detect with AI"}
-          </button>
-        </div>
+        <button
+          onClick={handleRefresh}
+          className="shrink-0 text-[9px] text-white/25 hover:text-white/50 border border-white/10 hover:border-white/20 rounded px-1.5 py-0.5 transition-colors"
+          title="Re-run competitor detection"
+        >
+          ↺ refresh
+        </button>
       </div>
     </div>
   );

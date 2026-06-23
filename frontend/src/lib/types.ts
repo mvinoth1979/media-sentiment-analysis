@@ -255,6 +255,24 @@ export interface CompetitorSoVData {
   source: "configured" | "entity_fallback";
 }
 
+// ── Drill-down (Screen 5) ──────────────────────────────────────────────────────
+
+export interface DrillFilters {
+  sentiment?: string;
+  topic?: string;
+  sourceCategory?: string;
+  sourceType?: string;
+  issueCategory?: string;
+  entity?: string;
+  state?: string;
+  q?: string;
+}
+
+export interface DrillEntry {
+  widgetTitle: string;
+  filters: DrillFilters;
+}
+
 // ── Issue Clusters (B4) ────────────────────────────────────────────────────────
 
 export interface ClusterArticle {
