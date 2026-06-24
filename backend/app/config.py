@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     upstash_redis_port: int = 6379
     upstash_redis_password: str = ""
 
-    gemini_api_key: str = ""        # Paid tier — reserved for Indic news + AI summary
-    gemini_free_api_key: str = ""   # Free tier (AI Studio) — used for EN news articles
+    gemini_api_key: str = ""           # Paid tier — reserved for Indic news + AI summary (pipeline)
+    gemini_free_api_key: str = ""      # Free tier (AI Studio) — EN news articles (pipeline)
+    gemini_dashboard_api_key: str = "" # Dedicated key for dashboard AI (chat, generate, explain, briefs)
     gemini_model: str = "gemini-2.5-flash"
     groq_api_key: str = ""          # Primary Groq key — social media & comments
     groq_api_key_2: str = ""        # Secondary Groq key — round-robin rotation

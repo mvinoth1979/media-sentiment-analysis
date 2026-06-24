@@ -1641,9 +1641,10 @@ def get_ai_summary(
 
     # Try LLM — paid key first, then free key with lighter model
     _AI_SUMMARY_ATTEMPTS = [
-        (settings.gemini_api_key,      settings.gemini_model or "gemini-2.5-flash"),
-        (settings.gemini_free_api_key, "gemini-2.0-flash"),
-        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+        (settings.gemini_free_api_key,      "gemini-1.5-flash"),
     ]
     from app.nlp.gemini_handler import _strip_fences
     from google import genai as _genai
@@ -1884,9 +1885,10 @@ def explain_metric(
 
     # ── LLM call (same pattern as ai-summary) ─────────────────────────────────
     _ATTEMPTS = [
-        (settings.gemini_api_key,      settings.gemini_model or "gemini-2.5-flash"),
-        (settings.gemini_free_api_key, "gemini-2.0-flash"),
-        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+        (settings.gemini_free_api_key,      "gemini-1.5-flash"),
     ]
     from app.nlp.gemini_handler import _strip_fences
     from google import genai as _genai
@@ -2359,9 +2361,10 @@ def generate_content(
     try:
         from google import genai as _genai
         _GEN_ATTEMPTS = [
-            (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
-            (settings.gemini_free_api_key, "gemini-2.0-flash"),
-            (settings.gemini_free_api_key, "gemini-1.5-flash"),
+            (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+            (settings.gemini_free_api_key,      "gemini-1.5-flash"),
         ]
         for _key, _model in _GEN_ATTEMPTS:
             if not _key or content:
@@ -2598,9 +2601,10 @@ def get_regional_summary(
     confidence_pct = 70
 
     _attempts = [
-        (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
-        (settings.gemini_free_api_key, "gemini-2.0-flash"),
-        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+        (settings.gemini_free_api_key,      "gemini-1.5-flash"),
     ]
     for _api_key, _model in _attempts:
         if not _api_key:
@@ -2728,9 +2732,10 @@ def get_morning_brief(
     confidence_pct = 72
 
     _attempts = [
-        (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
-        (settings.gemini_free_api_key, "gemini-2.0-flash"),
-        (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+        (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+        (settings.gemini_free_api_key,      "gemini-1.5-flash"),
     ]
     for _api_key, _model in _attempts:
         if not _api_key:
@@ -2855,9 +2860,10 @@ def get_risk_forecast(
     try:
         from google import genai as _genai
         _FORECAST_ATTEMPTS = [
-            (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
-            (settings.gemini_free_api_key, "gemini-2.0-flash"),
-            (settings.gemini_free_api_key, "gemini-1.5-flash"),
+            (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+            (settings.gemini_free_api_key,      "gemini-1.5-flash"),
         ]
         for _key, _model in _FORECAST_ATTEMPTS:
             if not _key:
@@ -3167,9 +3173,10 @@ def _stream_chat(prompt: str, context_messages: list[ChatMessage]) -> object:
     try:
         from google import genai as _genai
         _gem_attempts = [
-            (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
-            (settings.gemini_free_api_key, "gemini-2.0-flash"),
-            (settings.gemini_free_api_key, "gemini-1.5-flash"),
+            (settings.gemini_dashboard_api_key, settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_api_key,           settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_free_api_key,      "gemini-2.0-flash"),
+            (settings.gemini_free_api_key,      "gemini-1.5-flash"),
         ]
         for api_key, model in _gem_attempts:
             if not api_key or full_text:
