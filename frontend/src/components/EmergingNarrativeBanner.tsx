@@ -24,7 +24,7 @@ export function EmergingNarrativeBanner({ brandId, days = 7 }: Props) {
   const extra = emerging.length - 1;
 
   return (
-    <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
+    <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 relative">
       <div className="flex items-start gap-2">
         <span className="text-amber-400 text-[13px] mt-0.5 flex-none">🧠</span>
         <div className="flex-1 min-w-0">
@@ -43,8 +43,9 @@ export function EmergingNarrativeBanner({ brandId, days = 7 }: Props) {
           </button>
         )}
       </div>
+      {/* Absolute dropdown — does not affect parent layout height */}
       {expanded && extra > 0 && (
-        <div className="mt-2 pl-6 space-y-1.5">
+        <div className="absolute top-full left-0 right-0 mt-1 z-40 bg-[#1a2a0e] border border-amber-500/30 rounded-lg p-2 space-y-1.5 shadow-xl">
           {emerging.slice(1).map(e => (
             <div key={e.topic} className="flex items-center gap-2">
               <span className="text-[9px] text-amber-400/50 font-medium">{e.novelty_score.toFixed(1)}×</span>

@@ -5,6 +5,7 @@ import type { InfluentialSource } from "../lib/types";
 interface Props {
   brandId: string;
   days?: number;
+  onDrillDown?: (source: string) => void;
 }
 
 const SENTIMENT_STYLE: Record<string, string> = {
@@ -29,12 +30,13 @@ function ImpactBar({ score }: { score: number }) {
   );
 }
 
-function SourceRow({ source, rank }: { source: InfluentialSource; rank: number }) {
+function SourceRow({ source, rank, onClick }: { source: InfluentialSource; rank: number; onClick?: () => void }) {
   const initial = source.portal_name.charAt(0).toUpperCase();
   const sentStyle = SENTIMENT_STYLE[source.sentiment] ?? SENTIMENT_STYLE.neutral;
 
   return (
-    <div className="flex items-center gap-2.5 py-1.5">
+    <div className={`flex items-center gap-2.5 py-1.5 ${onClick ? "cursor-pointer hover:bg-white/[0.03] rounded-md px-1 -mx-1 transition-colors" : ""}`}
+      onClick={onClick}>
       <span className={`text-[11px] font-bold w-4 shrink-0 ${RANK_COLORS[rank] ?? "text-white/20"}`}>
         {rank + 1}
       </span>
@@ -52,7 +54,7 @@ function SourceRow({ source, rank }: { source: InfluentialSource; rank: number }
   );
 }
 
-export function TopInfluentialSources({ brandId, days = 30 }: Props) {
+export function TopInfluentialSources({ brandId, days = 30, onDrillDown }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ["top-sources", brandId, days],
     queryFn: () => fetchTopSources(brandId, days),
@@ -82,7 +84,8 @@ export function TopInfluentialSources({ brandId, days = 30 }: Props) {
         ) : (
           <div className="divide-y divide-white/5">
             {data.sources.map((src, i) => (
-              <SourceRow key={src.portal_name} source={src} rank={i} />
+              <SourceRow key={src.portal_name} source={src} rank={i}
+                onClick={onDrillDown ? () => onDrillDown(src.portal_name) : undefined} />
             ))}
           </div>
         )}

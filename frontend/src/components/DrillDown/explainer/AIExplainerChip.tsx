@@ -17,6 +17,7 @@ interface Props {
   brandId: string;
   value?: number;
   days?: number;
+  onDrillTab?: (tab: string) => void;
 }
 
 // Inline sparkle/brain SVG icon — lucide-react is not in this project
@@ -38,7 +39,7 @@ function SparkleIcon() {
   );
 }
 
-export function AIExplainerChip({ metric, brandId, value, days }: Props) {
+export function AIExplainerChip({ metric, brandId, value, days, onDrillTab }: Props) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ExplainResponse | null>(null);
   const [error, setError] = useState(false);
@@ -121,6 +122,7 @@ export function AIExplainerChip({ metric, brandId, value, days }: Props) {
         <AIExplainerTooltip
           data={data}
           onClose={() => setOpen(false)}
+          onDrillTab={onDrillTab}
         />
       )}
     </div>

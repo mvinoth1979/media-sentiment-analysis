@@ -189,32 +189,45 @@ export function BoardMode({ brandId, brandName, days, onBack }: Props) {
         </div>
 
         {/* Top Headlines */}
-        {stories && stories.stories.length > 0 && (
-          <div className="border-t border-white/8 pt-8">
-            <div className="text-[9px] uppercase tracking-widest text-white/30 mb-4">Top Stories This Period</div>
-            <div className="space-y-3">
-              {stories.stories.slice(0, 4).map((s, i) => {
-                const impColor = s.impact_score >= 70 ? "text-red-400" : s.impact_score >= 40 ? "text-amber-400" : "text-white/30";
-                const sentColor = s.sentiment_label === "negative" ? "bg-red-500/15 text-red-400" : s.sentiment_label === "positive" ? "bg-emerald-500/15 text-emerald-400" : "bg-white/8 text-white/35";
+        <div className="border-t border-white/8 pt-8">
+          <div className="text-[9px] uppercase tracking-widest text-white/30 mb-4">Top Stories This Period</div>
+          {!stories ? (
+            <Skeleton lines={4} />
+          ) : stories.stories.length === 0 ? (
+            <p className="text-[12px] text-white/25 italic">No articles ingested for this period — pipeline may still be processing.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {stories.stories.slice(0, 4).map((s) => {
+                const impColor = s.impact_score >= 70 ? "text-red-400 bg-red-500/10 border-red-500/20"
+                  : s.impact_score >= 40 ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                  : "text-white/40 bg-white/5 border-white/10";
+                const sentColor = s.sentiment_label === "negative"
+                  ? "bg-red-500/15 text-red-400 border-red-500/20"
+                  : s.sentiment_label === "positive"
+                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                  : "bg-white/8 text-white/35 border-white/10";
                 return (
-                  <div key={s.article_id} className="flex items-start gap-3">
-                    <span className="text-[12px] text-white/20 tabular-nums w-4 shrink-0 pt-0.5">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[13px] text-white/70 hover:text-white leading-snug line-clamp-2 transition-colors">
-                        {s.title}
-                      </a>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] text-white/25">{s.portal_name}</span>
-                        <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${sentColor}`}>{s.sentiment_label}</span>
-                        <span className={`text-[9px] font-semibold ml-auto ${impColor}`}>Impact {s.impact_score}</span>
-                      </div>
+                  <div key={s.article_id}
+                    className="bg-[#111e36] border border-white/8 rounded-xl p-4 flex flex-col gap-3 hover:border-white/15 transition-colors">
+                    <a href={s.url} target="_blank" rel="noopener noreferrer"
+                      className="text-[13px] text-white/80 hover:text-white leading-snug line-clamp-3 transition-colors font-medium">
+                      {s.title}
+                    </a>
+                    <div className="flex items-center gap-2 mt-auto flex-wrap">
+                      <span className="text-[10px] text-white/35 font-medium">{s.portal_name}</span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border capitalize ${sentColor}`}>
+                        {s.sentiment_label}
+                      </span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ml-auto ${impColor}`}>
+                        Impact {s.impact_score}
+                      </span>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* AI Recommendation */}
         {risk?.narrative && (

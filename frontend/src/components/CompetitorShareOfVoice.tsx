@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { fetchCompetitorSoV, discoverCompetitors } from "../lib/api";
@@ -33,6 +33,7 @@ const FALLBACK_ENTRIES: SoVEntry[] = [
 export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClick }: Props) {
   const queryClient = useQueryClient();
   const autoTriggered = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const clickable = onClick ? "cursor-pointer hover:border-blue-300 transition-colors" : "";
 
   const { data, isLoading } = useQuery<CompetitorSoVData>({
@@ -59,7 +60,9 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    autoTriggered.current = false; // allow re-trigger
+    if (isRefreshing) return;
+    autoTriggered.current = false;
+    setIsRefreshing(true);
     try {
       const r = await discoverCompetitors(brandId);
       if (r.saved) {
@@ -68,6 +71,8 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
       }
     } catch {
       // silent
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -183,10 +188,11 @@ export function CompetitorShareOfVoice({ brandId, compact, onClick, onEntityClic
         </p>
         <button
           onClick={handleRefresh}
-          className="shrink-0 text-[9px] text-white/25 hover:text-white/50 border border-white/10 hover:border-white/20 rounded px-1.5 py-0.5 transition-colors"
+          disabled={isRefreshing}
+          className={`shrink-0 text-[9px] border rounded px-1.5 py-0.5 transition-colors ${isRefreshing ? "text-blue-400 border-blue-500/30 cursor-not-allowed" : "text-white/25 hover:text-white/50 border-white/10 hover:border-white/20"}`}
           title="Re-run competitor detection"
         >
-          ↺ refresh
+          {isRefreshing ? <span className="flex items-center gap-1"><span className="w-2 h-2 border border-blue-400 border-t-transparent rounded-full animate-spin inline-block" /> detecting…</span> : "↺ refresh"}
         </button>
       </div>
     </div>

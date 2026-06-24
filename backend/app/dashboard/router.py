@@ -1747,6 +1747,16 @@ _METRIC_PROMPTS = {
         "Based on this brand's current media coverage, generate a single high-priority recommended action for leadership. "
         "Make it specific, time-bound, and actionable. Include a confidence assessment."
     ),
+    "share_of_voice": (
+        "Explain why this brand's share of voice is {value}% in the current period. "
+        "Identify which competitor entities are gaining or losing mentions relative to this brand. "
+        "Be specific about which source types (news, YouTube, review sites) are driving the SoV."
+    ),
+    "total_reach": (
+        "Explain the total estimated reach of {value} impressions for this brand's coverage. "
+        "Identify which source types, portals, or article categories are contributing the most reach. "
+        "Note if high-reach articles are positive or negative."
+    ),
 }
 
 _EXPLAIN_SYSTEM = (
@@ -1912,8 +1922,19 @@ def explain_metric(
         tab      = str(parsed.get("drill_tab", "A")).strip()
         tab      = tab if tab in {"A", "B", "C"} else "A"
     else:
-        # Data-driven fallback — no LLM
-        headline = f"{neg_pct}% negative across {total} articles. Top issue: {issue_ctr.most_common(1)[0][0].replace('_', ' ') if issue_ctr else 'general coverage'}."
+        # Data-driven fallback — no LLM, metric-specific headlines
+        _top_issue = issue_ctr.most_common(1)[0][0].replace('_', ' ') if issue_ctr else 'general coverage'
+        _metric_headlines: dict[str, str] = {
+            "reputation_score":     f"Reputation score {req.value or 'N/A'}/100 — {neg_pct}% negative coverage across {total} articles.",
+            "mention_growth":       f"Mention volume: {total} articles in {days} days — {pos_pct}% positive, {neg_pct}% negative.",
+            "risk_score":           f"Risk elevated: {neg_pct}% negative articles, top concern is {_top_issue}.",
+            "share_of_voice":       f"Share of Voice: {req.value or 'N/A'}% brand visibility across {unique_sources} sources — driven by {top_sources_str}.",
+            "total_reach":          f"Estimated reach: {req.value or 'N/A'} impressions — concentrated in {top_sources_str}.",
+            "state_sentiment":      f"Regional coverage: {neg_pct}% negative, {pos_pct}% positive across {unique_sources} sources in {safe_context.get('state','this region')}.",
+            "board_recommendation": f"Priority action: address {_top_issue} which drives {neg_pct}% negative coverage across {total} articles.",
+            "investigation_context": f"Coverage pattern: {total} articles, top theme {_top_issue}, {neg_pct}% negative sentiment.",
+        }
+        headline = _metric_headlines.get(safe_metric, f"{neg_pct}% negative across {total} articles. Top issue: {_top_issue}.")
         drivers  = [
             f"Negative: {neg_pct}% of {total} articles",
             f"Top issues: {top_issues_str}",
@@ -2317,7 +2338,7 @@ def generate_content(
     if not req.topic.strip():
         raise HTTPException(status_code=422, detail="topic must not be empty")
 
-    cache_key = f"gen:{req.brand_id}:{req.format}:{req.topic.strip().lower()[:80]}"
+    cache_key = f"gen:{req.brand_id}:{req.format}:{req.language}:{req.topic.strip().lower()[:80]}"
     now = time.time()
     if cache_key in _GENERATE_CACHE:
         entry = _GENERATE_CACHE[cache_key]
@@ -2328,7 +2349,9 @@ def generate_content(
     brand_row = db.table("brands").select("name").eq("id", req.brand_id).execute().data
     brand_name = brand_row[0]["name"] if brand_row else "the brand"
 
-    prompt = _FORMAT_PROMPTS[req.format].format(brand=brand_name, topic=req.topic.strip())
+    lang = (req.language or "English").strip()
+    lang_suffix = f" Write the entire response in {lang}." if lang.lower() != "english" else ""
+    prompt = _FORMAT_PROMPTS[req.format].format(brand=brand_name, topic=req.topic.strip()) + lang_suffix
     content = ""
     confidence_pct = 60
 
@@ -3068,7 +3091,7 @@ def _build_chat_context(brand_id: str, days: int) -> dict:
 
     total = len(articles)
     if total == 0:
-        return {"brand_name": brand_name, "total": 0, "pos_pct": 0, "neg_pct": 0, "neu_pct": 0,
+        return {"brand_name": brand_name, "days": days, "total": 0, "pos_pct": 0, "neg_pct": 0, "neu_pct": 0,
                 "top_issues": "none", "top_sources": "none", "neg_headlines": "none"}
 
     neg = sum(1 for a in articles if a.get("sentiment_label") == "negative")

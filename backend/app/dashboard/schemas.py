@@ -593,6 +593,7 @@ class GenerateRequest(BaseModel):
     brand_id: str
     format: str   # "press_release" | "faq" | "tweet" | "linkedin" | "ceo_statement"
     topic: str
+    language: str = "English"  # e.g. "English", "Tamil", "Hindi", "Telugu"
 
 
 class GenerateResponse(BaseModel):

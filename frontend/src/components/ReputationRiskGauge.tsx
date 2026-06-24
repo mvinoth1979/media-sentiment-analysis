@@ -4,6 +4,7 @@ interface Props {
   mentionsDelta?: number | null;
   topIssue?: string;
   compact?: boolean;
+  onClick?: () => void;
 }
 
 function getPoint(cx: number, cy: number, r: number, score: number) {
@@ -18,7 +19,7 @@ function arc(cx: number, cy: number, r: number, s1: number, s2: number) {
   return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${span > 180 ? 1 : 0} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
 }
 
-export function ReputationRiskGauge({ score, negativePct, mentionsDelta, topIssue, compact }: Props) {
+export function ReputationRiskGauge({ score, negativePct, mentionsDelta, topIssue, compact, onClick }: Props) {
   const cx = 100, cy = 104, r = 78;
   const clampedScore = Math.max(0, Math.min(100, Math.round(score)));
 
@@ -53,7 +54,8 @@ export function ReputationRiskGauge({ score, negativePct, mentionsDelta, topIssu
   };
 
   return (
-    <div className="bg-[#1a2744] border border-white/10 rounded-xl p-3 h-full flex flex-col text-white overflow-hidden">
+    <div className={`bg-[#1a2744] border border-white/10 rounded-xl p-3 h-full flex flex-col text-white overflow-hidden ${onClick ? "cursor-pointer hover:border-white/25 transition-colors" : ""}`}
+      onClick={onClick}>
       <div className="text-[11px] font-semibold text-white/70 mb-2 flex-none">Reputation Risk Monitor</div>
 
       <div className="flex gap-3 flex-1 min-h-0">

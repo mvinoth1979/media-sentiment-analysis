@@ -38,12 +38,13 @@ import { AIRegionalSummary } from "../components/AIRegionalSummary";
 import { StoriesFeed } from "../components/StoriesFeed";
 
 // Panels that remain as overlay views (non-article-list)
-type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map";
+type ActivePanel = null | "sentiment-trend" | "alerts" | "state-map" | "ai-report";
 
 const PANEL_TITLE: Record<NonNullable<ActivePanel>, string> = {
   "sentiment-trend":    "Sentiment Trend",
   "alerts":             "Alerts & Risks",
   "state-map":          "State-level Sentiment",
+  "ai-report":          "AI Intelligence Report",
 };
 
 interface Props {
@@ -324,20 +325,30 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
   const [copilotOpen, setCopilotOpen] = useState(false);
   const mentionsRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const screen4Ref = useRef<HTMLDivElement>(null);
   const screen5Ref = useRef<HTMLDivElement>(null);
+  const screen6Ref = useRef<HTMLDivElement>(null);
+  const screen7Ref = useRef<HTMLDivElement>(null);
   const screen8Ref = useRef<HTMLDivElement>(null);
 
-  function scrollToGeo() {
-    if (screen8Ref.current && containerRef.current) {
-      containerRef.current.scrollTo({ top: screen8Ref.current.offsetTop, behavior: "smooth" });
+  function scrollToGeo() { scrollToScreen(screen8Ref); }
+
+  function scrollToScreen(ref: React.RefObject<HTMLDivElement | null>) {
+    if (ref.current && containerRef.current) {
+      containerRef.current.scrollTo({ top: ref.current.offsetTop, behavior: "smooth" });
     }
   }
 
-  // Listen for sidebar Geo Intel nav click
+  // Listen for sidebar nav scroll events
   useEffect(() => {
-    const handler = () => scrollToGeo();
-    window.addEventListener("brandpulse:scroll-geo", handler);
-    return () => window.removeEventListener("brandpulse:scroll-geo", handler);
+    const handlers: Record<string, () => void> = {
+      "brandpulse:scroll-geo":             () => scrollToScreen(screen8Ref),
+      "brandpulse:scroll-review-sites":    () => scrollToScreen(screen4Ref),
+      "brandpulse:scroll-response-studio": () => scrollToScreen(screen6Ref),
+      "brandpulse:scroll-narrative":       () => scrollToScreen(screen7Ref),
+    };
+    Object.entries(handlers).forEach(([evt, fn]) => window.addEventListener(evt, fn));
+    return () => Object.entries(handlers).forEach(([evt, fn]) => window.removeEventListener(evt, fn));
   }, []);
 
   function openDrillDown(widgetTitle: string, filters: DrillFilters) {
@@ -465,6 +476,37 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
             />
           )}
+          {activePanel === "ai-report" && (
+            <div className="space-y-4 max-w-5xl">
+              <AIExecutiveSummary brandId={brandId} queryParams={queryParams} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <SentimentTrendChart brandId={brandId} />
+                </div>
+                <div>
+                  <EditorialToneChart brandId={brandId} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="h-64">
+                  <IssueRadarBubble brandId={brandId} days={days}
+                    onIssueDrill={(issue) => openDrillDown(`Issue: ${issue.replace(/_/g, " ")}`, { issueCategory: issue })} />
+                </div>
+                <div className="h-64">
+                  <TopInfluentialSources brandId={brandId} days={days}
+                    onDrillDown={(source) => openDrillDown(`Source: ${source}`, { q: source })} />
+                </div>
+                <div className="h-64">
+                  <StoriesFeed brandId={brandId} days={days} />
+                </div>
+              </div>
+              <div className="bg-[#1a2744] border border-white/10 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">Mentions by Source</h3>
+                <MentionsBySourceCards data={data?.by_source_type ?? {}} />
+              </div>
+              <YouTubeSentimentSplit brandId={brandId} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -588,7 +630,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onClick={() => setActivePanel("alerts")}
             />
             <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
-              <AIExplainerChip metric="reputation_score" brandId={brandId} value={kpi.perception_score} days={days} />
+              <AIExplainerChip metric="reputation_score" brandId={brandId} value={kpi.perception_score} days={days}
+                onDrillTab={() => openDrillDown("Reputation Score Analysis", {})} />
             </div>
           </div>
           <div className="relative">
@@ -604,7 +647,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onClick={() => openDrillDown("All Mentions", {})}
             />
             <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
-              <AIExplainerChip metric="mention_growth" brandId={brandId} value={kpi.total} days={days} />
+              <AIExplainerChip metric="mention_growth" brandId={brandId} value={kpi.total} days={days}
+                onDrillTab={() => openDrillDown("All Mentions", {})} />
             </div>
           </div>
           <div className="relative">
@@ -614,7 +658,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onClick={() => openDrillDown("Competitor Share of Voice", {})}
             />
             <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
-              <AIExplainerChip metric="executive_summary" brandId={brandId} days={days} />
+              <AIExplainerChip metric="share_of_voice" brandId={brandId} days={days}
+                onDrillTab={() => openDrillDown("Competitor Share of Voice", {})} />
             </div>
           </div>
           <div className="relative">
@@ -629,7 +674,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onClick={() => setActivePanel("alerts")}
             />
             <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
-              <AIExplainerChip metric="risk_score" brandId={brandId} value={riskScore} days={days} />
+              <AIExplainerChip metric="risk_score" brandId={brandId} value={riskScore} days={days}
+                onDrillTab={() => openDrillDown("Risk Factor Analysis", { issueCategory: topIssue })} />
             </div>
           </div>
           <div className="relative">
@@ -644,7 +690,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               onClick={() => openDrillDown("All Mentions", {})}
             />
             <div className="absolute bottom-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
-              <AIExplainerChip metric="board_recommendation" brandId={brandId} value={kpi.total_reach ?? 0} days={days} />
+              <AIExplainerChip metric="total_reach" brandId={brandId} value={kpi.total_reach ?? 0} days={days}
+                onDrillTab={() => openDrillDown("Total Reach Analysis", {})} />
             </div>
           </div>
         </div>
@@ -664,7 +711,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               <AIExecutiveSummary
                 brandId={brandId}
                 queryParams={queryParams}
-                onViewInsights={() => setActivePanel("sentiment-trend")}
+                onViewInsights={() => setActivePanel("ai-report")}
               />
             </div>
           </div>
@@ -710,7 +757,8 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             />
           </div>
           <div className="min-h-0">
-            <TopInfluentialSources brandId={brandId} days={days} />
+            <TopInfluentialSources brandId={brandId} days={days}
+              onDrillDown={(source) => openDrillDown(`Source: ${source}`, { q: source })} />
           </div>
           <div className="min-h-0">
             <StoriesFeed brandId={brandId} days={days} />
@@ -726,6 +774,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               mentionsDelta={kpi.mentions_delta_pct ?? null}
               topIssue={topIssue}
               compact
+              onClick={() => openDrillDown("Reputation Risk Analysis", { issueCategory: topIssue })}
             />
           </div>
           <div className="min-h-0 flex flex-col gap-2">
@@ -881,7 +930,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       {/* ══════════════════ SCREEN 7 — Narrative Explorer ════════════════════ */}
-      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+      <div ref={screen7Ref} className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
         <div className="flex items-center gap-3 flex-none">
           <h2 className="text-sm font-semibold text-white">Narrative Explorer</h2>
           <span className="text-[10px] text-white/30">— entity relationships &amp; co-occurrence</span>
@@ -907,7 +956,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       {/* ══════════════════ SCREEN 6 — Response Studio ════════════════════════ */}
-      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+      <div ref={screen6Ref} className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
         {/* Header */}
         <div className="flex items-center gap-3 flex-none">
           <h2 className="text-sm font-semibold text-white">Response Studio</h2>
@@ -925,7 +974,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       {/* ══════════════════ SCREEN 4 — Review Sites Intelligence ═════════════ */}
-      <div className="h-full snap-start overflow-hidden shrink-0">
+      <div ref={screen4Ref} className="h-full snap-start overflow-hidden shrink-0">
         <ReviewSitesDashboard brandId={brandId} days={days} />
       </div>
 

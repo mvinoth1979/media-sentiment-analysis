@@ -31,7 +31,7 @@ export function AIExecutiveSummary({ brandId, queryParams, onViewInsights }: Pro
   });
 
   return (
-    <div className="bg-[#1a2744] border border-white/10 rounded-xl px-4 py-3 flex items-stretch gap-4 flex-none">
+    <div className="bg-[#1a2744] border border-white/10 rounded-xl px-4 py-3 flex items-stretch gap-4 h-full">
       {/* Left: header + content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-2.5">

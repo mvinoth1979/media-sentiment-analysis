@@ -129,7 +129,7 @@ export function AskBar({ brandId, days = 7 }: Props) {
   return (
     <div
       className="fixed bottom-4 z-30 transition-all duration-200"
-      style={{ left: "240px", right: "16px" }}
+      style={{ left: "14rem", right: "16px" }}
     >
       <div className="bg-[#1a2744] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Chat thread — only shown when open and there are messages */}

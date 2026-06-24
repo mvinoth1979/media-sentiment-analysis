@@ -28,16 +28,19 @@ function ConfidenceBadge({ pct }: { pct: number }) {
   );
 }
 
+const LANGUAGES = ["English", "Tamil", "Hindi", "Telugu", "Kannada", "Malayalam"];
+
 export function ContentGenerator({ brandId, defaultTopic = "" }: Props) {
   const [format, setFormat] = useState<Format>("press_release");
   const [topic, setTopic] = useState(defaultTopic);
+  const [language, setLanguage] = useState("English");
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [reviewState, setReviewState] = useState<ReviewState>("draft");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => postGenerate(brandId, format, topic),
+    mutationFn: () => postGenerate(brandId, format, topic, language),
     onSuccess: (data) => { setResult(data); setReviewState("draft"); },
   });
 
@@ -80,6 +83,24 @@ export function ContentGenerator({ brandId, defaultTopic = "" }: Props) {
           ))}
         </div>
 
+        {/* Language selector */}
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/5 flex-none overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <span className="text-[9px] text-white/30 uppercase tracking-wider shrink-0">Language:</span>
+          {LANGUAGES.map(lang => (
+            <button
+              key={lang}
+              onClick={() => { setLanguage(lang); setResult(null); }}
+              className={`text-[9px] px-2 py-0.5 rounded-full border flex-none transition-colors ${
+                language === lang
+                  ? "bg-blue-600/30 text-blue-300 border-blue-500/40"
+                  : "text-white/35 border-white/10 hover:text-white/60 hover:border-white/20"
+              }`}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
+
         {/* Topic input + Generate */}
         <div className="flex gap-2 px-3 py-2 border-b border-white/5 flex-none">
           <input
@@ -110,6 +131,18 @@ export function ContentGenerator({ brandId, defaultTopic = "" }: Props) {
               <span className="text-[28px] opacity-20">{selectedFormat.icon}</span>
               <span className="text-[11px] text-white/25">{selectedFormat.desc}</span>
               {!topic.trim() && <span className="text-[10px] text-white/15">Enter a topic above to generate</span>}
+            </div>
+          ) : result.confidence_pct === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
+              <span className="text-[28px]">⚠️</span>
+              <p className="text-[11px] text-amber-400/80">AI generation failed — the Gemini API key may have quota limits or network issues.</p>
+              <button
+                onClick={() => { setResult(null); mutate(); }}
+                disabled={isPending}
+                className="text-[10px] bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 px-3 py-1.5 rounded transition-colors"
+              >
+                ↺ Retry
+              </button>
             </div>
           ) : (
             <div className="space-y-2">

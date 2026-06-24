@@ -30,7 +30,7 @@ _TEXTSEARCH_URL  = "https://places.googleapis.com/v1/places:searchText"
 _DETAILS_BASE    = "https://places.googleapis.com/v1/places"
 _SERPAPI_URL     = "https://serpapi.com/search"
 _TIMEOUT         = 12.0
-_MAX_REVIEWS     = 5
+_MAX_REVIEWS     = 20   # Places API returns up to 5 "featured"; SerpAPI can paginate to 20
 
 
 def _content_hash(brand_id: str, author: str, publish_key: str) -> str:
@@ -165,31 +165,40 @@ def _map_review(review: dict, brand_id: str, places_id: str) -> dict | None:
     }
 
 
-def _fetch_reviews_via_serpapi(places_id: str, serpapi_key: str) -> list[dict]:
-    """Fallback: fetch Google Maps reviews via SerpAPI when Places API returns none."""
-    try:
-        resp = httpx.get(
-            _SERPAPI_URL,
-            params={
-                "engine":   "google_maps_reviews",
-                "place_id": places_id,
-                "sort_by":  "2",   # 2 = newest
-                "hl":       "en",
-                "api_key":  serpapi_key,
-            },
-            timeout=_TIMEOUT,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if "error" in data:
-            log.warning("SerpAPI error for place_id=%s: %s", places_id, data["error"])
-            return []
-        reviews = data.get("reviews", [])
-        log.info("SerpAPI returned %d reviews for place_id=%s", len(reviews), places_id)
-        return reviews
-    except Exception as e:
-        log.warning("SerpAPI fallback failed for place_id=%s: %s", places_id, e)
-        return []
+def _fetch_reviews_via_serpapi(places_id: str, serpapi_key: str, max_reviews: int = _MAX_REVIEWS) -> list[dict]:
+    """Fetch Google Maps reviews via SerpAPI with pagination to get up to max_reviews."""
+    all_reviews: list[dict] = []
+    next_page_token: str | None = None
+
+    for _page in range(4):  # up to 4 pages (SerpAPI default: 10/page)
+        params: dict = {
+            "engine":   "google_maps_reviews",
+            "place_id": places_id,
+            "sort_by":  "2",   # 2 = newest
+            "hl":       "en",
+            "api_key":  serpapi_key,
+        }
+        if next_page_token:
+            params["next_page_token"] = next_page_token
+
+        try:
+            resp = httpx.get(_SERPAPI_URL, params=params, timeout=_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            if "error" in data:
+                log.warning("SerpAPI error for place_id=%s: %s", places_id, data["error"])
+                break
+            page_reviews = data.get("reviews", [])
+            all_reviews.extend(page_reviews)
+            next_page_token = data.get("serpapi_pagination", {}).get("next_page_token")
+            if not next_page_token or len(all_reviews) >= max_reviews:
+                break
+        except Exception as e:
+            log.warning("SerpAPI fallback failed for place_id=%s (page %d): %s", places_id, _page, e)
+            break
+
+    log.info("SerpAPI returned %d reviews for place_id=%s", len(all_reviews), places_id)
+    return all_reviews
 
 
 def _map_serpapi_review(review: dict, brand_id: str, places_id: str) -> dict | None:

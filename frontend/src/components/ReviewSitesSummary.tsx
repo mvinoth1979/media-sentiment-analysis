@@ -100,7 +100,12 @@ export function ReviewSitesSummary({ brandId, compact, onClick, onThemeClick }: 
       {/* Title row */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm font-semibold text-white">Review Sites Summary</div>
-        <button className="text-[11px] text-blue-400 hover:text-blue-300 font-medium">View All</button>
+        <button
+          className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors"
+          onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("brandpulse:scroll-review-sites")); }}
+        >
+          View All →
+        </button>
       </div>
 
       {/* Rating + Distribution */}
