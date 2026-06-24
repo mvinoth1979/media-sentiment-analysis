@@ -33,6 +33,9 @@ class BrandConfigUpdate(BaseModel):
     tripadvisor_listing_url: str | None = None
     team_bhp_enabled: bool | None = None
     team_bhp_keywords: list[str] | None = None
+    # Play Store — Phase C
+    play_store_enabled: bool | None = None
+    play_store_app_id: str | None = None
 
 
 @router.get("/me")

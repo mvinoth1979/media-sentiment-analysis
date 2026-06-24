@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "../../../lib/supabase";
 import { AIExplainerTooltip } from "./AIExplainerTooltip";
 
 interface ExplainResponse {
@@ -60,25 +61,19 @@ export function AIExplainerChip({ metric, brandId, value, days }: Props) {
   }, [open]);
 
   async function handleClick() {
-    // If already open and we have data, just toggle closed
-    if (open && data) {
-      setOpen(false);
-      return;
-    }
-
-    // If we already have data, reopen without refetching
-    if (data) {
-      setOpen(true);
-      return;
-    }
+    if (open && data) { setOpen(false); return; }
+    if (data) { setOpen(true); return; }
 
     setLoading(true);
     setError(false);
 
     try {
-      const token = localStorage.getItem("access_token");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
       const baseUrl = (import.meta.env.VITE_API_URL as string) ?? "";
-      const url = `${baseUrl}/dashboard/explain?days=${days ?? 7}`;
+      // brand_id must be a query param — require_brand_role reads it from FastAPI path/query params
+      const url = `${baseUrl}/dashboard/explain?days=${days ?? 7}&brand_id=${encodeURIComponent(brandId)}`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -86,12 +81,7 @@ export function AIExplainerChip({ metric, brandId, value, days }: Props) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          metric,
-          brand_id: brandId,
-          value,
-          context: {},
-        }),
+        body: JSON.stringify({ metric, brand_id: brandId, value, context: {} }),
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

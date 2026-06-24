@@ -347,7 +347,7 @@ export interface GenerateResponse {
 
 export const postGenerate = (brandId: string, format: string, topic: string) =>
   api
-    .post<GenerateResponse>("/dashboard/generate", { brand_id: brandId, format, topic }, { timeout: 30000 })
+    .post<GenerateResponse>(`/dashboard/generate?brand_id=${encodeURIComponent(brandId)}`, { brand_id: brandId, format, topic }, { timeout: 30000 })
     .then(r => r.data);
 
 export interface RiskDayPoint {

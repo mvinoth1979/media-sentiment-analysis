@@ -89,7 +89,7 @@ export function CoPilotPanel({ brandId, brandName, days = 7, open, onClose }: Pr
     abortRef.current = new AbortController();
 
     try {
-      const resp = await fetch(`${API_BASE}/dashboard/chat?days=${days}`, {
+      const resp = await fetch(`${API_BASE}/dashboard/chat?days=${days}&brand_id=${encodeURIComponent(brandId)}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

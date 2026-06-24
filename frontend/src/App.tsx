@@ -82,6 +82,12 @@ function App() {
         activeTab={tab}
         onTabChange={setTab}
         onBrandChange={() => setBrand(null)}
+        onNavAction={(id) => {
+          if (id === "geo-intel") {
+            // Give the Overview time to render (tab switch) then emit scroll event
+            setTimeout(() => window.dispatchEvent(new CustomEvent("brandpulse:scroll-geo")), 100);
+          }
+        }}
         isAdmin={isAdmin}
         lastUpdated={lastUpdated}
         days={days}

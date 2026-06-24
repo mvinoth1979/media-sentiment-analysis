@@ -8,6 +8,7 @@ interface Props {
   brandId: string;
   days?: number;
   topTopics?: string[];
+  onTopicDrill?: (topic: string) => void;
 }
 
 type Tab = "sov" | "sentiment" | "topics";
@@ -93,7 +94,7 @@ function SentimentTab({ brandId, days }: { brandId: string; days: number }) {
   );
 }
 
-function TopicsTab({ topics }: { topics: string[] }) {
+function TopicsTab({ topics, onTopicDrill }: { topics: string[]; onTopicDrill?: (t: string) => void }) {
   if (!topics.length) {
     return (
       <div className="flex items-center justify-center h-32 text-[11px] text-white/30">
@@ -103,14 +104,18 @@ function TopicsTab({ topics }: { topics: string[] }) {
   }
   return (
     <div className="p-3">
-      <div className="text-[9px] text-white/30 mb-3 uppercase tracking-wider">Top topics for your brand this period</div>
+      <div className="text-[9px] text-white/30 mb-3 uppercase tracking-wider">Top topics — click to drill down</div>
       <div className="space-y-1.5">
         {topics.slice(0, 10).map((t, i) => (
-          <div key={t} className="flex items-center gap-2.5">
+          <button
+            key={t}
+            onClick={() => onTopicDrill?.(t)}
+            className="w-full flex items-center gap-2.5 hover:opacity-90 transition-opacity text-left"
+          >
             <span className="text-[10px] text-white/30 w-4 text-right shrink-0">{i + 1}</span>
             <div className="flex-1 h-6 bg-white/5 rounded-md overflow-hidden">
               <div
-                className="h-full bg-blue-500/25 flex items-center px-2"
+                className="h-full bg-blue-500/25 hover:bg-blue-500/40 flex items-center px-2 transition-colors"
                 style={{ width: `${Math.max(20, 100 - i * 9)}%` }}
               >
                 <span className="text-[10px] font-medium text-white/70 truncate">
@@ -118,11 +123,9 @@ function TopicsTab({ topics }: { topics: string[] }) {
                 </span>
               </div>
             </div>
-          </div>
+            <span className="text-[8px] text-blue-400/40 shrink-0">→</span>
+          </button>
         ))}
-      </div>
-      <div className="mt-3 pt-3 border-t border-white/5 text-[9px] text-white/25 text-center">
-        Competitor topic comparison — coming soon
       </div>
     </div>
   );
@@ -134,7 +137,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "topics",    label: "Topics Comparison" },
 ];
 
-export function CompetitorComparison({ brandId, days = 30, topTopics = [] }: Props) {
+export function CompetitorComparison({ brandId, days = 30, topTopics = [], onTopicDrill }: Props) {
   const [tab, setTab] = useState<Tab>("sov");
 
   return (
@@ -184,7 +187,7 @@ export function CompetitorComparison({ brandId, days = 30, topTopics = [] }: Pro
           </div>
         )}
         {tab === "topics" && (
-          <TopicsTab topics={topTopics} />
+          <TopicsTab topics={topTopics} onTopicDrill={onTopicDrill} />
         )}
       </div>
     </div>

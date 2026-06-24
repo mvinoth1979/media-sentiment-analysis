@@ -4,6 +4,7 @@ import { fetchAiSummary } from "../lib/api";
 interface Props {
   brandId: string;
   queryParams: { days?: number; date_from?: string; date_to?: string };
+  onViewInsights?: () => void;
 }
 
 function Skeleton() {
@@ -21,7 +22,7 @@ function Skeleton() {
   );
 }
 
-export function AIExecutiveSummary({ brandId, queryParams }: Props) {
+export function AIExecutiveSummary({ brandId, queryParams, onViewInsights }: Props) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["ai-summary", brandId, queryParams],
     queryFn: () => fetchAiSummary(brandId, queryParams),
@@ -30,7 +31,7 @@ export function AIExecutiveSummary({ brandId, queryParams }: Props) {
   });
 
   return (
-    <div className="bg-[#1a2744] border border-white/10 rounded-xl px-4 py-3 flex items-start gap-4 flex-none">
+    <div className="bg-[#1a2744] border border-white/10 rounded-xl px-4 py-3 flex items-stretch gap-4 flex-none">
       {/* Left: header + content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-2.5">
@@ -93,9 +94,14 @@ export function AIExecutiveSummary({ brandId, queryParams }: Props) {
       </div>
 
       {/* Right: CTA button */}
-      <button className="text-[10px] text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50 rounded-lg px-3 py-1.5 h-fit self-center transition-colors whitespace-nowrap shrink-0">
-        View Full Insights →
-      </button>
+      {onViewInsights && (
+        <button
+          onClick={onViewInsights}
+          className="text-[10px] text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50 rounded-lg px-3 py-1.5 h-fit self-center transition-colors whitespace-nowrap shrink-0"
+        >
+          View Full Insights →
+        </button>
+      )}
     </div>
   );
 }

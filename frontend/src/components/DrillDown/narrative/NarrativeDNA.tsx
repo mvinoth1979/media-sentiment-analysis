@@ -15,19 +15,27 @@ const AXES = [
   { key: "brand_safety",  label: "Brand Safety",  desc: "Inverse of negative %" },
 ] as const;
 
-interface TooltipPayload { payload: Record<string, number>; name: string }
+interface TooltipPayload {
+  payload: { axis: string; value: number; desc: string };
+  value: number;
+  name: string;
+}
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
+  const p = payload[0];
+  const axisLabel = p.payload.axis;
+  const value = Math.round(p.value ?? 0);
+  const ax = AXES.find(a => a.label === axisLabel);
+  const isInverted = ax?.key === "brand_safety" || ax?.key === "consumer_trust";
+  const valColor = isInverted
+    ? (value >= 60 ? "text-emerald-400" : value >= 40 ? "text-amber-400" : "text-red-400")
+    : (value >= 60 ? "text-red-400"     : value >= 30 ? "text-amber-400" : "text-emerald-400");
   return (
-    <div className="bg-[#1a2744] border border-white/15 rounded-lg p-2 text-[9px] space-y-0.5 shadow-xl">
-      {AXES.map(ax => (
-        <div key={ax.key} className="flex gap-2 justify-between">
-          <span className="text-white/40">{ax.label}</span>
-          <span className="font-semibold text-white">{Math.round(d[ax.key] ?? 0)}</span>
-        </div>
-      ))}
+    <div className="bg-[#1a2744] border border-white/15 rounded-lg p-2.5 text-[9px] shadow-xl space-y-1 min-w-[120px]">
+      <div className="font-semibold text-white text-[10px]">{axisLabel}</div>
+      {ax?.desc && <div className="text-white/35">{ax.desc}</div>}
+      <div className={`text-[13px] font-bold ${valColor}`}>{value}<span className="text-[9px] text-white/30 font-normal"> / 100</span></div>
     </div>
   );
 }
@@ -45,8 +53,8 @@ export function NarrativeDNA({ brandId, days = 30 }: Props) {
   });
 
   const chartData = data
-    ? AXES.map(ax => ({ axis: ax.label, value: data[ax.key] }))
-    : AXES.map(ax => ({ axis: ax.label, value: 0 }));
+    ? AXES.map(ax => ({ axis: ax.label, value: data[ax.key], desc: ax.desc }))
+    : AXES.map(ax => ({ axis: ax.label, value: 0, desc: ax.desc }));
 
   return (
     <div className="bg-[#111e36] border border-white/10 rounded-xl flex flex-col overflow-hidden">

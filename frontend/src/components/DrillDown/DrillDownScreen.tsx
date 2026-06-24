@@ -130,6 +130,7 @@ export function DrillDownScreen({ brandId, brandName, entry }: Props) {
           />
         ) : (
           <MentionsList
+            key={JSON.stringify(current.filters)}
             brandId={brandId}
             brandName={brandName}
             initialTopic={current.filters.topic ?? ""}

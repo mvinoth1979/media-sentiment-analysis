@@ -56,7 +56,7 @@ export function MorningBrief({ brandId, days }: Props) {
   if (isError || !data) return null;
 
   return (
-    <div className="bg-[#1a2744] border border-white/10 rounded-xl px-4 py-3 flex items-start gap-4 flex-none">
+    <div className="bg-[#1a2744] border border-white/10 rounded-xl px-4 py-3 flex items-center gap-4 flex-none">
       {/* Left: greeting + highlights */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">

@@ -102,7 +102,8 @@ export default function ViralityAlertsPanel({ brandId, days = 7 }: Props) {
           <div className="flex flex-col items-center justify-center h-full gap-1.5 text-center py-4">
             <span className="text-2xl opacity-20">📈</span>
             <span className="text-[10px] text-white/25">No viral activity detected</span>
-            <span className="text-[9px] text-white/15">in the last {days} days</span>
+            <span className="text-[9px] text-white/15">YouTube videos monitored for view/comment spikes</span>
+            <span className="text-[9px] text-white/10 mt-1">Enable YouTube channel tracking in Settings to activate</span>
           </div>
         )}
         {flags.map(flag => (

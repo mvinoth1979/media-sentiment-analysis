@@ -325,6 +325,20 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
   const mentionsRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const screen5Ref = useRef<HTMLDivElement>(null);
+  const screen8Ref = useRef<HTMLDivElement>(null);
+
+  function scrollToGeo() {
+    if (screen8Ref.current && containerRef.current) {
+      containerRef.current.scrollTo({ top: screen8Ref.current.offsetTop, behavior: "smooth" });
+    }
+  }
+
+  // Listen for sidebar Geo Intel nav click
+  useEffect(() => {
+    const handler = () => scrollToGeo();
+    window.addEventListener("brandpulse:scroll-geo", handler);
+    return () => window.removeEventListener("brandpulse:scroll-geo", handler);
+  }, []);
 
   function openDrillDown(widgetTitle: string, filters: DrillFilters) {
     setDrillEntry({ widgetTitle, filters });
@@ -534,6 +548,13 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
               State Map
             </button>
             <button
+              onClick={scrollToGeo}
+              className="text-[10px] text-white/40 hover:text-white/70 border border-white/15 rounded px-2 py-0.5 hover:border-white/30 transition-colors"
+              title="Scroll to Geo Intelligence screen"
+            >
+              🗺 Geo Intel
+            </button>
+            <button
               onClick={() => setCopilotOpen(o => !o)}
               className="text-[10px] flex items-center gap-1.5 text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50 rounded px-2 py-0.5 transition-colors"
               title="AI Co-Pilot panel"
@@ -640,7 +661,11 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
         <div className="grid grid-cols-12 gap-2 flex-1 min-h-0">
           <div className="col-span-7 min-h-0 flex flex-col gap-2">
             <div className="flex-1 min-h-0">
-              <AIExecutiveSummary brandId={brandId} queryParams={queryParams} />
+              <AIExecutiveSummary
+                brandId={brandId}
+                queryParams={queryParams}
+                onViewInsights={() => setActivePanel("sentiment-trend")}
+              />
             </div>
           </div>
           <div className="col-span-5 min-h-0 flex flex-col gap-2">
@@ -704,13 +729,19 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
             />
           </div>
           <div className="min-h-0 flex flex-col gap-2">
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 relative">
               <IndiaStateMap
                 variant="regions"
                 data={data.state_breakdown}
                 onStateClick={(state) => openDrillDown(`State: ${state}`, { state })}
                 onExplain={(zone) => openDrillDown(`${zone} Region Sentiment`, { state: zone })}
               />
+              <button
+                onClick={scrollToGeo}
+                className="absolute bottom-1 right-1 text-[8px] text-blue-400/60 hover:text-blue-400 border border-blue-500/15 hover:border-blue-400/30 rounded px-1.5 py-0.5 bg-[#0d1626]/80 transition-colors"
+              >
+                Full Geo Intel →
+              </button>
             </div>
             <div className="flex-none">
               <AIRegionalSummary
@@ -777,6 +808,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
                 brandId={brandId}
                 days={days}
                 topTopics={data.top_topics}
+                onTopicDrill={(topic) => openDrillDown(`Topic: ${topic}`, { topic })}
               />
             </div>
             <div className="flex-[2] min-h-0">
@@ -811,7 +843,7 @@ export function Overview({ brandId, brandName, isAdmin, userEmail, onLastUpdated
       </div>
 
       {/* ══════════════════ SCREEN 8 — Geo Intelligence ══════════════════════ */}
-      <div className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
+      <div ref={screen8Ref} className="h-full snap-start overflow-hidden flex flex-col bg-[#0d1626] p-2.5 gap-2 shrink-0">
         <div className="flex items-center gap-3 flex-none">
           <h2 className="text-sm font-semibold text-white">Geo Intelligence</h2>
           <span className="text-[10px] text-white/30">— state-level sentiment distribution</span>
