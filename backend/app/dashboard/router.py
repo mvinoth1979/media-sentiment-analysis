@@ -2355,6 +2355,7 @@ def generate_content(
     content = ""
     confidence_pct = 60
 
+    # --- Gemini attempts ---
     try:
         from google import genai as _genai
         _GEN_ATTEMPTS = [
@@ -2363,7 +2364,7 @@ def generate_content(
             (settings.gemini_free_api_key, "gemini-1.5-flash"),
         ]
         for _key, _model in _GEN_ATTEMPTS:
-            if not _key:
+            if not _key or content:
                 continue
             try:
                 _resp = _genai.Client(api_key=_key, http_options={"timeout": 20}).models.generate_content(
@@ -2373,11 +2374,32 @@ def generate_content(
                 if _text:
                     content = _text
                     confidence_pct = 82
-                    break
             except Exception:
                 continue
     except Exception:
         pass
+
+    # --- Groq fallback when Gemini quota exhausted ---
+    if not content:
+        _groq_keys = [k for k in [settings.groq_api_key_2, settings.groq_api_key] if k]
+        for _gkey in _groq_keys:
+            if content:
+                break
+            try:
+                from groq import Groq as _Groq
+                _gr = _Groq(api_key=_gkey)
+                _gr_resp = _gr.chat.completions.create(
+                    model="llama-3.1-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=600,
+                    timeout=25,
+                )
+                _text = (_gr_resp.choices[0].message.content or "").strip()
+                if _text:
+                    content = _text
+                    confidence_pct = 72
+            except Exception as _ge:
+                log.debug("Generate Groq fallback error: %s", str(_ge)[:120])
 
     if not content:
         content = f"[AI generation unavailable. Topic: {req.topic}. Please try again.]"
@@ -2994,8 +3016,11 @@ def get_story_feed(
     portal_ids = list({a.get("portal_id", "") for a in articles if a.get("portal_id")})
     portal_name_map: dict[str, str] = {}
     if portal_ids:
-        rows = db.table("portals").select("id,name").in_("id", portal_ids).execute().data or []
-        portal_name_map = {r["id"]: r["name"] for r in rows}
+        try:
+            from app.ingestion.portals import PORTALS as _PORTAL_LIST
+            portal_name_map = {p["id"]: p["name"] for p in _PORTAL_LIST if p["id"] in portal_ids}
+        except Exception:
+            portal_name_map = {}
 
     # Compute impact scores
     reaches = [float(a.get("reach_score") or 0) for a in articles]
@@ -3108,12 +3133,14 @@ def _build_chat_context(brand_id: str, days: int) -> dict:
     top_issues = ", ".join(c.replace("_", " ") for c, _ in issue_counter.most_common(4)) or "general coverage"
 
     portal_counter: Counter = Counter(a.get("portal_id", "") for a in articles)
-    db2 = get_db()
     portal_ids = [pid for pid, _ in portal_counter.most_common(5) if pid]
     portal_names_map: dict[str, str] = {}
     if portal_ids:
-        rows = db2.table("portals").select("id,name").in_("id", portal_ids).execute().data or []
-        portal_names_map = {r["id"]: r["name"] for r in rows}
+        try:
+            from app.ingestion.portals import PORTALS as _PORTAL_LIST
+            portal_names_map = {p["id"]: p["name"] for p in _PORTAL_LIST if p["id"] in portal_ids}
+        except Exception:
+            portal_names_map = {}
     top_sources = ", ".join(
         portal_names_map.get(pid, pid) for pid, _ in portal_counter.most_common(3) if pid
     ) or "various sources"
@@ -3132,38 +3159,57 @@ def _build_chat_context(brand_id: str, days: int) -> dict:
 
 
 def _stream_chat(prompt: str, context_messages: list[ChatMessage]) -> object:
-    from google import genai as _genai
-    from app.nlp.gemini_handler import _strip_fences
-
-    attempts = [
-        (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
-        (settings.gemini_free_api_key, "gemini-2.0-flash"),
-        (settings.gemini_free_api_key, "gemini-1.5-flash"),
-    ]
+    import json as _js
 
     full_text = None
-    for api_key, model in attempts:
-        if not api_key:
-            continue
-        try:
-            client = _genai.Client(api_key=api_key, http_options={"timeout": 30})
-            # Build conversation contents (system + history + new message)
-            contents = [prompt]
-            response = client.models.generate_content(model=model, contents=contents)
-            full_text = response.text.strip()
-            break
-        except Exception as e:
-            err = str(e)
-            if any(k in err for k in ("RESOURCE_EXHAUSTED", "429", "404")):
+
+    # --- Gemini attempts (always continue on any exception to try next key) ---
+    try:
+        from google import genai as _genai
+        _gem_attempts = [
+            (settings.gemini_api_key, settings.gemini_model or "gemini-2.5-flash"),
+            (settings.gemini_free_api_key, "gemini-2.0-flash"),
+            (settings.gemini_free_api_key, "gemini-1.5-flash"),
+        ]
+        for api_key, model in _gem_attempts:
+            if not api_key or full_text:
                 continue
-            log.warning("Chat LLM error (%s): %s", model, err[:120])
-            break
+            try:
+                client = _genai.Client(api_key=api_key, http_options={"timeout": 30})
+                response = client.models.generate_content(model=model, contents=[prompt])
+                _t = (response.text or "").strip()
+                if _t:
+                    full_text = _t
+            except Exception as e:
+                log.debug("Chat Gemini error (%s): %s", model, str(e)[:120])
+    except Exception:
+        pass
+
+    # --- Groq fallback (uses key 2 first to save key 1 for NLP pipeline) ---
+    if not full_text:
+        _groq_keys = [k for k in [settings.groq_api_key_2, settings.groq_api_key] if k]
+        for _gkey in _groq_keys:
+            if full_text:
+                break
+            try:
+                from groq import Groq as _Groq
+                _gr = _Groq(api_key=_gkey)
+                _gr_resp = _gr.chat.completions.create(
+                    model="llama-3.1-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=350,
+                    timeout=20,
+                )
+                _t = (_gr_resp.choices[0].message.content or "").strip()
+                if _t:
+                    full_text = _t
+            except Exception as e:
+                log.debug("Chat Groq fallback error: %s", str(e)[:120])
 
     if not full_text:
-        full_text = "I couldn't generate a response right now. Please try again in a moment."
+        full_text = "I'm unable to generate a response right now — AI quota is temporarily exhausted. Please try again in a few minutes."
 
     # Word-by-word SSE simulation
-    import json as _js
     words = full_text.split()
     for word in words:
         yield f'data: {_js.dumps({"token": word + " ", "done": False})}\n\n'
